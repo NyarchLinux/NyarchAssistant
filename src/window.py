@@ -1406,7 +1406,7 @@ class MainWindow(Gtk.ApplicationWindow):
             self.streamed_message = ""
             self.curr_label = ""
             GLib.idle_add(self.create_streaming_message_label)
-            self.streaming_lable = None
+            self.streaming_label = None
             message_label = self.model.send_message_stream(self, self.chat[-1]["Message"], self.update_message)
             try:
                 self.streaming_box.get_parent().set_visible(False)
