@@ -11,19 +11,19 @@
 	<summary>Your AI-Powered System Assistant</summary>
 	<screenshots>
 		<screenshot type="default">
-			<image>https://raw.githubusercontent.com/qwersyk/nyarchassistant/master/data/screenshots/screenshot1.png</image>
+			<image>https://raw.githubusercontent.com/nyarchlinux/nyarchassistant/master/data/screenshots/screenshot1.png</image>
 			<caption>Chat page 1</caption>
 		</screenshot>
 		<screenshot>
-			<image>https://raw.githubusercontent.com/qwersyk/nyarchassistant/master/data/screenshots/screenshot2.png</image>
+			<image>https://raw.githubusercontent.com/nyarchlinux/nyarchassistant/master/data/screenshots/screenshot2.png</image>
 			<caption>Chat page 2</caption>
 		</screenshot>
  		<screenshot>
-			<image>https://raw.githubusercontent.com/qwersyk/nyarchassistant/master/data/screenshots/screenshot3.png</image>
+			<image>https://raw.githubusercontent.com/nyarchlinux/nyarchassistant/master/data/screenshots/screenshot3.png</image>
 			<caption>Chat page 3</caption>
 		</screenshot>
   		<screenshot>
-			<image>https://raw.githubusercontent.com/qwersyk/nyarchassistant/master/data/screenshots/screenshot4.png</image>
+			<image>https://raw.githubusercontent.com/nyarchlinux/nyarchassistant/master/data/screenshots/screenshot4.png</image>
 			<caption>Chat page 4</caption>
 		</screenshot>
 	</screenshots>
@@ -31,71 +31,71 @@
     <color type="primary" scheme_preference="light">#99c1f1</color>
     <color type="primary" scheme_preference="dark">#003d81</color>
   </branding>
-	<url type="homepage">https://github.com/qwersyk/nyarchassistant</url>
-	<url type="bugtracker">https://github.com/qwersyk/nyarchassistant/issues</url>
+	<url type="homepage">https://github.com/nyarchlinux/nyarchassistant</url>
+	<url type="bugtracker">https://github.com/nyarchlinux/nyarchassistant/issues</url>
 	<content_rating type="oars-1.0" />
 	<releases>
 	    <release version="0.4.1" date="2024-11-16">
             <description>
-                <p>Updated the g4f library with versioning, added user guides, improved extension browsing, and enhanced model handling.</p>
+                Updated the g4f library with versioning, added user guides, improved extension browsing, and enhanced model handling.
             </description>
         </release>
 	    <release version="0.4.0" date="2024-11-02">
             <description>
-                <p>Bug fixes and new features have been implemented. We've modified the extension architecture, added new models, and introduced vision support, along with more capabilities.</p>
+                Bug fixes and new features have been implemented. We've modified the extension architecture, added new models, and introduced vision support, along with more capabilities.
             </description>
         </release>
 	    <release version="0.3.1" date="2024-09-28">
             <description>
-                <p>Bug fixes</p>
+                Bug fixes
             </description>
         </release>
 	    <release version="0.3" date="2024-08-28">
             <description>
-                <p>Bug fixes</p>
+                Bug fixes
             </description>
         </release>
  		<release version="0.2.2" date="2024-08-06">
 			<description>
-				<p>Bug fixes</p>
+				Bug fixes
 			</description>
 		</release>
  		 <release version="0.2.1" date="2024-08-03">
 			<description>
-				<p>Bug fixes</p>
+				Bug fixes
 			</description>
 		</release>
  		<release version="0.2.0" date="2024-08-03">
 			<description>
-				<p>Bug fixes</p>
+				Bug fixes
 			</description>
 		</release>
 		<release version="0.1.7" date="2023-07-11">
 			<description>
-				<p>Stable version</p>
+				Stable version
 			</description>
 		</release>
 		<release version="0.1.6" date="2023-07-08">
 			<description>
-				<p>Added extension</p>
+				Added extension
 			</description>
 		</release>
 		<release version="0.1.5" date="2023-07-04">
 			<description>
-				<p>Blacklist of commands</p>
+				Blacklist of commands
 			</description>
 		</release>
 		<release version="0.1.4" date="2023-06-30">
 			<description>
-				<p>Localization</p>
+				Localization
 			</description>
 		</release>
 		<release version="0.1.3" date="2023-06-25">
 			<description>
-				<p>Redesign</p>
+				Redesign
 			</description>
 		</release>
 	</releases>
-	<developer_name>Qwersyk</developer_name>
-	<update_contact>qsk@gmx.at</update_contact>
+	<developer_name>NyarchLinux</developer_name>
+	<update_contact>https://nyarchlinux.moe/#contact</update_contact>
 </component>
