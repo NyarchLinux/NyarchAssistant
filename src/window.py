@@ -11,7 +11,7 @@ from .gtkobj import File, CopyBox, BarChartBox, MultilineEntry, apply_css_to_wid
 from .constants import AVAILABLE_LLMS, AVAILABLE_SMART_PROMPTS, AVAILABLE_TRANSLATORS, EXTRA_PROMPTS, PROMPTS, AVAILABLE_TTS, AVAILABLE_STT, AVAILABLE_AVATARS, AVAILABLE_PROMPTS
 from gi.repository import Gtk, Adw, Pango, Gio, Gdk, GObject, GLib, GdkPixbuf
 from .stt import AudioRecorder
-from .extra import ReplaceHelper, get_spawn_command, is_flatpak, markwon_to_pango, override_prompts, replace_variables, remove_markdown
+from .extra import ReplaceHelper, get_spawn_command, is_flatpak, markwon_to_pango, override_prompts, replace_variables, remove_markdown, install_module
 import threading
 import posixpath
 import shlex,json, base64
@@ -24,6 +24,9 @@ if is_flatpak():
     BASE_PATH = "/app/data"
 else:
     BASE_PATH = "/usr/share/nyarchassistant/data"
+LIVE2D_VERSION = 0.2
+
+
 class MainWindow(Gtk.ApplicationWindow):
     def __init__(self, *args, **kwargs):
         self.first_load = True
@@ -350,6 +353,9 @@ class MainWindow(Gtk.ApplicationWindow):
         GLib.idle_add(self.show_chat)
         if not self.settings.get_boolean("welcome-screen-shown"):
             self.first_start()
+        else:
+            threading.Thread(target=self.check_version).start()
+
         self.first_load = False
         self.load_avatar()
 
@@ -357,13 +363,23 @@ class MainWindow(Gtk.ApplicationWindow):
         GLib.idle_add(self.show_presentation_window)
         threading.Thread(target=self.install_live2d).start()
 
+    def check_version(self):
+        try:
+            live2d_version = open(os.path.join(self.directory, "avatars/live2d/web/VERSION"), "r").read()
+            live2d_version = float(live2d_version)
+        except Exception as e:
+            live2d_version = 0.1
+        if live2d_version < LIVE2D_VERSION:
+            print("Updating live2d...")
+            self.install_live2d()
+
     def install_live2d(self):
         try:
             os.makedirs(os.path.join(self.directory, "avatars/live2d"), exist_ok=True)
             os.makedirs(os.path.expanduser("~/.cache/wordllama/tokenizers"), exist_ok=True)
         except Exception as e:
             print(e)
-        subprocess.run(['cp', '-a', os.path.join(BASE_PATH, 'live2d/web/build'), os.path.join(self.directory, "avatars/live2d/web")])
+        subprocess.run(['cp', '-r', os.path.join(BASE_PATH, 'live2d/web/build'), os.path.join(self.directory, "avatars/live2d/web")])
 
     def init_pip_path(self, path):
         install_module("pip-install-test", self.pip_directory)

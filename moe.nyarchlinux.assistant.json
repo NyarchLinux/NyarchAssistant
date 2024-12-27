@@ -47,6 +47,7 @@
       "modules/live2d.json",
       "modules/python3-scikit-learn.json",
       "modules/smart-prompts.json",
+
       {
             "name" : "nyarchassistant",
             "builddir" : true,
