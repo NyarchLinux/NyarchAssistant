@@ -4,7 +4,7 @@ import os
 
 from ..utility.system import get_spawn_command
 
-from ..constants import AVAILABLE_LLMS, AVAILABLE_PROMPTS, AVAILABLE_STT, AVAILABLE_TTS, PROMPTS
+from ..constants import AVAILABLE_AVATARS, AVAILABLE_LLMS, AVAILABLE_PROMPTS, AVAILABLE_SMART_PROMPTS, AVAILABLE_STT, AVAILABLE_TRANSLATORS, AVAILABLE_TTS, PROMPTS
 from .settings import Settings
 from ..extensions import ExtensionLoader
 from gi.repository import Gtk, Adw, Gio, GLib
@@ -13,14 +13,14 @@ from gi.repository import Gtk, Adw, Gio, GLib
 class Extension(Gtk.Window):
     def __init__(self,app):
         Gtk.Window.__init__(self, title=_("Extensions"))
-        self.settings = Gio.Settings.new('io.github.qwersyk.Newelle')
+        self.settings = Gio.Settings.new('moe.nyarchlinux.assistant')
 
         self.directory = GLib.get_user_config_dir()
         self.path = os.path.join(self.directory, "extensions")
         self.pip_directory = os.path.join(self.directory, "pip")
         self.extension_path = os.path.join(self.directory, "extensions")
         self.extensions_cache = os.path.join(self.directory, "extensions_cache")
-                
+               
         self.app = app
         self.set_default_size(500, 500)
         self.set_transient_for(app.win)
@@ -39,6 +39,7 @@ class Extension(Gtk.Window):
         self.extensionloader = ExtensionLoader(self.extension_path, pip_path=self.pip_directory, extension_cache=self.extensions_cache, settings=self.settings)
         self.extensionloader.load_extensions()
     
+        print("ae")
         settings = Settings(self.app, headless=True)
 
         self.main = Gtk.Box(margin_top=10,margin_start=10,margin_bottom=10,margin_end=10,valign=Gtk.Align.FILL,halign=Gtk.Align.CENTER,orientation=Gtk.Orientation.VERTICAL)
@@ -95,7 +96,7 @@ class Extension(Gtk.Window):
             self.extensionloader.enable(name)
         else:
             self.extensionloader.disable(name)
-            self.extensionloader.remove_handlers(self.extensionloader.get_extension_by_id(name), AVAILABLE_LLMS, AVAILABLE_TTS, AVAILABLE_STT)
+            self.extensionloader.remove_handlers(self.extensionloader.get_extension_by_id(name), AVAILABLE_LLMS, AVAILABLE_TTS, AVAILABLE_STT, AVAILABLE_AVATARS,AVAILABLE_TRANSLATORS, AVAILABLE_SMART_PROMPTS)
             self.extensionloader.remove_prompts(self.extensionloader.get_extension_by_id(name), PROMPTS, AVAILABLE_PROMPTS)
     def delete_extension(self,widget):
         self.extensionloader.remove_extension(widget.get_name())

@@ -14,7 +14,15 @@ from ..handlers import Handler
 from ..handlers.stt import STTHandler
 from ..handlers.tts import TTSHandler
 from ..constants import AVAILABLE_LLMS, AVAILABLE_PROMPTS, AVAILABLE_TTS, AVAILABLE_STT, PROMPTS
+
 from ..handlers.llm import LLMHandler
+from ..constants import AVAILABLE_AVATARS, AVAILABLE_TRANSLATORS, AVAILABLE_SMART_PROMPTS
+
+# Nyarch specific 
+from ..handlers.avatar import AvatarHandler
+from ..handlers.smart_prompt import SmartPromptHandler
+from ..handlers.translator import TranslatorHandler
+
 from .widgets import ComboRowHelper, CopyBox 
 from .widgets import MultilineEntry
 from ..utility import override_prompts
@@ -25,11 +33,13 @@ from ..extensions import ExtensionLoader, NewelleExtension
 class Settings(Adw.PreferencesWindow):
     def __init__(self,app,headless=False, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.settings = Gio.Settings.new('io.github.qwersyk.Newelle')
+        self.sandbox = can_escape_sandbox()
+        self.settings = Gio.Settings.new('moe.nyarchlinux.assistant')
         if not headless:
             self.set_transient_for(app.win)
         self.set_modal(True)
         self.downloading = {}
+        self.model_threads = {}
         self.slider_labels = {}
         self.directory = GLib.get_user_config_dir()
         self.extension_path = os.path.join(self.directory, "extensions")
@@ -38,9 +48,9 @@ class Settings(Adw.PreferencesWindow):
         # Load extensions 
         self.extensionloader = ExtensionLoader(self.extension_path, pip_path=self.pip_directory,extension_cache=self.extensions_cache, settings=self.settings)
         self.extensionloader.load_extensions()
-        self.extensionloader.add_handlers(AVAILABLE_LLMS, AVAILABLE_TTS, AVAILABLE_STT)
+        self.extensionloader.add_handlers(AVAILABLE_LLMS, AVAILABLE_TTS, AVAILABLE_STT, AVAILABLE_AVATARS, AVAILABLE_TRANSLATORS, AVAILABLE_SMART_PROMPTS)
         self.extensionloader.add_prompts(PROMPTS, AVAILABLE_PROMPTS)
-        self.model_threads = {}
+
         # Load custom prompts
         self.custom_prompts = json.loads(self.settings.get_string("custom-prompts"))
         self.prompts_settings = json.loads(self.settings.get_string("prompts-settings"))
@@ -48,6 +58,7 @@ class Settings(Adw.PreferencesWindow):
         self.sandbox = can_escape_sandbox()
         
         self.cache_handlers()
+        
         # Page building
         self.general_page = Adw.PreferencesPage()
        
@@ -60,21 +71,22 @@ class Settings(Adw.PreferencesWindow):
         help = Gtk.Button(css_classes=["flat"], icon_name="info-outline-symbolic")
         help.connect("clicked", lambda button : Popen(get_spawn_command() + ["xdg-open", "https://github.com/qwersyk/Newelle/wiki/User-guide-to-the-available-LLMs"]))
         self.LLM.set_header_suffix(help)
+        
         # Add LLMs
         self.general_page.add(self.LLM)
         self.llmbuttons = []
         group = Gtk.CheckButton()
         selected = self.settings.get_string("language-model")
         others_row = Adw.ExpanderRow(title=_('Other LLMs'), subtitle=_("Other available LLM providers"))
-        for model_key in AVAILABLE_LLMS:
+        for model_key in AVAILABLE_LLMS: 
+           # Time enlapse calculation
            row = self.build_row(AVAILABLE_LLMS, model_key, selected, group)
            if "secondary" in AVAILABLE_LLMS[model_key] and AVAILABLE_LLMS[model_key]["secondary"]:
                others_row.add_row(row)
            else:
                 self.LLM.add(row)
         self.LLM.add(others_row)
-
-        
+ 
         # Build the TTS settings
         self.Voicegroup = Adw.PreferencesGroup(title=_('Voice'))
         self.general_page.add(self.Voicegroup)
@@ -88,6 +100,18 @@ class Settings(Adw.PreferencesWindow):
         for tts_key in AVAILABLE_TTS:
            row = self.build_row(AVAILABLE_TTS, tts_key, selected, group) 
            tts_program.add_row(row)
+        # Build the Translators settings
+        group = Gtk.CheckButton()
+        selected = self.settings.get_string("translator")
+        tts_enabled = Gtk.Switch(valign=Gtk.Align.CENTER)
+        self.settings.bind("translator-on", tts_enabled, 'active', Gio.SettingsBindFlags.DEFAULT)
+        translator_program = Adw.ExpanderRow(title=_('Translator program'), subtitle=_("Translate the output of the LLM before passing it to the TTS Program"))
+        translator_program.add_action(tts_enabled)
+        for translator_key in AVAILABLE_TRANSLATORS:
+            row = self.build_row(AVAILABLE_TRANSLATORS, translator_key, selected, group)
+            translator_program.add_row(row)
+        self.Voicegroup.add(translator_program)
+        
         # Build the Speech to Text settings
         stt_engine = Adw.ExpanderRow(title=_('Speech To Text Engine'), subtitle=_("Choose which speech recognition engine you want"))
         self.Voicegroup.add(stt_engine)
@@ -100,6 +124,34 @@ class Settings(Adw.PreferencesWindow):
         self.auto_stt = Adw.ExpanderRow(title=_('Automatic Speech To Text'), subtitle=_("Automatically restart speech to text at the end of a text/TTS"))
         self.build_auto_stt()
         self.Voicegroup.add(self.auto_stt)
+        
+        # Build the AVATAR settings
+        self.avatargroup = Adw.PreferencesGroup(title=_('Avatar'))
+        self.general_page.add(self.avatargroup)
+        avatar_enabled = Gtk.Switch(valign=Gtk.Align.CENTER)
+        self.settings.bind("avatar-on", avatar_enabled, 'active', Gio.SettingsBindFlags.DEFAULT)
+        avatar = Adw.ExpanderRow(title=_('Avatar model'), subtitle=_("Choose which avatar model to choose"))
+        avatar.add_action(avatar_enabled)
+        self.avatargroup.add(avatar)
+        group = Gtk.CheckButton()
+        selected = self.settings.get_string("avatar-model")
+        for avatar_key in AVAILABLE_AVATARS:
+           row = self.build_row(AVAILABLE_AVATARS, avatar_key, selected, group) 
+           avatar.add_row(row) 
+        # Build the Smart Prompt settings
+        self.smartpromptgroup = Adw.PreferencesGroup(title=_('Smart Prompt'))
+        self.general_page.add(self.smartpromptgroup)
+        smart_prompt_enabled = Gtk.Switch(valign=Gtk.Align.CENTER)
+        self.settings.bind("smart-prompt-on", smart_prompt_enabled, 'active', Gio.SettingsBindFlags.DEFAULT)
+        smartprompt = Adw.ExpanderRow(title=_('Smart Prompt selector'), subtitle=_("Choose which smart prompt model to choose"))
+        smartprompt.add_action(smart_prompt_enabled)
+        self.smartpromptgroup.add(smartprompt)
+        group = Gtk.CheckButton()
+        selected = self.settings.get_string("smart-prompt")
+        for smart_prompt_key in AVAILABLE_SMART_PROMPTS:
+           row = self.build_row(AVAILABLE_SMART_PROMPTS, smart_prompt_key, selected, group) 
+           smartprompt.add_row(row)
+        
         # Prompts settings
         self.prompt = Adw.PreferencesGroup(title=_('Prompt control'))
         self.general_page.add(self.prompt)
@@ -277,7 +329,8 @@ class Settings(Adw.PreferencesWindow):
         # Add extra buttons 
         threading.Thread(target=self.add_download_button, args=(handler, row)).start()
         self.add_flatpak_waning_button(handler, row)
-        
+        if "website" in model:
+            row.add_suffix(self.create_web_button(model["website"]))
         # Add check button
         button = Gtk.CheckButton(name=key, group=group, active=active)
         button.connect("toggled", self.choose_row, constants)
@@ -286,9 +339,6 @@ class Settings(Adw.PreferencesWindow):
             button.set_sensitive(False)
         row.add_prefix(button)
 
-        if "website" in model:
-            wbbutton = self.create_web_button(model["website"])
-            row.add_suffix(wbbutton)
         return row
 
     def cache_handlers(self):
@@ -299,8 +349,15 @@ class Settings(Adw.PreferencesWindow):
             self.handlers[(key, self.convert_constants(AVAILABLE_STT))] = self.get_object(AVAILABLE_STT, key)
         for key in AVAILABLE_LLMS:
             self.handlers[(key, self.convert_constants(AVAILABLE_LLMS))] = self.get_object(AVAILABLE_LLMS, key)
+        for key in AVAILABLE_AVATARS:
+            self.handlers[(key, self.convert_constants(AVAILABLE_AVATARS))] = self.get_object(AVAILABLE_AVATARS, key)
+        for key in AVAILABLE_TRANSLATORS:
+            self.handlers[(key, self.convert_constants(AVAILABLE_TRANSLATORS))] = self.get_object(AVAILABLE_TRANSLATORS, key)
+        for key in AVAILABLE_SMART_PROMPTS:
+            self.handlers[(key, self.convert_constants(AVAILABLE_SMART_PROMPTS))] = self.get_object(AVAILABLE_SMART_PROMPTS, key)
 
     def get_object(self, constants: dict[str, Any], key:str) -> (Handler):
+
         """Get an handler instance for the specified handler key
 
         Args:
@@ -322,6 +379,12 @@ class Settings(Adw.PreferencesWindow):
             model = constants[key]["class"](self.settings,os.path.join(self.directory, "models"))
         elif constants == AVAILABLE_TTS:
             model = constants[key]["class"](self.settings, os.path.join(self.directory, "models"))
+        elif constants == AVAILABLE_AVATARS:
+            model = constants[key]["class"](self.settings, self.directory)
+        elif constants == AVAILABLE_TRANSLATORS:
+            model = constants[key]["class"](self.settings, self.directory)
+        elif constants == AVAILABLE_SMART_PROMPTS:
+            model = constants[key]["class"](self.settings, self.directory)
         elif constants == self.extensionloader.extensionsmap:
             model = self.extensionloader.extensionsmap[key]
             if model is None:
@@ -351,6 +414,12 @@ class Settings(Adw.PreferencesWindow):
                     return AVAILABLE_STT
                 case "llm":
                     return AVAILABLE_LLMS
+                case "avatar":
+                    return AVAILABLE_AVATARS
+                case "translator":
+                    return AVAILABLE_TRANSLATORS
+                case "smart-prompt":
+                    return AVAILABLE_SMART_PROMPTS
                 case "extension":
                     return self.extensionloader.extensionsmap
                 case _:
@@ -362,6 +431,12 @@ class Settings(Adw.PreferencesWindow):
                 return "stt"
             elif constants == AVAILABLE_TTS:
                 return "tts"
+            elif constants == AVAILABLE_AVATARS:
+                return "avatar"
+            elif constants == AVAILABLE_TRANSLATORS:
+                return "translator"
+            elif constants == AVAILABLE_SMART_PROMPTS:
+                return "smart-prompt"
             elif constants == self.extensionloader.extensionsmap:
                 return "extension"
             else:
@@ -384,6 +459,12 @@ class Settings(Adw.PreferencesWindow):
             return AVAILABLE_STT
         elif issubclass(type(handler), LLMHandler):
             return AVAILABLE_LLMS
+        elif issubclass(type(handler), AvatarHandler):
+            return AVAILABLE_AVATARS
+        elif issubclass(type(handler), TranslatorHandler):
+            return AVAILABLE_TRANSLATORS
+        elif issubclass(type(handler), SmartPromptHandler):
+            return AVAILABLE_SMART_PROMPTS
         elif issubclass(type(handler), NewelleExtension):
             return self.extensionloader.extensionsmap
         else:
@@ -403,6 +484,12 @@ class Settings(Adw.PreferencesWindow):
             setting_name = "tts"
         elif constants == AVAILABLE_STT:
             setting_name = "stt-engine"
+        elif constants == AVAILABLE_AVATARS:
+            setting_name = "avatar-model"
+        elif constants == AVAILABLE_TRANSLATORS:
+            setting_name = "translator"
+        elif constants == AVAILABLE_SMART_PROMPTS:
+            setting_name = "smart-prompt"
         else:
             return
         self.settings.set_string(setting_name, button.get_name())
@@ -582,12 +669,12 @@ class Settings(Adw.PreferencesWindow):
         
 
     def on_setting_change(self, constants: dict[str, Any], handler: Handler, key: str, force_change : bool = False):
+
         
         if not force_change:
             setting_info = [info for info in handler.get_extra_settings_list() if info["key"] == key][0]
         else:
             setting_info = {}
-
         if force_change or "update_settings" in setting_info and setting_info["update_settings"]:
             # remove all the elements in the specified expander row 
             row = self.settingsrows[(handler.key, self.convert_constants(constants))]["row"]
@@ -595,6 +682,7 @@ class Settings(Adw.PreferencesWindow):
             for setting_row in setting_list:
                 row.remove(setting_row)
             self.add_extra_settings(constants, handler, row)
+
 
     def setting_change_entry(self, entry, constants, handler : Handler):
         """ Called when an entry handler setting is changed 
@@ -650,6 +738,7 @@ class Settings(Adw.PreferencesWindow):
         setting = helper.combo.get_name()
         handler.set_setting(setting, value)
         self.on_setting_change(constants, handler, setting)
+
 
     def add_download_button(self, handler : Handler, row : Adw.ActionRow | Adw.ExpanderRow): 
         """Add download button for an handler dependencies. If clicked it will call handler.install()
@@ -821,10 +910,10 @@ class Settings(Adw.PreferencesWindow):
 
         # Aggiungi il testo dell'errore
         dialog.set_body_use_markup(True)
-        dialog.set_body(_("Newelle does not have enough permissions to run commands on your system, please run the following command"))
+        dialog.set_body(_("Nyarch Assistant does not have enough permissions to run commands on your system, please run the following command"))
         dialog.add_response("close", _("Understood"))
         dialog.set_default_response("close")
-        dialog.set_extra_child(CopyBox("flatpak --user override --talk-name=org.freedesktop.Flatpak --filesystem=home io.github.qwersyk.Newelle", "bash", parent = self))
+        dialog.set_extra_child(CopyBox("flatpak --user override --talk-name=org.freedesktop.Flatpak --filesystem=home moe.nyarchlinux.assistant", "bash", parent = self))
         dialog.set_close_response("close")
         dialog.set_response_appearance("close", Adw.ResponseAppearance.DESTRUCTIVE)
         dialog.connect('response', lambda dialog, response_id: dialog.destroy())

@@ -5,6 +5,8 @@ import gi
 gi.require_version('Gtk', '4.0')
 gi.require_version('GtkSource', '5')
 gi.require_version('Adw', '1')
+gi.require_version("WebKit", "6.0")
+
 from gi.repository import Gtk, Adw, Gio, Gdk
 from .ui.settings import Settings
 from .window import MainWindow
@@ -18,7 +20,7 @@ class MyApp(Adw.Application):
     def __init__(self, version, **kwargs):
         self.version = version
         super().__init__(**kwargs)
-        self.settings = Gio.Settings.new("io.github.qwersyk.Newelle")
+        self.settings = Gio.Settings.new("moe.nyarchlinux.assistant")
         css = '''
         .code{
         background-color: rgb(38,38,38);
@@ -127,17 +129,17 @@ class MyApp(Adw.Application):
 
     def on_about_action(self, *a):
         Adw.AboutWindow(transient_for=self.props.active_window,
-                        application_name='Newelle',
-                        application_icon='io.github.qwersyk.Newelle',
+                        application_name='Nyarch Assistant',
+                        application_icon='moe.nyarchlinux.assistant',
                         developer_name='qwersyk',
                         version=self.version,
-                        issue_url='https://github.com/qwersyk/Newelle/issues',
-                        website='https://github.com/qwersyk/Newelle',
+                        issue_url='https://github.com/NyarchLinux/NyarchAssistant/issues',
+                        website='https://github.com/NyarchLinux/NyarchAssistant',
                         developers=['Yehor Hliebov  https://github.com/qwersyk',"Francesco Caracciolo https://github.com/FrancescoCaracciolo"],
                         documenters=["Francesco Caracciolo https://github.com/FrancescoCaracciolo"],
                         designers=["Nokse22 https://github.com/Nokse22"],
                         translator_credits="\n".join(["Amine Saoud (Arabic) https://github.com/amiensa","Heimen Stoffels (Dutch) https://github.com/Vistaus","Albano Battistella (Italian) https://github.com/albanobattistella"]),
-                        copyright='© 2024 qwersyk').present()
+                        copyright='© 2025 qwersyk & NyarchLinux').present()
 
     def thread_editing_action(self, *a):
         threadediting = ThreadEditing(self)
@@ -150,7 +152,7 @@ class MyApp(Adw.Application):
         self.settingswindow = settings
 
     def close_settings(self, *a):
-        settings = Gio.Settings.new('io.github.qwersyk.Newelle')
+        settings = Gio.Settings.new('moe.nyarchlinux.assistant')
         settings.set_int("chat", self.win.chat_id)
         settings.set_string("path", os.path.normpath(self.win.main_path))
         self.win.update_settings()
@@ -160,7 +162,7 @@ class MyApp(Adw.Application):
     def extension_action(self, *a):
         extension = Extension(self)
         def close(win):
-            settings = Gio.Settings.new('io.github.qwersyk.Newelle')
+            settings = Gio.Settings.new('moe.nyarchlinux.assistant')
             settings.set_int("chat", self.win.chat_id)
             settings.set_string("path", os.path.normpath(self.win.main_path))
             self.win.update_settings()
@@ -173,6 +175,8 @@ class MyApp(Adw.Application):
         if hasattr(self,"mini_win"):
             self.mini_win.close()
         if all(element.poll() is not None for element in self.win.streams):
+            if self.win.avatar_handler is not None:
+                self.win.avatar_handler.destroy()
             return False
         else:
             dialog = Adw.MessageDialog(
@@ -194,6 +198,8 @@ class MyApp(Adw.Application):
         if status=="close":
             for i in self.win.streams:
                 i.terminate()
+            if self.win.avatar is not None:
+                self.win.avatar_handler.destroy()
             self.win.destroy()
     
     def on_activate(self, app):
@@ -236,15 +242,16 @@ class MyApp(Adw.Application):
     
     def do_shutdown(self):
         self.win.save_chat()
-        settings = Gio.Settings.new('io.github.qwersyk.Newelle')
+        settings = Gio.Settings.new('moe.nyarchlinux.assistant')
         settings.set_int("chat", self.win.chat_id)
         settings.set_string("path", os.path.normpath(self.win.main_path))
         self.win.stream_number_variable += 1
         Gtk.Application.do_shutdown(self)
+        os._exit(1)
 
 
 def main(version):
-    app = MyApp(application_id="io.github.qwersyk.Newelle", version = version)
+    app = MyApp(application_id="moe.nyarchlinux.assistant", version = version)
     app.create_action('reload_chat', app.reload_chat, ['<primary>r'])
     app.create_action('reload_folder', app.reload_folder, ['<primary>e'])
     app.create_action('new_chat', app.new_chat, ['<primary>t'])

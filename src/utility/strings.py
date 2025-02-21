@@ -154,3 +154,49 @@ def get_edited_messages(history: list, old_history: list) -> list | None:
             edited_messages.append(i)
     return edited_messages
 
+def rgb_to_hex(r, g, b):
+    """
+    Convert RGB values from float to hex.
+
+    Args:
+        r (float): Red value between 0 and 1.
+        g (float): Green value between 0 and 1.
+        b (float): Blue value between 0 and 1.
+
+    Returns:
+        str: Hex representation of the RGB values.
+    """
+    return "#{:02x}{:02x}{:02x}".format(int(r * 255), int(g * 255), int(b * 255))
+
+
+def extract_expressions(text, expressions_list):
+    expressions = []
+    current_expression = None
+    current_text = ""
+
+    tokens = text.split()
+    i = 0
+    while i < len(tokens):
+        if tokens[i].startswith("(") and tokens[i].endswith(")"):
+            expression = tokens[i][1:-1]
+            if expression in expressions_list:
+                if current_text.strip():
+                    expressions.append({"expression": current_expression, "text": current_text.strip()})
+                    current_text = ""
+                current_expression = expression
+            else:
+                current_text += tokens[i] + " "
+        else:
+            if current_expression is None:
+                current_text += tokens[i] + " "
+            else:
+                current_text += tokens[i] + " "
+        i += 1
+
+    if current_text.strip():
+        if current_expression:
+            expressions.append({"expression": current_expression, "text": current_text.strip()})
+        else:
+            expressions.append({"expression": None, "text": current_text.strip()})
+
+    return expressions

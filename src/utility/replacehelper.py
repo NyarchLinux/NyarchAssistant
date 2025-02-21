@@ -5,7 +5,8 @@ from .system import get_spawn_command
 
 class ReplaceHelper:
     DISTRO = None
-
+    AVATAR_HANDLER = None
+    
     @staticmethod
     def get_distribution() -> str:
         """
@@ -30,6 +31,20 @@ class ReplaceHelper:
             desktop = "Unknown"
         return desktop
 
+    @staticmethod
+    def set_handler(handler):
+        ReplaceHelper.AVATAR_HANDLER = handler
+
+    @staticmethod
+    def get_expressions() -> str:
+        if ReplaceHelper.AVATAR_HANDLER is None:
+            return ""
+        result = ""
+        for expression in ReplaceHelper.AVATAR_HANDLER.get_expressions():
+            if expression is not None:
+                result += " (" + expression + ")"
+        return result
+
 
 def replace_variables(text: str) -> str:
     """
@@ -50,4 +65,6 @@ def replace_variables(text: str) -> str:
         text = text.replace("{DISTRO}", ReplaceHelper.get_distribution())
     if "{DE}" in text:
         text = text.replace("{DE}", ReplaceHelper.get_desktop_environment())
+    if "{EXPRESSIONS}" in text:
+        text = text.replace("{EXPRESSIONS}", ReplaceHelper.get_expressions())
     return text

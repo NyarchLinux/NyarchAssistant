@@ -59,14 +59,18 @@ class TTSHandler(Handler):
     def play_audio(self, message):
         """Play an audio from the given message"""
         # Generate random name
-        timestamp = str(int(time.time()))
-        random_part = str(os.urandom(8).hex())
-        file_name = f"{timestamp}_{random_part}.mp3"
+        file_name = self.get_tempname("wav")
         path = os.path.join(self.path, file_name)
         self.save_audio(message, path)
         self.playsound(path)
         os.remove(path)
-
+    
+    def get_tempname(self, extension: str) -> str:
+        timestamp = str(int(time.time()))
+        random_part = str(os.urandom(8).hex())
+        file_name = f"{timestamp}_{random_part}." + extension
+        return file_name
+    
     def connect(self, signal: str, callback: Callable):
         if signal == "start":
             self.on_start = callback

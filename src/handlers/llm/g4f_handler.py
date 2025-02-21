@@ -18,6 +18,7 @@ class G4FHandler(LLMHandler):
     
     def is_installed(self) -> bool:
         if find_module("g4f") is not None:
+           return False
            from g4f.version import utils       
            if utils.current_version != self.version:
                 print(f"Newelle requires g4f=={self.version}, found {utils.current_version}")
