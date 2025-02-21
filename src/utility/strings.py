@@ -136,24 +136,6 @@ def convert_think_codeblocks(text: str) -> str:
     """
     return text.replace("<think>", "```think").replace("</think>", "```")
 
-def get_edited_messages(history: list, old_history: list) -> list | None:
-    """Get the edited messages from the history
-
-    Args:
-        history (list): The history
-        prompts (list): The prompts
-
-    Returns:
-        list: The edited messages IDs, or None if there are removed messages
-    """
-    if len(history) != len(old_history):
-        return None
-    edited_messages = []
-    for i in range(len(history)):
-        if history[i] != old_history[i]:
-            edited_messages.append(i)
-    return edited_messages
-
 def rgb_to_hex(r, g, b):
     """
     Convert RGB values from float to hex.

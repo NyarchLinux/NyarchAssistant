@@ -12,11 +12,10 @@ import threading
 import posixpath
 import json 
 import base64
-import copy
 
 from gi.repository import Gtk, Adw, Pango, Gio, Gdk, GObject, GLib, GdkPixbuf
 
-from .ui.settings import Settings
+
 
 from .utility.message_chunk import get_message_chunks
 
@@ -31,7 +30,7 @@ from .constants import AVAILABLE_LLMS, AVAILABLE_PROMPTS, PROMPTS, AVAILABLE_TTS
 from .utility import override_prompts
 from .utility.system import get_spawn_command, is_flatpak 
 from .utility.pip import install_module
-from .utility.strings import markwon_to_pango, remove_markdown, convert_think_codeblocks, get_edited_messages
+from .utility.strings import markwon_to_pango, remove_markdown, convert_think_codeblocks
 from .utility.replacehelper import ReplaceHelper, replace_variables
 from .utility.profile_settings import get_settings_dict, restore_settings_from_dict
 from .utility.audio_recorder import AudioRecorder
@@ -398,7 +397,6 @@ class MainWindow(Gtk.ApplicationWindow):
         self.main.connect("notify::folded", self.handle_main_block_change)
         self.main_program_block.connect("notify::reveal-flap", self.handle_second_block_change)
 
-        self.chat_header.set_title_widget(self.build_model_popup())
         self.stream_number_variable = 0
         GLib.idle_add(self.update_folder)
         GLib.idle_add(self.update_history)
@@ -468,6 +466,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.auto_run = settings.get_boolean("auto-run")
         self.display_latex = settings.get_boolean("display-latex")
         self.chat = self.chats[min(self.chat_id, len(self.chats) - 1)]["chat"]
+        self.language_model = settings.get_string("language-model")
         self.tts_enabled = settings.get_boolean("tts-on")
         self.tts_program = settings.get_string("tts")
         self.tts_voice = settings.get_string("tts-voice")
@@ -491,23 +490,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.extensionloader.load_extensions()
         self.extensionloader.add_handlers(AVAILABLE_LLMS, AVAILABLE_TTS, AVAILABLE_STT, AVAILABLE_AVATARS, AVAILABLE_TRANSLATORS, AVAILABLE_SMART_PROMPTS)
         self.extensionloader.add_prompts(PROMPTS, AVAILABLE_PROMPTS)
-
-        # Load quick settings 
-        self.quick_settings_update()
-        
-        if os.path.exists(os.path.expanduser(self.main_path)):
-            os.chdir(os.path.expanduser(self.main_path))
-        else:
-            self.main_path = "~"
-        # Setup TTS
-        if self.tts_program in AVAILABLE_TTS:
-            self.tts = AVAILABLE_TTS[self.tts_program]["class"](self.settings, self.directory)
-            self.tts.connect('start', lambda: GLib.idle_add(self.mute_tts_button.set_visible, True))
-            self.tts.connect('stop', lambda: GLib.idle_add(self.mute_tts_button.set_visible, False))
-        
-    def quick_settings_update(self):  
-        """Update LLM and prompt settings"""
-        self.language_model = self.settings.get_string("language-model")
+        # Load custom prompts
         self.custom_prompts = json.loads(self.settings.get_string("custom-prompts"))
         self.prompts = override_prompts(self.custom_prompts, PROMPTS)
         self.prompts_settings = json.loads(self.settings.get_string("prompts-settings"))
@@ -517,9 +500,11 @@ class MainWindow(Gtk.ApplicationWindow):
         else:
             mod = list(AVAILABLE_LLMS.values())[0]
             self.model: LLMHandler = mod["class"](self.settings, os.path.join(self.directory))
+
         # Load handlers and models
         self.model.load_model(None)
         self.stt_handler = AVAILABLE_STT[self.stt_engine]["class"](self.settings, self.pip_directory)
+
         # Load prompts
         self.bot_prompts = []
         for prompt in AVAILABLE_PROMPTS:
@@ -530,9 +515,18 @@ class MainWindow(Gtk.ApplicationWindow):
                 is_active = prompt["default"]
             if is_active:
                 self.bot_prompts.append(self.prompts[prompt["key"]])
-        if hasattr(self, "model_popup"):
-            self.update_model_popup()
-    
+
+        if os.path.exists(os.path.expanduser(self.main_path)):
+            os.chdir(os.path.expanduser(self.main_path))
+        else:
+            self.main_path = "~"
+
+        # Setup TTS
+        if self.tts_program in AVAILABLE_TTS:
+            self.tts = AVAILABLE_TTS[self.tts_program]["class"](self.settings, self.directory)
+            self.tts.connect('start', lambda: GLib.idle_add(self.mute_tts_button.set_visible, True))
+            self.tts.connect('stop', lambda: GLib.idle_add(self.mute_tts_button.set_visible, False))
+        
         # Setup attach buttons to the model capabilities
         if not self.first_load:
             self.build_offers()
@@ -547,50 +541,11 @@ class MainWindow(Gtk.ApplicationWindow):
                     self.video_recorder.stop()
                     self.video_recorder = None
             self.screen_record_button.set_visible(self.model.supports_video_vision() and not self.attached_image_data)
+        
         if not self.first_load:
             self.load_avatar()
-            self.chat_header.set_title_widget(self.build_model_popup())
-    
-    # Model popup 
-    def update_model_popup(self):
-        """Update the label in the popup"""
-        model_name = AVAILABLE_LLMS[self.language_model]["title"]
-        if self.model.get_setting("model") is not None:
-            model_name = model_name + " - " + self.model.get_setting("model")
-        self.model_menu_button.set_child(Gtk.Label(label=model_name, ellipsize=Pango.EllipsizeMode.MIDDLE))
-
-    def build_model_popup(self):
-        self.model_menu_button = Gtk.MenuButton()
-        self.update_model_popup()
-        self.model_popup = Gtk.Popover()
-        self.model_popup.set_size_request(500, 500)
-        scroll = Gtk.ScrolledWindow()
-        scroll.set_vexpand(True)
-        scroll.set_hexpand(True)
-        settings = Settings(self, headless=True) 
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        stack = Adw.ViewStack()
-        stack.add_titled_with_icon(self.steal_from_settings(settings.LLM), title="LLM", name="LLM", icon_name="brain-augemnted-symbolic")
-        stack.add_titled_with_icon(self.steal_from_settings(settings.prompt), title="Prompts", name="Prompts", icon_name="question-round-outline-symbolic")
-        switcher = Adw.ViewSwitcher()
-        switcher.set_stack(stack)
-        scroll.set_child(stack) 
-        box.append(switcher)
-        box.append(scroll)
-        self.model_menu_button.set_popover(self.model_popup)
-        self.model_popup.connect("closed", lambda x: self.quick_settings_update())
-        self.model_popup.set_child(box)
-        return self.model_menu_button
-
-    def steal_from_settings(self, widget):
-        widget.unparent()
-        widget.set_margin_bottom(3)
-        widget.set_margin_end(3)
-        widget.set_margin_start(3)
-        widget.set_margin_top(3)
-        return widget
-        
     # Avatar handling 
+
     def load_avatar(self):
         if self.avatar_enabled:
             # If the avatar is enabled, check if it requires reloading
@@ -1417,7 +1372,7 @@ class MainWindow(Gtk.ApplicationWindow):
         self.stream_number_variable += 1
         self.chat_stop_button.set_visible(False)
         GLib.idle_add(self.update_button_text)
-        if len(self.chat) > 0 and (self.chat[-1]["User"] != "Assistant" or "```console" in self.chat[-1]["Message"]):
+        if self.chat[-1]["User"] != "Assistant" or "```console" in self.chat[-1]["Message"]:
             for i in range(len(self.chat) - 1, -1, -1):
                 if self.chat[i]["User"] in ["Assistant", "Console"]:
                     self.chat.pop(i)
@@ -1565,6 +1520,8 @@ class MainWindow(Gtk.ApplicationWindow):
         if not self.model.is_installed():
             print("Installing the model...")
             self.model.install()
+            self.update_settings() 
+
         # Get smart prompts
         if self.smart_prompt_enabled:
             if self.smart_prompt_handler in AVAILABLE_SMART_PROMPTS:
@@ -1574,22 +1531,7 @@ class MainWindow(Gtk.ApplicationWindow):
                     prompts += generated
                 except Exception as e:
                     print(e)
-            self.update_settings()
-        # Set the history for the model
-        history = self.get_history()
-        # Let extensions preprocess the history 
-        old_history = copy.deepcopy(history)
-        old_user_prompt = self.chat[-1]["Message"]
 
-        self.chat, prompts = self.extensionloader.preprocess_history(self.chat, prompts)
-        if len(self.chat) == 0:
-            GLib.idle_add(self.remove_send_button_spinner)
-            GLib.idle_add(self.show_chat)
-            return
-        if self.chat[-1]["Message"] != old_user_prompt:
-            self.reload_message(len(self.chat) - 1)
-
-        self.model.set_history(prompts, history)
         # Set history and prompts
         self.model.set_history(prompts, self.get_history())
         try:
@@ -1597,9 +1539,9 @@ class MainWindow(Gtk.ApplicationWindow):
                 self.streamed_message = ""
                 self.curr_label = ""
                 GLib.idle_add(self.create_streaming_message_label)
-                self.streaming_label = None
+                self.streaming_lable = None
                 message_label = self.model.send_message_stream(self, self.chat[-1]["Message"], self.update_message,
-                                                            [stream_number_variable])
+                                                               [stream_number_variable])
                 try:
                     parent = self.streaming_box.get_parent()
                     if parent is not None: 
@@ -1619,14 +1561,6 @@ class MainWindow(Gtk.ApplicationWindow):
             return
         
         if self.stream_number_variable == stream_number_variable:
-            history, message_label = self.extensionloader.postprocess_history(self.chat, message_label)
-            # Edit messages that require to be updated 
-            edited_messages = get_edited_messages(history, old_history)
-            if edited_messages is None:
-                GLib.idle_add(self.show_chat) 
-            else:
-                for message in edited_messages:
-                    GLib.idle_add(self.reload_message, message)
             GLib.idle_add(self.show_message, message_label)
         GLib.idle_add(self.remove_send_button_spinner)
         # Generate chat name 
@@ -1718,7 +1652,6 @@ class MainWindow(Gtk.ApplicationWindow):
     # Show messages in chat
     def show_chat(self):
         """Show a chat"""
-        self.messages_box = []
         self.last_error_box = None
         if not self.check_streams["chat"]:
             self.check_streams["chat"] = True
@@ -1854,7 +1787,7 @@ class MainWindow(Gtk.ApplicationWindow):
                             Gtk.Expander(label="think", child=Gtk.Label(label=chunk.text, wrap=True),css_classes=["toolbar", "osd"], margin_top=10,
                                     margin_start=10,
                                     margin_bottom=10, margin_end=10
-                            )
+)
                         )
                     elif code_language == "image":
                         for i in chunk.text.split("\n"):
@@ -2070,24 +2003,6 @@ class MainWindow(Gtk.ApplicationWindow):
         box.remove(old_message)
         box.append(entry)
 
-    def reload_message(self, message_id: int):
-        """Reload a message
-
-        Args:
-            message_id (int): the id of the message to reload 
-        """
-        if len(self.messages_box) <= message_id:
-            return
-        if self.chat[message_id]["User"] == "Console":
-            return
-        message_box = self.messages_box[message_id+1] # +1 to fix message warning
-        old_label = message_box.get_last_child()
-        if old_label is not None:
-            message_box.remove(old_label)
-            message_box.append(
-                self.show_message(self.chat[message_id]["Message"], id_message=message_id, is_user=self.chat[message_id]["User"] == "User", return_widget=True)
-            )
-
     def apply_edit_message(self, gesture, box: Gtk.Box, apply_edit_stack: Gtk.Stack):
         """Apply edit for a message
 
@@ -2135,7 +2050,6 @@ class MainWindow(Gtk.ApplicationWindow):
         """
         del self.chat[int(gesture.get_name())]
         self.chat_list_block.remove(box.get_parent())
-        self.messages_box.remove(box)
         self.save_chat()
         self.show_chat()
 
@@ -2192,7 +2106,7 @@ class MainWindow(Gtk.ApplicationWindow):
         """
         box = Gtk.Box(css_classes=["card"], margin_top=10, margin_start=10, margin_bottom=10, margin_end=10,
                       halign=Gtk.Align.START)
-        self.messages_box.append(box) 
+        
         # Create edit controls
         if editable:
             apply_edit_stack = self.build_edit_box(box, str(id_message))

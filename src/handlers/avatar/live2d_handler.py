@@ -24,7 +24,7 @@ class Live2DHandler(AvatarHandler):
         self.webview_path = os.path.join(path, "avatars", "live2d", "web")
         self.models_dir = os.path.join(self.webview_path, "models")
 
-    def get_available_models(self):
+    def get_available_models(self): 
         file_list = []
         for root, _, files in os.walk(self.models_dir):
             for file in files:
@@ -39,7 +39,7 @@ class Live2DHandler(AvatarHandler):
         color = widget.get_style_context().lookup_color('window_bg_color')[1]
         default = rgb_to_hex(color.red, color.green, color.blue)
 
-        return [
+        return [ 
             {
                 "key": "model",
                 "title": _("Live2D Model"),
@@ -86,7 +86,7 @@ class Live2DHandler(AvatarHandler):
         subprocess.check_output(["wget", "-P", os.path.join(self.models_dir), "http://mirror.nyarchlinux.moe/Arch.tar.xz"])
         subprocess.check_output(["tar", "-Jxf", os.path.join(self.models_dir, "Arch.tar.xz"), "-C", self.models_dir])
         subprocess.Popen(["rm", os.path.join(self.models_dir, "Arch.tar.xz")])
-
+    
     def __start_webserver(self):
         folder_path = self.webview_path
         class CustomHTTPRequestHandler(SimpleHTTPRequestHandler):
@@ -126,20 +126,20 @@ class Live2DHandler(AvatarHandler):
         self._expressions_raw = json.loads(value.to_string())
         self._wait_js.set()
 
-    def get_expressions(self):
+    def get_expressions(self): 
         if len(self._expressions_raw) > 0:
             return self._expressions_raw
         self._expressions_raw = []
         script = "get_expressions_json()"
         self.webview.evaluate_javascript(script, len(script), callback=self.wait_emotions)
-        self._wait_js.wait(3)
-        return self._expressions_raw
+        self._wait_js.wait(3)   
+        return self._expressions_raw 
 
     def set_expression(self, expression : str):
         script = "set_expression('{}')".format(expression)
         self.webview.evaluate_javascript(script, len(script))
-        pass
-
+        pass   
+           
     def speak(self, path: str, tts: TTSHandler, frame_rate: int):
         tts.stop()
         audio = AudioSegment.from_file(path)
