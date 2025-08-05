@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Nyarch Assistant 0.9.6\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-05-30 20:22+0800\n"
+"POT-Creation-Date: 2025-07-23 20:40+0800\n"
 "PO-Revision-Date: 2025-03-26 19:30\n"
 "Last-Translator: Oliver Tzeng（曾嘉禾）<olivertzeng@proton.me>\n"
 "Language-Team: l10n-tw\n"
@@ -17,370 +17,897 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: src/window.py:103 src/ui/thread_editing.py:6
+#: src/window.py:129 src/ui/thread_editing.py:6
 msgid "Thread editing"
 msgstr "執行緒編輯"
 
-#: src/window.py:104 src/ui/presentation.py:131 src/ui/extension.py:18
-#: src/constants.py:647
+#: src/window.py:130 src/ui/presentation.py:131 src/ui/extension.py:19
+#: src/constants.py:684
 msgid "Extensions"
 msgstr "擴充功能"
 
-#: src/window.py:105 src/ui/profile.py:33
+#: src/window.py:131 src/ui/profile.py:33
 msgid "Settings"
 msgstr "設定"
 
-#: src/window.py:106
+#: src/window.py:132
 msgid "Keyboard shorcuts"
 msgstr "快捷鍵"
 
-#: src/window.py:107
+#: src/window.py:133
 msgid "About"
 msgstr "關於"
 
-#: src/window.py:114
+#: src/window.py:140 src/window.py:209
 msgid "Chat"
 msgstr "聊天"
 
-#: src/window.py:161
+#: src/window.py:182
 msgid "History"
 msgstr "最近的聊天紀錄"
 
-#: src/window.py:182
+#: src/window.py:203
 msgid "Create a chat"
 msgstr "新增聊天室"
 
-#: src/window.py:259
+#: src/window.py:208
+msgid "Chats"
+msgstr "聊天室"
+
+#: src/window.py:279
 msgid " Stop"
 msgstr " 停止"
 
-#: src/window.py:346
+#: src/window.py:318
 msgid " Clear"
 msgstr " 清除"
 
-#: src/window.py:361
+#: src/window.py:333
 msgid " Continue"
 msgstr " 繼續"
 
-#: src/window.py:374
+#: src/window.py:346
 msgid " Regenerate"
 msgstr " 重新生成"
 
-#: src/window.py:440
+#: src/window.py:412
 msgid "Send a message..."
 msgstr "傳送訊息......"
 
-#: src/window.py:505
+#: src/window.py:508
+msgid "Explorer Tab"
+msgstr "探索分頁"
+
+#: src/window.py:509
+msgid "Terminal Tab"
+msgstr "終端機分頁"
+
+#: src/window.py:510
+msgid "Browser Tab"
+msgstr "瀏覽器分頁"
+
+#: src/window.py:630
 msgid "Ask about a website"
 msgstr "詢問有關一個網站的資訊"
 
-#: src/window.py:505
+#: src/window.py:630
 msgid "Write #https://website.com in chat to ask information about a website"
 msgstr "在聊天室內以 #https://網站.名稱 的格式以詢問一個網站的資訊"
 
-#: src/window.py:506
+#: src/window.py:631
 msgid "Check out our Extensions!"
 msgstr "看看我們的擴充功能"
 
-#: src/window.py:506
+#: src/window.py:631
 msgid "We have a lot of extensions for different things. Check it out!"
 msgstr "我們有五花八門的擴充功能可供使用！"
 
-#: src/window.py:507
+#: src/window.py:632
 msgid "Chat with documents!"
 msgstr "與檔案互動！"
 
-#: src/window.py:507
+#: src/window.py:632
 msgid ""
 "Add your documents to your documents folder and chat using the information "
 "contained in them!"
 msgstr "在「文件」資料夾內放置檔案以讓人工智慧讀取，提供更精確的回覆"
 
-#: src/window.py:508
+#: src/window.py:633
 msgid "Surf the web!"
 msgstr "網路搜尋支援！"
 
-#: src/window.py:508
+#: src/window.py:633
 msgid ""
 "Enable web search to allow the LLM to surf the web and provide up to date "
 "answers"
 msgstr "提供網路搜尋的功能，讓大型語言模型能夠上網並提供更新的資訊。"
 
-#: src/window.py:509
+#: src/window.py:634
 msgid "Mini Window"
 msgstr "迷你視窗"
 
-#: src/window.py:509
+#: src/window.py:634
 msgid "Ask questions on the fly using the mini window mode"
 msgstr "啟用迷你視窗模式以更方便地問問題"
 
-#: src/window.py:510
+#: src/window.py:635
 msgid "Text to Speech"
 msgstr "語音轉文本"
 
-#: src/window.py:510
-msgid "Nyarch Assistant supports text-to-speech! Enable it in the settings"
+#: src/window.py:635
+msgid "Newelle supports text-to-speech! Enable it in the settings"
 msgstr "Nyarch Assistant 支援文本轉語音！"
 
-#: src/window.py:511
+#: src/window.py:636
 msgid "Keyboard Shortcuts"
 msgstr "快捷鍵"
 
-#: src/window.py:511
-msgid "Control Nyarch Assistant using Keyboard Shortcuts"
+#: src/window.py:636
+msgid "Control Newelle using Keyboard Shortcuts"
 msgstr "使用快捷鍵以更便捷地使用 Nyarch Assistant"
 
-#: src/window.py:512
+#: src/window.py:637
 msgid "Prompt Control"
 msgstr "提示文字控制"
 
-#: src/window.py:512
-msgid ""
-"Nyarch Assistant gives you 100% prompt control. Tune your prompts for your "
-"use."
+#: src/window.py:637
+msgid "Newelle gives you 100% prompt control. Tune your prompts for your use."
 msgstr "Nyarch Assistant 讓您能夠完全控制提示文字。"
 
-#: src/window.py:513
+#: src/window.py:638
 msgid "Thread Editing"
 msgstr "執行緒編輯"
 
-#: src/window.py:513
-msgid "Check the programs and processes you run from Nyarch Assistant"
+#: src/window.py:638
+msgid "Check the programs and processes you run from Newelle"
 msgstr "檢視從 Nyarch Assistant 執行的各種行程"
 
-#: src/window.py:514
+#: src/window.py:639
+msgid "Programmable Prompts"
+msgstr "動態提示語"
+
+#: src/window.py:639
+msgid ""
+"You can add dynamic prompts to Newelle, with conditions and probabilities"
+msgstr "您可以新增有條件與機率的動態提示語到 Nyarch Assistant"
+
+#: src/window.py:640
 msgid "Use any avatar model"
 msgstr "使用任何模型"
 
-#: src/window.py:514
+#: src/window.py:640
 msgid "Use any Live2D or LivePNG model"
 msgstr "使用任何 Live2D 或 LivePNG 模型"
 
-#: src/window.py:521
+#: src/window.py:647
 msgid "New Chat"
 msgstr "新聊天室"
 
-#: src/window.py:539
+#: src/window.py:665
 msgid "Provider Errror"
 msgstr "供給者錯誤"
 
-#: src/window.py:595
+#: src/window.py:721
 msgid "Local Documents"
 msgstr "本地檔案"
 
-#: src/window.py:596 src/ui/settings.py:117
+#: src/window.py:722 src/ui/settings.py:120
 msgid "Long Term Memory"
 msgstr "長期記憶"
 
-#: src/window.py:597 src/constants.py:612
+#: src/window.py:723 src/constants.py:649
 msgid "TTS"
 msgstr "文本轉語音"
 
-#: src/window.py:598 src/ui/settings.py:275
+#: src/window.py:724 src/ui/settings.py:291
 msgid "Command virtualization"
 msgstr "指令虛擬化"
 
-#: src/window.py:599
+#: src/window.py:725
 msgid "Web search"
 msgstr "網路搜尋"
 
-#: src/window.py:827
+#: src/window.py:979
 msgid "This provider does not have a model list"
 msgstr "此供給者沒有模型清單"
 
-#: src/window.py:832
+#: src/window.py:984
 msgid " Models"
 msgstr " 個模型"
 
-#: src/window.py:835
+#: src/window.py:987
 msgid "Search Models..."
 msgstr "搜尋模型......"
 
-#: src/window.py:1096
+#: src/window.py:1254
 msgid "Create new profile"
 msgstr "建立新設定檔"
 
-#: src/window.py:1229
+#: src/window.py:1388
 msgid "Could not recognize your voice"
 msgstr "無法辨識聲音"
 
-#: src/window.py:1266
+#: src/window.py:1425
 msgid "Images"
 msgstr "圖片"
 
-#: src/window.py:1270
+#: src/window.py:1429
 msgid "LLM Supported Files"
 msgstr "大型語言模型支援的檔案"
 
-#: src/window.py:1278
+#: src/window.py:1437
 msgid "RAG Supported files"
 msgstr "RAG 支援的檔案"
 
-#: src/window.py:1296
+#: src/window.py:1455
 msgid "Supported Files"
 msgstr "支援的檔案"
 
-#: src/window.py:1300
+#: src/window.py:1459
 msgid "All Files"
 msgstr "所有檔案"
 
-#: src/window.py:1306
+#: src/window.py:1465
 msgid "Attach file"
 msgstr "嵌入檔案"
 
-#: src/window.py:1555 src/window.py:1781
+#: src/window.py:1725 src/ui/explorer.py:340
 msgid "File not found"
 msgstr "找不到檔案"
 
-#: src/window.py:1573
+#: src/window.py:1743
 msgid "The file cannot be sent until the program is finished"
 msgstr "在執行完成前無法上傳檔案"
 
-#: src/window.py:1595
+#: src/window.py:1765
 msgid "The file is not recognized"
 msgstr "檔案無法辨識"
 
-#: src/window.py:1662
-msgid "Folder is Empty"
-msgstr "資料夾為空"
-
-#: src/window.py:1802
+#: src/window.py:1785
 msgid "You can no longer continue the message."
 msgstr "您無法繼續此訊息。"
 
-#: src/window.py:1827
+#: src/window.py:1810
 msgid "You can no longer regenerate the message."
 msgstr "您無法重新生成此訊息。"
 
-#: src/window.py:1935
-msgid "Chat is empty"
-msgstr "聊天室為空"
-
-#: src/window.py:1964 src/controller.py:156
+#: src/window.py:1998 src/controller.py:159
 msgid "Chat "
 msgstr "聊天室 "
 
-#: src/window.py:2004
+#: src/window.py:2042
 msgid "Chat is cleared"
 msgstr "已清除聊天紀錄"
 
-#: src/window.py:2029
+#: src/window.py:2067
 msgid "The message was canceled and deleted from history"
 msgstr "此訊息已從聊天紀錄中取消並且刪除"
 
-#: src/window.py:2073
+#: src/window.py:2111
 msgid "The message cannot be sent until the program is finished"
 msgstr "在執行完成前無法傳送訊息"
 
-#: src/window.py:2999
+#: src/window.py:3112
 msgid "You can't edit a message while the program is running."
 msgstr "在執行完成前無法編輯訊息"
 
-#: src/window.py:3123
+#: src/window.py:3237
 msgid "Prompt content"
 msgstr "提示內容"
 
-#: src/window.py:3379
+#: src/window.py:3496
 msgid ""
 "The neural network has access to your computer and any data in this chat and "
 "can run commands, be careful, we are not responsible for the neural network. "
 "Do not share any sensitive information."
 msgstr "注意：此人工智慧模型有權取用電腦中的資料我們對這些模型不承擔任何責任"
 
-#: src/window.py:3408
+#: src/window.py:3525
 msgid ""
 "The neural network has access to any data in this chat, be careful, we are "
 "not responsible for the neural network. Do not share any sensitive "
 "information."
 msgstr "注意：此人工智慧模型有權取用電腦中的資料我們對這些模型不承擔任何責任"
 
-#: src/window.py:3455
+#: src/window.py:3574
 msgid "Wrong folder path"
 msgstr "錯誤資料夾路徑"
 
-#: src/window.py:3488
+#: src/window.py:3607
 msgid "Thread has not been completed, thread number: "
 msgstr "執行緒尚未完成，執行緒序號："
 
-#: src/window.py:3497
+#: src/window.py:3619
 msgid "Failed to open the folder"
 msgstr "無法開啟資料夾"
 
-#: src/utility/util.py:136 src/handlers/llm/gemini_handler.py:119
-#: src/handlers/llm/gpt4all_handler.py:153
-#: src/handlers/llm/custom_handler.py:20 src/handlers/llm/newelle_handler.py:27
-msgid "Message Streaming"
-msgstr "訊息串流"
+#: src/window.py:3798
+msgid "Chat is empty"
+msgstr "聊天室為空"
 
-#: src/utility/util.py:137 src/handlers/llm/gemini_handler.py:120
-#: src/handlers/llm/gpt4all_handler.py:153
-#: src/handlers/llm/custom_handler.py:20 src/handlers/llm/newelle_handler.py:28
-msgid "Gradually stream message output"
-msgstr "逐漸的將訊息輸出串流"
+#: src/window.py:3859 src/ui/stdout_monitor.py:109 src/ui/stdout_monitor.py:182
+#: src/ui/stdout_monitor.py:191
+msgid "Monitoring: Active"
+msgstr "監控：已啟用"
+
+#: src/smart_prompt.py:95 src/handlers/smart_prompt/smart_prompt.py:95
+msgid "Model Dimension"
+msgstr "模型維度"
+
+#: src/smart_prompt.py:96 src/handlers/smart_prompt/smart_prompt.py:96
+msgid "Use bigger models for bigger accuracy less than 100MB"
+msgstr "在 100MB 內以使用更大的模型提升準確率"
+
+#: src/translator.py:67 src/handlers/stt/custom_handler.py:13
+#: src/handlers/translator/customtr_handler.py:17
+#: src/handlers/tts/custom_handler.py:17
+msgid "Command to execute"
+msgstr "執行的指令"
+
+#: src/translator.py:68 src/handlers/translator/customtr_handler.py:18
+#, python-brace-format
+msgid "{0} will be replaced with the text to translate"
+msgstr "{0} 參數會被需要翻譯的內容取代"
 
 #: src/ui/widgets/tipscarousel.py:41
 msgid "Nyarch Assistant Tips"
 msgstr "Nyarch Assistant 小秘訣"
 
-#: src/ui/widgets/thinking.py:27
-msgid "Thoughts"
-msgstr "思考過程"
+#: src/ui/stdout_monitor.py:31 src/ui/stdout_monitor.py:41
+#: src/ui/settings.py:323
+msgid "Program Output Monitor"
+msgstr "程式輸出監控"
 
-#: src/ui/widgets/thinking.py:28 src/ui/widgets/thinking.py:127
-msgid "Expand to see details"
-msgstr "點開以顯示完整內容"
+#: src/ui/stdout_monitor.py:48
+msgid "Clear output"
+msgstr "清除輸出"
 
-#: src/ui/widgets/thinking.py:116
-msgid "Thinking..."
-msgstr "思考中..."
+#: src/ui/stdout_monitor.py:61
+msgid "Start/Stop monitoring"
+msgstr "開始/停止錄影"
 
-#: src/ui/widgets/thinking.py:117
-msgid "The LLM is thinking... Expand to see thought process"
-msgstr "思考中...點開以顯示完整內容"
+#: src/ui/stdout_monitor.py:109 src/ui/stdout_monitor.py:208
+msgid "Monitoring: Stopped"
+msgstr "監控：已停止"
 
-#: src/ui/widgets/thinking.py:129
-msgid "No thought process recorded"
-msgstr "沒有思考過程"
+#: src/ui/stdout_monitor.py:116 src/ui/stdout_monitor.py:252
+#, python-brace-format
+msgid "Lines: {}"
+msgstr "行數：{}"
 
-#: src/ui/widgets/profilerow.py:26
-msgid "Select profile"
-msgstr "選擇設定檔"
+#: src/ui/stdout_monitor.py:267
+msgid "Lines: 0"
+msgstr "行數：0"
 
-#: src/ui/widgets/profilerow.py:43 src/ui/profile.py:79
-msgid "Edit Profile"
-msgstr "編輯設定檔"
-
-#: src/ui/widgets/profilerow.py:53
-msgid "Delete Profile"
-msgstr "刪除設定檔"
-
-#: src/main.py:204
+#: src/main.py:209
 msgid "Terminal threads are still running in the background"
 msgstr "終端機執行緒正在背景中執行"
 
-#: src/main.py:205
+#: src/main.py:210
 msgid "When you close the window, they will be automatically terminated"
 msgstr "關閉視窗後將自動停止執行"
 
-#: src/main.py:208
+#: src/main.py:213 src/ui/explorer.py:448 src/ui/explorer.py:501
+#: src/ui/explorer.py:689
 msgid "Cancel"
 msgstr "取消"
 
-#: src/main.py:209
+#: src/main.py:214
 msgid "Close"
 msgstr "關閉"
 
-#: src/main.py:245
+#: src/main.py:250
 msgid "Chat is rebooted"
 msgstr "重新整理聊天紀錄完成"
 
-#: src/main.py:250
+#: src/main.py:255
 msgid "Folder is rebooted"
 msgstr "重新整理資料夾完成"
 
-#: src/main.py:255
+#: src/main.py:260
 msgid "Chat is created"
 msgstr "已建立新的聊天室"
+
+#: src/ui/settings.py:59 src/constants.py:694
+msgid "General"
+msgstr "一般"
+
+#: src/ui/settings.py:60 src/constants.py:644
+msgid "LLM"
+msgstr "模型"
+
+#: src/ui/settings.py:61 src/constants.py:699
+msgid "Prompts"
+msgstr "提示文字"
+
+#: src/ui/settings.py:62
+msgid "Knowledge"
+msgstr "認知"
+
+#: src/ui/settings.py:63 src/ui/settings.py:182 src/constants.py:659
+msgid "Avatar"
+msgstr "夥伴"
+
+#: src/ui/settings.py:67
+msgid "Language Model"
+msgstr "語言模型"
+
+#: src/ui/settings.py:77 src/ui/settings.py:98
+msgid "Other LLMs"
+msgstr "其他大型語言模型"
+
+#: src/ui/settings.py:77 src/ui/settings.py:98
+msgid "Other available LLM providers"
+msgstr "其他提供大型語言模型的服務"
+
+#: src/ui/settings.py:88
+msgid "Advanced LLM Settings"
+msgstr "更多設定"
+
+#: src/ui/settings.py:92
+msgid "Secondary Language Model"
+msgstr "輔助語言模型"
+
+#: src/ui/settings.py:92
+msgid ""
+"Model used for secondary tasks, like offers, chat name and memory generation"
+msgstr "專門執行第二類工作：例如聊天室名稱生成以及記憶生成"
+
+#: src/ui/settings.py:109
+msgid "Embedding Model"
+msgstr "嵌入模型"
+
+#: src/ui/settings.py:109
+msgid ""
+"Embedding is used to trasform text into vectors. Used by Long Term Memory "
+"and RAG. Changing it might require you to re-index documents or reset memory."
+msgstr ""
+"專門將文字轉成向量以提供給 RAG 與長期記憶所使用的模型。改變此設定後請重整索引"
+"與清除記憶。"
+
+#: src/ui/settings.py:120
+msgid "Keep memory of old conversations"
+msgstr "將舊聊天紀錄內容形成記憶"
+
+#: src/ui/settings.py:132 src/constants.py:538
+msgid "Web Search"
+msgstr "網路搜尋"
+
+#: src/ui/settings.py:132
+msgid "Search information on the Web"
+msgstr "在網路上搜尋更多資訊"
+
+#: src/ui/settings.py:144 src/handlers/tts/groq_tts_handler.py:33
+#: src/handlers/tts/tts.py:33 src/handlers/tts/custom_openai_tts.py:19
+#: src/handlers/tts/elevenlabs_handler.py:17
+#: src/handlers/tts/openai_tts_handler.py:19
+msgid "Voice"
+msgstr "語音"
+
+#: src/ui/settings.py:148
+msgid "Text To Speech Program"
+msgstr "語音轉文本程式"
+
+#: src/ui/settings.py:148
+msgid "Choose which text to speech to use"
+msgstr "選擇語音轉文本的程式"
+
+#: src/ui/settings.py:161
+msgid "Translator program"
+msgstr "翻譯"
+
+#: src/ui/settings.py:161
+msgid "Translate the output of the LLM before passing it to the TTS Program"
+msgstr "將模型的輸出內容翻譯並轉移至文本轉語音程式"
+
+#: src/ui/settings.py:169
+msgid "Speech To Text Engine"
+msgstr "語音辨識"
+
+#: src/ui/settings.py:169
+msgid "Choose which speech recognition engine you want"
+msgstr "選擇語音辨識引擎"
+
+#: src/ui/settings.py:177
+msgid "Automatic Speech To Text"
+msgstr "自動語音辨識"
+
+#: src/ui/settings.py:177
+msgid "Automatically restart speech to text at the end of a text/TTS"
+msgstr "在朗讀完畢後自動重新啟動語音辨識服務"
+
+#: src/ui/settings.py:186
+msgid "Avatar model"
+msgstr "夥伴模型"
+
+#: src/ui/settings.py:186
+msgid "Choose which avatar model to choose"
+msgstr "選擇夥伴模型"
+
+#: src/ui/settings.py:195
+msgid "Smart Prompt"
+msgstr "自訂提示語"
+
+#: src/ui/settings.py:199
+msgid "Smart Prompt selector"
+msgstr "智慧提示語選擇器"
+
+#: src/ui/settings.py:199
+msgid "Give extra context on Nyarch Linux based on your prompt"
+msgstr "使用提示語讓人工智慧得知有關 Nyarch Linux 的資訊"
+
+#: src/ui/settings.py:208
+msgid "Prompt control"
+msgstr "提示控制"
+
+#: src/ui/settings.py:213
+msgid "Interface"
+msgstr "界面"
+
+#: src/ui/settings.py:216
+msgid "Interface Size"
+msgstr "界面大小"
+
+#: src/ui/settings.py:216
+msgid "Adjust the size of the interface"
+msgstr "調整界面的大小"
+
+#: src/ui/settings.py:228
+msgid "Editor color scheme"
+msgstr "編輯器顏色主題"
+
+#: src/ui/settings.py:228
+msgid "Change the color scheme of the editor and codeblocks"
+msgstr "更改編輯器與程式塊的顏色主題"
+
+#: src/ui/settings.py:235
+msgid "Hidden files"
+msgstr "隱藏檔"
+
+#: src/ui/settings.py:235
+msgid "Show hidden files"
+msgstr "顯示隱藏檔"
+
+#: src/ui/settings.py:241
+msgid "Send with ENTER"
+msgstr "使用 Enter 輸入"
+
+#: src/ui/settings.py:241
+msgid ""
+"If enabled, messages will be sent with ENTER, to go to a new line use "
+"CTRL+ENTER. If disabled, messages will be sent with SHIFT+ENTER, and newline "
+"with enter"
+msgstr ""
+"若啟用此功能將會讓 Enter 鍵傳送訊息，否則將文字換行，並使用 Shift＋Enter 傳送"
+"訊息。"
+
+#: src/ui/settings.py:247
+msgid "Remove thinking from history"
+msgstr "將思考過程從歷史移除"
+
+#: src/ui/settings.py:247
+msgid ""
+"Do not send old thinking blocks for reasoning models in order to reduce "
+"token usage"
+msgstr "將推論模型的思考內容從歷史中移除以節省 Token 消耗"
+
+#: src/ui/settings.py:253
+msgid "Display LaTeX"
+msgstr "顯示 LaTeX"
+
+#: src/ui/settings.py:253
+msgid "Display LaTeX formulas in chat"
+msgstr "在聊天室顯示 LaTeX 數學式"
+
+#: src/ui/settings.py:259
+msgid "Reverse Chat Order"
+msgstr "反向聊天室"
+
+#: src/ui/settings.py:259
+msgid "Show most recent chats on top in chat list (change chat to apply)"
+msgstr "將最新的訊息至頂"
+
+#: src/ui/settings.py:265
+msgid "Automatically Generate Chat Names"
+msgstr "自動生成聊天室名稱"
+
+#: src/ui/settings.py:265
+msgid "Generate chat names automatically after the first two messages"
+msgstr "生成第一則訊息後自動生成聊天室名稱"
+
+#: src/ui/settings.py:271
+msgid "Number of offers"
+msgstr "建議訊息數量"
+
+#: src/ui/settings.py:271
+msgid "Number of message suggestions to send to chat "
+msgstr "建議訊息的顯示數量"
+
+#: src/ui/settings.py:278
+msgid "Username"
+msgstr "使用者名稱"
+
+#: src/ui/settings.py:278
+#, python-brace-format
+msgid ""
+"Change the label that appears before your message\n"
+"This information is not sent to the LLM by default\n"
+"You can add it to a prompt using the {USER} variable"
+msgstr "更改聊天室內的使用者名稱，預設將不會將此資訊傳送給模型"
+
+#: src/ui/settings.py:288
+msgid "Neural Network Control"
+msgstr "類神經網路控制"
+
+#: src/ui/settings.py:291
+msgid "Run commands in a virtual machine"
+msgstr "在模擬器中執行指令"
+
+#: src/ui/settings.py:304
+msgid "External Terminal"
+msgstr "外部終端機"
+
+#: src/ui/settings.py:304
+msgid "Choose the external terminal where to run the console commands"
+msgstr "選擇執行指令的外部終端機"
+
+#: src/ui/settings.py:313
+msgid "Program memory"
+msgstr "模型記憶"
+
+#: src/ui/settings.py:313
+msgid "How long the program remembers the chat "
+msgstr "模型將會記得多久的聊天紀錄"
+
+#: src/ui/settings.py:320
+msgid "Developer"
+msgstr "開發者"
+
+#: src/ui/settings.py:323
+msgid ""
+"Monitor the program output in real-time, useful for debugging and seeing "
+"downloads progress"
+msgstr "即時地監控程式輸出。於除錯與查看下載進度十分有幫助"
+
+#: src/ui/settings.py:324
+msgid "Open"
+msgstr "開啟"
+
+#: src/ui/settings.py:329
+msgid "Delete pip path"
+msgstr "刪除 pip 路徑"
+
+#: src/ui/settings.py:329
+msgid "Remove the extra dependencies installed"
+msgstr "刪除多餘依賴"
+
+#: src/ui/settings.py:330 src/ui/settings.py:402 src/ui/explorer.py:366
+#: src/ui/explorer.py:502
+msgid "Delete"
+msgstr "刪除"
+
+#: src/ui/settings.py:350
+msgid "Auto-run commands"
+msgstr "自訂自動執行指令"
+
+#: src/ui/settings.py:350
+msgid "Commands that the bot will write will automatically run"
+msgstr "將會在終端機內自動執行指令"
+
+#: src/ui/settings.py:353
+msgid "Max number of commands"
+msgstr "最多指令數量"
+
+#: src/ui/settings.py:353
+msgid ""
+"Maximum number of commands that the bot will write after a single user "
+"request"
+msgstr "一次訊息的最多指令數量"
+
+#: src/ui/settings.py:384
+msgid "Browser"
+msgstr "瀏覽器"
+
+#: src/ui/settings.py:384
+msgid "Settings for the browser"
+msgstr "瀏覽器設定"
+
+#: src/ui/settings.py:389
+msgid "Use external browser"
+msgstr "使用外部瀏覽器"
+
+#: src/ui/settings.py:389
+msgid "Use an external browser to open links instead of integrated one"
+msgstr "使用外部瀏覽器開啟連結以取代內建瀏覽器"
+
+#: src/ui/settings.py:396
+msgid "Persist browser session"
+msgstr "常駐瀏覽器會話"
+
+#: src/ui/settings.py:396
+msgid ""
+"Persist browser session between restarts. Turning this off requires "
+"restarting the program"
+msgstr "重新啟動應用程式後繼續上次的瀏覽器會話。請重新啟動應用程式以套用設定"
+
+#: src/ui/settings.py:401
+msgid "Delete browser data"
+msgstr "刪除瀏覽資料"
+
+#: src/ui/settings.py:401
+msgid "Delete browser session and data"
+msgstr "刪除瀏覽繪畫與資料"
+
+#: src/ui/settings.py:408
+msgid "Initial browser page"
+msgstr "初始瀏覽器頁面"
+
+#: src/ui/settings.py:408
+msgid "The page where the browser will start"
+msgstr "瀏覽器啟動的畫面"
+
+#: src/ui/settings.py:415
+msgid "Search string"
+msgstr "搜尋字串"
+
+#: src/ui/settings.py:415
+#, python-format
+msgid "The search string used in the browser, %s is replaced with the query"
+msgstr "於瀏覽器搜尋的字串，%s 參數將被取代為序列"
+
+#: src/ui/settings.py:436
+msgid "Document Sources (RAG)"
+msgstr "檔案來源（RAG）"
+
+#: src/ui/settings.py:436
+msgid "Include content from your documents in the responses"
+msgstr "在回應中包含檔案內容"
+
+#: src/ui/settings.py:437
+msgid "Document Analyzer"
+msgstr "檔案分析器"
+
+#: src/ui/settings.py:437
+msgid ""
+"The document analyzer uses multiple techniques to extract relevant "
+"information about your documents"
+msgstr "使用不同技術提取各個檔案的相關內容"
+
+#: src/ui/settings.py:448
+msgid "Read documents if unsupported"
+msgstr "不支援時閱讀檔案"
+
+#: src/ui/settings.py:448
+msgid ""
+"If the LLM does not support reading documents, relevant information about "
+"documents sent in the chat will be given to the LLM using your Document "
+"Analyzer."
+msgstr "如果模型不支援閱讀文件將會利用檔案分析器傳送檔案相關資訊給模型"
+
+#: src/ui/settings.py:452
+msgid "Maximum tokens for RAG"
+msgstr "RAG 使用 Tokens 的最大值"
+
+#: src/ui/settings.py:452
+msgid ""
+"The maximum amount of tokens to be used for RAG. If the documents do not "
+"exceed this token count,\n"
+"dump all of them in the context"
+msgstr ""
+"此將限制每次呼叫 RAG 時使用的 Tokens 的數量。如果需要使用的 Tokens 多過於此數"
+"值，將僅傳送檔案的大致內容"
+
+#: src/ui/settings.py:469
+msgid "Document Folder"
+msgstr "文件資料夾"
+
+#: src/ui/settings.py:469
+msgid ""
+"Put the documents you want to query in your document folder. The document "
+"analyzer will find relevant information in them if this option is enabled"
+msgstr "檔案分析器將從資料夾內提取資訊"
+
+#: src/ui/settings.py:472
+msgid "Put all the documents you want to index in this folder"
+msgstr "將欲索引的檔案放置此資料夾內。"
+
+#: src/ui/settings.py:508
+msgid "Silence threshold"
+msgstr "靜音門檻"
+
+#: src/ui/settings.py:508
+msgid ""
+"Silence threshold in seconds, percentage of the volume to be considered "
+"silence"
+msgstr "靜音門檻以秒為單位，當音量為 0 時也視為靜音"
+
+#: src/ui/settings.py:521
+msgid "Silence time"
+msgstr "靜音時間"
+
+#: src/ui/settings.py:521
+msgid "Silence time in seconds before recording stops automatically"
+msgstr "靜音時間以秒為單位，當靜音時間達到此秒數將自動停止錄音"
+
+#: src/ui/settings.py:1108
+msgid "Not enough permissions"
+msgstr "權限不足"
+
+#: src/ui/settings.py:1112
+msgid ""
+"Nyarch Assistant does not have enough permissions to run commands on your "
+"system, please run the following command"
+msgstr "Nyarch Assistant 沒有足夠權限在系統內執行指令，請執行以下指令"
+
+#: src/ui/settings.py:1113 src/ui/settings.py:1126
+msgid "Understood"
+msgstr "確認"
+
+#: src/ui/settings.py:1125
+msgid "Pip path deleted"
+msgstr "已刪除 pip 路徑"
+
+#: src/ui/settings.py:1125
+msgid ""
+"The pip path has been deleted, you can now reinstall the dependencies. This "
+"operation requires a restart of the application."
+msgstr "已刪除 pip 路徑並可重新安裝依賴。請重新啟動應用程式以套用更動。"
+
+#: src/ui/mini_window.py:9
+msgid "Nyarch Linux"
+msgstr "Nyarch Linux"
+
+#: src/ui/mini_window.py:20
+msgid "Chat is opened in mini window"
+msgstr "已在新視窗開啟聊天室"
+
+#: src/ui/shortcuts.py:6
+msgid "Help"
+msgstr "幫助"
+
+#: src/ui/shortcuts.py:12
+msgid "Shortcuts"
+msgstr "捷徑"
+
+#: src/ui/shortcuts.py:13
+msgid "Reload chat"
+msgstr "重新整理聊天室"
+
+#: src/ui/shortcuts.py:14
+msgid "Reload folder"
+msgstr "重新整理資料夾"
+
+#: src/ui/shortcuts.py:15
+msgid "New tab"
+msgstr "新分頁"
+
+#: src/ui/shortcuts.py:16
+msgid "Paste Image"
+msgstr "貼上圖片"
+
+#: src/ui/shortcuts.py:17
+msgid "Focus message box"
+msgstr "將焦點移動到訊息輸入框上"
+
+#: src/ui/shortcuts.py:18
+msgid "Start/stop recording"
+msgstr "開始/停止錄影"
+
+#: src/ui/shortcuts.py:19
+msgid "Save"
+msgstr "儲存"
+
+#: src/ui/shortcuts.py:20
+msgid "Stop TTS"
+msgstr "停止文本轉語音"
+
+#: src/ui/shortcuts.py:21
+msgid "Zoom in"
+msgstr "放大"
+
+#: src/ui/shortcuts.py:22
+msgid "Zoom out"
+msgstr "縮小"
 
 #: src/ui/presentation.py:93
 msgid "Welcome to Nyarch Assistant!"
@@ -479,446 +1006,143 @@ msgstr "開始使用應用程式"
 msgid "Start chatting"
 msgstr "開始聊天"
 
-#: src/ui/thread_editing.py:36
-msgid "No threads are running"
-msgstr "沒有正在執行的執行緒"
+#: src/ui/explorer.py:192
+msgid "Folder is Empty"
+msgstr "資料夾為空"
 
-#: src/ui/thread_editing.py:42
-msgid "Thread number: "
-msgstr "執行緒序號："
+#: src/ui/explorer.py:355
+msgid "Open in new tab"
+msgstr "於新分頁中開啟"
 
-#: src/ui/shortcuts.py:6
-msgid "Help"
-msgstr "幫助"
+#: src/ui/explorer.py:357
+msgid "Open in integrated editor"
+msgstr "於內建編輯器開啟"
 
-#: src/ui/shortcuts.py:12
-msgid "Shortcuts"
-msgstr "捷徑"
+#: src/ui/explorer.py:360 src/ui/explorer.py:589
+msgid "Open in file manager"
+msgstr "於檔案管理員開啟"
 
-#: src/ui/shortcuts.py:13
-msgid "Reload chat"
-msgstr "重新整理聊天室"
+#: src/ui/explorer.py:363 src/ui/explorer.py:451
+msgid "Rename"
+msgstr "重新命名"
 
-#: src/ui/shortcuts.py:14
-msgid "Reload folder"
-msgstr "重新整理資料夾"
+#: src/ui/explorer.py:369
+msgid "Copy full path"
+msgstr "複製完整路徑"
 
-#: src/ui/shortcuts.py:15
-msgid "New tab"
-msgstr "新分頁"
+#: src/ui/explorer.py:420 src/ui/explorer.py:657
+msgid "Failed to open file manager"
+msgstr "無法開啟檔案管理員"
 
-#: src/ui/shortcuts.py:16
-msgid "Paste Image"
-msgstr "貼上圖片"
+#: src/ui/explorer.py:436
+msgid "New name:"
+msgstr "新名稱："
 
-#: src/ui/shortcuts.py:17
-msgid "Focus message box"
-msgstr "將焦點移動到訊息輸入框上"
+#: src/ui/explorer.py:471
+msgid "Renamed successfully"
+msgstr "重新命名完成"
 
-#: src/ui/shortcuts.py:18
-msgid "Start recording"
-msgstr "開始錄影"
-
-#: src/ui/shortcuts.py:19
-msgid "Stop TTS"
-msgstr "停止文本轉語音"
-
-#: src/ui/shortcuts.py:20
-msgid "Zoom in"
-msgstr "放大"
-
-#: src/ui/shortcuts.py:21
-msgid "Zoom out"
-msgstr "縮小"
-
-#: src/translator.py:67 src/handlers/translator/customtr_handler.py:17
-#: src/handlers/stt/custom_handler.py:13 src/handlers/tts/custom_handler.py:22
-msgid "Command to execute"
-msgstr "執行的指令"
-
-#: src/translator.py:68 src/handlers/translator/customtr_handler.py:18
+#: src/ui/explorer.py:476
 #, python-brace-format
-msgid "{0} will be replaced with the text to translate"
-msgstr "{0} 參數會被需要翻譯的內容取代"
+msgid "Failed to rename: {}"
+msgstr "重新命名失敗：{}"
 
-#: src/ui/settings.py:56 src/constants.py:657
-msgid "General"
-msgstr "一般"
+#: src/ui/explorer.py:497
+msgid "Delete File?"
+msgstr "是否刪除檔案？"
 
-#: src/ui/settings.py:57 src/constants.py:607
-msgid "LLM"
-msgstr "模型"
-
-#: src/ui/settings.py:58 src/constants.py:662
-msgid "Prompts"
-msgstr "提示文字"
-
-#: src/ui/settings.py:59
-msgid "Knowledge"
-msgstr "認知"
-
-#: src/ui/settings.py:60 src/ui/settings.py:179 src/constants.py:622
-msgid "Avatar"
-msgstr "夥伴"
-
-#: src/ui/settings.py:64
-msgid "Language Model"
-msgstr "語言模型"
-
-#: src/ui/settings.py:74 src/ui/settings.py:95
-msgid "Other LLMs"
-msgstr "其他大型語言模型"
-
-#: src/ui/settings.py:74 src/ui/settings.py:95
-msgid "Other available LLM providers"
-msgstr "其他提供大型語言模型的服務"
-
-#: src/ui/settings.py:85
-msgid "Advanced LLM Settings"
-msgstr "更多設定"
-
-#: src/ui/settings.py:89
-msgid "Secondary Language Model"
-msgstr "輔助語言模型"
-
-#: src/ui/settings.py:89
-msgid ""
-"Model used for secondary tasks, like offers, chat name and memory generation"
-msgstr "專門執行第二類工作：例如聊天室名稱生成以及記憶生成"
-
-#: src/ui/settings.py:106
-msgid "Embedding Model"
-msgstr "嵌入模型"
-
-#: src/ui/settings.py:106
-msgid ""
-"Embedding is used to trasform text into vectors. Used by Long Term Memory "
-"and RAG. Changing it might require you to re-index documents or reset memory."
-msgstr ""
-"專門將文字轉成向量以提供給 RAG 與長期記憶所使用的模型。改變此設定後請重整索引"
-"與清除記憶。"
-
-#: src/ui/settings.py:117
-msgid "Keep memory of old conversations"
-msgstr "將舊聊天紀錄內容形成記憶"
-
-#: src/ui/settings.py:129 src/constants.py:541
-msgid "Web Search"
-msgstr "網路搜尋"
-
-#: src/ui/settings.py:129
-msgid "Search information on the Web"
-msgstr "在網路上搜尋更多資訊"
-
-#: src/ui/settings.py:141 src/handlers/tts/custom_openai_tts.py:19
-#: src/handlers/tts/tts.py:37 src/handlers/tts/openai_tts_handler.py:19
-#: src/handlers/tts/groq_tts_handler.py:33
-#: src/handlers/tts/elevenlabs_handler.py:17
-msgid "Voice"
-msgstr "語音"
-
-#: src/ui/settings.py:145
-msgid "Text To Speech Program"
-msgstr "語音轉文本程式"
-
-#: src/ui/settings.py:145
-msgid "Choose which text to speech to use"
-msgstr "選擇語音轉文本的程式"
-
-#: src/ui/settings.py:158
-msgid "Translator program"
-msgstr "翻譯"
-
-#: src/ui/settings.py:158
-msgid "Translate the output of the LLM before passing it to the TTS Program"
-msgstr "將模型的輸出內容翻譯並轉移至文本轉語音程式"
-
-#: src/ui/settings.py:166
-msgid "Speech To Text Engine"
-msgstr "語音辨識"
-
-#: src/ui/settings.py:166
-msgid "Choose which speech recognition engine you want"
-msgstr "選擇語音辨識引擎"
-
-#: src/ui/settings.py:174
-msgid "Automatic Speech To Text"
-msgstr "自動語音辨識"
-
-#: src/ui/settings.py:174
-msgid "Automatically restart speech to text at the end of a text/TTS"
-msgstr "在朗讀完畢後自動重新啟動語音辨識服務"
-
-#: src/ui/settings.py:183
-msgid "Avatar model"
-msgstr "夥伴模型"
-
-#: src/ui/settings.py:183
-msgid "Choose which avatar model to choose"
-msgstr "選擇夥伴模型"
-
-#: src/ui/settings.py:192
-msgid "Smart Prompt"
-msgstr "自訂提示語"
-
-#: src/ui/settings.py:196
-msgid "Smart Prompt selector"
-msgstr "智慧提示語選擇器"
-
-#: src/ui/settings.py:196
-msgid "Give extra context on Nyarch Linux based on your prompt"
-msgstr "使用提示語讓人工智慧得知有關 Nyarch Linux 的資訊"
-
-#: src/ui/settings.py:205
-msgid "Prompt control"
-msgstr "提示控制"
-
-#: src/ui/settings.py:210
-msgid "Interface"
-msgstr "界面"
-
-#: src/ui/settings.py:213
-msgid "Interface Size"
-msgstr "界面大小"
-
-#: src/ui/settings.py:213
-msgid "Adjust the size of the interface"
-msgstr "調整界面的大小"
-
-#: src/ui/settings.py:222
-msgid "Hidden files"
-msgstr "隱藏檔"
-
-#: src/ui/settings.py:222
-msgid "Show hidden files"
-msgstr "顯示隱藏檔"
-
-#: src/ui/settings.py:228
-msgid "Send with ENTER"
-msgstr "使用 Enter 輸入"
-
-#: src/ui/settings.py:228
-msgid ""
-"If enabled, messages will be sent with ENTER, to go to a new line use "
-"CTRL+ENTER. If disabled, messages will be sent with SHIFT+ENTER, and newline "
-"with enter"
-msgstr ""
-"若啟用此功能將會讓 Enter 鍵傳送訊息，否則將文字換行，並使用 Shift＋Enter 傳送"
-"訊息。"
-
-#: src/ui/settings.py:234
-msgid "Remove thinking from history"
-msgstr "將思考過程從歷史移除"
-
-#: src/ui/settings.py:234
-msgid ""
-"Do not send old thinking blocks for reasoning models in order to reduce "
-"token usage"
-msgstr "將推論模型的思考內容從歷史中移除以節省 Token 消耗"
-
-#: src/ui/settings.py:240
-msgid "Display LaTeX"
-msgstr "顯示 LaTeX"
-
-#: src/ui/settings.py:240
-msgid "Display LaTeX formulas in chat"
-msgstr "在聊天室顯示 LaTeX 數學式"
-
-#: src/ui/settings.py:246
-msgid "Reverse Chat Order"
-msgstr "反向聊天室"
-
-#: src/ui/settings.py:246
-msgid "Show most recent chats on top in chat list (change chat to apply)"
-msgstr "將最新的訊息至頂"
-
-#: src/ui/settings.py:252
-msgid "Automatically Generate Chat Names"
-msgstr "自動生成聊天室名稱"
-
-#: src/ui/settings.py:252
-msgid "Generate chat names automatically after the first two messages"
-msgstr "生成第一則訊息後自動生成聊天室名稱"
-
-#: src/ui/settings.py:258
-msgid "Number of offers"
-msgstr "建議訊息數量"
-
-#: src/ui/settings.py:258
-msgid "Number of message suggestions to send to chat "
-msgstr "建議訊息的顯示數量"
-
-#: src/ui/settings.py:265
-msgid "Username"
-msgstr "使用者名稱"
-
-#: src/ui/settings.py:265
+#: src/ui/explorer.py:499
 #, python-brace-format
-msgid ""
-"Change the label that appears before your message\n"
-"This information is not sent to the LLM by default\n"
-"You can add it to a prompt using the {USER} variable"
-msgstr "更改聊天室內的使用者名稱，預設將不會將此資訊傳送給模型"
+msgid "Are you sure you want to delete \"{}\"?"
+msgstr "是否刪除「{}」？"
 
-#: src/ui/settings.py:272
-msgid "Neural Network Control"
-msgstr "類神經網路控制"
+#: src/ui/explorer.py:520
+msgid "Deleted successfully"
+msgstr "刪除成功"
 
-#: src/ui/settings.py:275
-msgid "Run commands in a virtual machine"
-msgstr "在模擬器中執行指令"
+#: src/ui/explorer.py:525
+#, python-brace-format
+msgid "Failed to delete: {}"
+msgstr "無法刪除：{}"
 
-#: src/ui/settings.py:288
-msgid "External Terminal"
-msgstr "外部終端機"
+#: src/ui/explorer.py:538
+msgid "Path copied to clipboard"
+msgstr "已複製路徑"
 
-#: src/ui/settings.py:288
-msgid "Choose the external terminal where to run the console commands"
-msgstr "選擇執行指令的外部終端機"
+#: src/ui/explorer.py:542
+msgid "Failed to copy path"
+msgstr "無法複製路徑"
 
-#: src/ui/settings.py:297
-msgid "Program memory"
-msgstr "模型記憶"
+#: src/ui/explorer.py:580
+msgid "Create new folder"
+msgstr "建立新資料夾"
 
-#: src/ui/settings.py:297
-msgid "How long the program remembers the chat "
-msgstr "模型將會記得多久的聊天紀錄"
+#: src/ui/explorer.py:583
+msgid "Create new file"
+msgstr "新增檔案"
 
-#: src/ui/settings.py:318
-msgid "Auto-run commands"
-msgstr "自訂自動執行指令"
+#: src/ui/explorer.py:586
+msgid "Open Terminal Here"
+msgstr "開啟終端機"
 
-#: src/ui/settings.py:318
-msgid "Commands that the bot will write will automatically run"
-msgstr "將會在終端機內自動執行指令"
+#: src/ui/explorer.py:640
+msgid "Create New Folder"
+msgstr "建立新資料夾"
 
-#: src/ui/settings.py:321
-msgid "Max number of commands"
-msgstr "最多指令數量"
+#: src/ui/explorer.py:640
+msgid "Folder name:"
+msgstr "資料夾名稱："
 
-#: src/ui/settings.py:321
-msgid ""
-"Maximum number of commands that the bot will write after a single user "
-"request"
-msgstr "一次訊息的最多指令數量"
+#: src/ui/explorer.py:644
+msgid "Create New File"
+msgstr "新增檔案"
 
-#: src/ui/settings.py:360
-msgid "Document Sources (RAG)"
-msgstr "檔案來源（RAG）"
+#: src/ui/explorer.py:644
+msgid "File name:"
+msgstr "檔案名稱"
 
-#: src/ui/settings.py:360
-msgid "Include content from your documents in the responses"
-msgstr "在回應中包含檔案內容"
+#: src/ui/explorer.py:692 src/ui/profile.py:109
+msgid "Create"
+msgstr "新增"
 
-#: src/ui/settings.py:361
-msgid "Document Analyzer"
-msgstr "檔案分析器"
+#: src/ui/explorer.py:713
+msgid "Folder created successfully"
+msgstr "已成功建立資料夾"
 
-#: src/ui/settings.py:361
-msgid ""
-"The document analyzer uses multiple techniques to extract relevant "
-"information about your documents"
-msgstr "使用不同技術提取各個檔案的相關內容"
+#: src/ui/explorer.py:720
+msgid "File created successfully"
+msgstr "已成功新增檔案"
 
-#: src/ui/settings.py:372
-msgid "Read documents if unsupported"
-msgstr "不支援時閱讀檔案"
+#: src/ui/explorer.py:725
+msgid "A file or folder with that name already exists"
+msgstr "已有相同檔案或資料夾名稱"
 
-#: src/ui/settings.py:372
-msgid ""
-"If the LLM does not support reading documents, relevant information about "
-"documents sent in the chat will be given to the LLM using your Document "
-"Analyzer."
-msgstr "如果模型不支援閱讀文件將會利用檔案分析器傳送檔案相關資訊給模型"
+#: src/ui/explorer.py:728
+msgid "folder"
+msgstr "資料夾"
 
-#: src/ui/settings.py:376
-msgid "Maximum tokens for RAG"
-msgstr "RAG 使用 Tokens 的最大值"
+#: src/ui/explorer.py:728
+msgid "file"
+msgstr "檔案"
 
-#: src/ui/settings.py:376
-msgid ""
-"The maximum amount of tokens to be used for RAG. If the documents do not "
-"exceed this token count,\n"
-"dump all of them in the context"
-msgstr ""
-"此將限制每次呼叫 RAG 時使用的 Tokens 的數量。如果需要使用的 Tokens 多過於此數"
-"值，將僅傳送檔案的大致內容"
+#: src/ui/explorer.py:730
+#, python-brace-format
+msgid "Failed to create {}: {}"
+msgstr "新增 {} 失敗：{}"
 
-#: src/ui/settings.py:393
-msgid "Document Folder"
-msgstr "文件資料夾"
-
-#: src/ui/settings.py:393
-msgid ""
-"Put the documents you want to query in your document folder. The document "
-"analyzer will find relevant information in them if this option is enabled"
-msgstr "檔案分析器將從資料夾內提取資訊"
-
-#: src/ui/settings.py:396
-msgid "Put all the documents you want to index in this folder"
-msgstr "將欲索引的檔案放置此資料夾內。"
-
-#: src/ui/settings.py:432
-msgid "Silence threshold"
-msgstr "靜音門檻"
-
-#: src/ui/settings.py:432
-msgid ""
-"Silence threshold in seconds, percentage of the volume to be considered "
-"silence"
-msgstr "靜音門檻以秒為單位，當音量為 0 時也視為靜音"
-
-#: src/ui/settings.py:445
-msgid "Silence time"
-msgstr "靜音時間"
-
-#: src/ui/settings.py:445
-msgid "Silence time in seconds before recording stops automatically"
-msgstr "靜音時間以秒為單位，當靜音時間達到此秒數將自動停止錄音"
-
-#: src/ui/settings.py:1022
-msgid "Not enough permissions"
-msgstr "權限不足"
-
-#: src/ui/settings.py:1026
-msgid ""
-"Nyarch Assistant does not have enough permissions to run commands on your "
-"system, please run the following command"
-msgstr "Nyarch Assistant 沒有足夠權限在系統內執行指令，請執行以下指令"
-
-#: src/ui/settings.py:1027
-msgid "Understood"
-msgstr "確認"
-
-#: src/ui/mini_window.py:9
-msgid "Nyarch Linux"
-msgstr "Nyarch Linux"
-
-#: src/ui/mini_window.py:20
-msgid "Chat is opened in mini window"
-msgstr "已在新視窗開啟聊天室"
-
-#: src/smart_prompt.py:95 src/handlers/smart_prompt/smart_prompt.py:95
-msgid "Model Dimension"
-msgstr "模型維度"
-
-#: src/smart_prompt.py:96 src/handlers/smart_prompt/smart_prompt.py:96
-msgid "Use bigger models for bigger accuracy less than 100MB"
-msgstr "在 100MB 內以使用更大的模型提升準確率"
-
-#: src/ui/extension.py:51
+#: src/ui/extension.py:52
 msgid "Installed Extensions"
 msgstr "已安裝的擴充功能"
 
-#: src/ui/extension.py:86
+#: src/ui/extension.py:88
 msgid "User guide to Extensions"
 msgstr "擴充功能使用說明"
 
-#: src/ui/extension.py:89
+#: src/ui/extension.py:91
 msgid "Download new Extensions"
 msgstr "下載擴充功能"
 
-#: src/ui/extension.py:92
+#: src/ui/extension.py:94
 msgid "Install extension from file..."
 msgstr "從檔案安裝擴充功能"
 
@@ -942,6 +1166,10 @@ msgstr "建立新設定檔"
 msgid "Import Profile"
 msgstr "導入設定檔"
 
+#: src/ui/profile.py:79 src/ui/widgets/profilerow.py:43
+msgid "Edit Profile"
+msgstr "編輯設定檔"
+
 #: src/ui/profile.py:84 src/ui/profile.py:99 src/ui/profile.py:123
 msgid "Export Profile"
 msgstr "導出設定檔"
@@ -963,10 +1191,6 @@ msgid "Also export the profile picture"
 msgstr "並且導出頭像"
 
 #: src/ui/profile.py:109
-msgid "Create"
-msgstr "新增聊天室"
-
-#: src/ui/profile.py:109
 msgid "Apply"
 msgstr "套用"
 
@@ -976,7 +1200,7 @@ msgstr "目前的設定將複製到新的設定檔"
 
 #: src/ui/profile.py:122 src/ui/profile.py:128
 msgid "Newelle Profiles"
-msgstr "Newelle 設定檔"
+msgstr "Nyarch Assistant 設定檔"
 
 #: src/ui/profile.py:123
 msgid "Export"
@@ -990,266 +1214,286 @@ msgstr "導出"
 msgid "Set profile picture"
 msgstr "設定頭像"
 
-#: src/constants.py:27
+#: src/ui/widgets/thinking.py:26
+msgid "Thoughts"
+msgstr "思考過程"
+
+#: src/ui/widgets/thinking.py:27 src/ui/widgets/thinking.py:134
+msgid "Expand to see details"
+msgstr "點開以顯示完整內容"
+
+#: src/ui/widgets/thinking.py:122
+msgid "Thinking..."
+msgstr "思考中..."
+
+#: src/ui/widgets/thinking.py:123
+msgid "The LLM is thinking... Expand to see thought process"
+msgstr "思考中...點開以顯示完整內容"
+
+#: src/ui/widgets/thinking.py:136
+msgid "No thought process recorded"
+msgstr "沒有思考過程"
+
+#: src/constants.py:28
 msgid "Nyarch Demo API"
 msgstr "Nyarch 預覽 API"
 
-#: src/constants.py:33
-msgid "Any free Provider"
-msgstr "其他免費服務"
+#: src/constants.py:34
+msgid "GPT4Free"
+msgstr "GPT4Free"
 
-#: src/constants.py:40
+#: src/constants.py:42
 msgid "Local Model"
 msgstr "本地模型"
 
-#: src/constants.py:41
+#: src/constants.py:43
 msgid ""
 "NO GPU SUPPORT, USE OLLAMA INSTEAD. Run a LLM model locally, more privacy "
 "but slower"
 msgstr ""
 "不支援顯卡加速，僅有「Ollama 模型」選項支援。不過選擇此選項能保有更多隱私"
 
-#: src/constants.py:46
+#: src/constants.py:48
 msgid "Ollama Instance"
 msgstr "Ollama 模型"
 
-#: src/constants.py:47
+#: src/constants.py:49
 msgid "Easily run multiple LLM models on your own hardware"
 msgstr "讓同時在硬體上執行多個模型更加容易"
 
-#: src/constants.py:53
+#: src/constants.py:55
 msgid "Groq"
 msgstr "Groq"
 
-#: src/constants.py:60 src/constants.py:258
+#: src/constants.py:62 src/constants.py:260
 msgid "Google Gemini API"
 msgstr "Google Gemini API"
 
-#: src/constants.py:66 src/constants.py:252 src/constants.py:253
+#: src/constants.py:68 src/constants.py:254 src/constants.py:255
 msgid "OpenAI API"
 msgstr "OpenAI API"
 
-#: src/constants.py:67
+#: src/constants.py:69
 msgid "OpenAI API. Custom endpoints supported. Use this for custom providers"
 msgstr "支援自訂 API 端點。"
 
-#: src/constants.py:72
+#: src/constants.py:74
 msgid "Anthropic Claude"
 msgstr "Anthropic Claude"
 
-#: src/constants.py:73
+#: src/constants.py:75
 msgid ""
 "Official APIs for Anthropic Claude's models, with image and file support, "
 "requires an API key"
 msgstr "Anthropic Claude 的官方 API，支援圖形與檔案上傳。需要 API 金鑰"
 
-#: src/constants.py:79
+#: src/constants.py:81
 msgid "Mistral"
 msgstr "Mistral"
 
-#: src/constants.py:80
+#: src/constants.py:82
 msgid "Mistral API"
 msgstr "Mistral API"
 
-#: src/constants.py:87
+#: src/constants.py:89
 msgid "OpenRouter"
 msgstr "OpenRouter"
 
-#: src/constants.py:88
+#: src/constants.py:90
 msgid "Openrouter.ai API, supports lots of models"
 msgstr "支援廣泛種類的模型"
 
-#: src/constants.py:95
+#: src/constants.py:97
 msgid "Deepseek"
 msgstr "Deepseek"
 
-#: src/constants.py:96
+#: src/constants.py:98
 msgid "Deepseek API, strongest open source models"
 msgstr "擁有最強大的開源模型"
 
-#: src/constants.py:102 src/constants.py:231
+#: src/constants.py:104 src/constants.py:233
 msgid "Custom Command"
 msgstr "自動執行的指令"
 
-#: src/constants.py:103
+#: src/constants.py:105
 msgid "Use the output of a custom command"
 msgstr "從自訂指令中使用"
 
-#: src/constants.py:112
-msgid "CMU Sphinx"
-msgstr "CMU Sphinx"
-
-#: src/constants.py:113
-msgid "Works offline. Only English supported"
-msgstr "可離線執行，僅支援英文"
-
-#: src/constants.py:119
+#: src/constants.py:114
 msgid "Whisper C++"
 msgstr "Whisper C++"
 
-#: src/constants.py:120
+#: src/constants.py:115
 msgid "Works offline. Optimized Whisper impelementation written in C++"
 msgstr "可離線執行。此為使用 C++ 改良過的 Whisper 模型"
 
-#: src/constants.py:126
+#: src/constants.py:121
+msgid "CMU Sphinx"
+msgstr "CMU Sphinx"
+
+#: src/constants.py:122
+msgid "Works offline. Only English supported"
+msgstr "可離線執行，僅支援英文"
+
+#: src/constants.py:128
 msgid "Google Speech Recognition"
 msgstr "Google 語音辨識"
 
-#: src/constants.py:127 src/constants.py:133
+#: src/constants.py:129 src/constants.py:135
 msgid "Google Speech Recognition online"
 msgstr "Google 線上語音辨識"
 
-#: src/constants.py:132
+#: src/constants.py:134
 msgid "Groq Speech Recognition"
 msgstr "Groq 語音辨識"
 
-#: src/constants.py:138
+#: src/constants.py:140
 msgid "Wit AI"
 msgstr "Wit AI"
 
-#: src/constants.py:139
+#: src/constants.py:141
 msgid "wit.ai speech recognition free API (language chosen on the website)"
 msgstr "免費線上語音辨識 API（請在網站上選擇語言）"
 
-#: src/constants.py:145
+#: src/constants.py:147
 msgid "Vosk API"
 msgstr "Vosk API"
 
-#: src/constants.py:146
+#: src/constants.py:148
 msgid "Works Offline"
 msgstr "可離線執行"
 
-#: src/constants.py:152
+#: src/constants.py:154
 msgid "Whisper API"
 msgstr "Whisper API"
 
-#: src/constants.py:153
+#: src/constants.py:155
 msgid "Uses OpenAI Whisper API"
 msgstr "使用 OpenAI Whisper API"
 
-#: src/constants.py:159
+#: src/constants.py:161
 msgid "Custom command"
 msgstr "自動執行的指令"
 
-#: src/constants.py:160
+#: src/constants.py:162
 msgid "Runs a custom command"
 msgstr "此可執行自訂指令"
 
-#: src/constants.py:169
+#: src/constants.py:171
 msgid "Edge TTS"
 msgstr "Edge 文本轉語音"
 
-#: src/constants.py:170
+#: src/constants.py:172
 msgid "Use Microsoft Edge online TTS without any API Key"
 msgstr "使用不須 API 金鑰的微軟 Edge 文本轉語音"
 
-#: src/constants.py:175
+#: src/constants.py:177
 msgid "Google TTS"
 msgstr "Google 文本轉語音"
 
-#: src/constants.py:176
+#: src/constants.py:178
 msgid "Google's text to speech"
 msgstr "Google 的文本轉語音"
 
-#: src/constants.py:181
+#: src/constants.py:183
 msgid "Kokoro TTS"
 msgstr "Kokoro 文本轉語音"
 
-#: src/constants.py:182
+#: src/constants.py:184
 msgid ""
 "Lightweight and fast open source TTS engine. ~3GB dependencies, 400MB model"
 msgstr "輕量且快速的開源文本轉語音。～3GB 依賴，400MB 模型"
 
-#: src/constants.py:187
+#: src/constants.py:189
 msgid "ElevenLabs TTS"
 msgstr "ElevenLabs 文本轉語音"
 
-#: src/constants.py:188
+#: src/constants.py:190
 msgid "Natural sounding TTS"
 msgstr "自然、多樣的聲線"
 
-#: src/constants.py:193 src/constants.py:194
+#: src/constants.py:195 src/constants.py:196
 msgid "OpenAI TTS"
 msgstr "OpenAI 文本轉語音"
 
-#: src/constants.py:199
+#: src/constants.py:201
 msgid "Groq TTS"
 msgstr "Groq 文本轉語音"
 
-#: src/constants.py:200
+#: src/constants.py:202
 msgid "Groq TTS API"
 msgstr "Groq 文本轉語音 API"
 
-#: src/constants.py:205 src/constants.py:206
+#: src/constants.py:207 src/constants.py:208
 msgid "Custom OpenAI TTS"
 msgstr "自訂 OpenAI 文本轉語音"
 
-#: src/constants.py:211
+#: src/constants.py:213
 msgid "Voicevox API"
 msgstr "Voicevox API"
 
-#: src/constants.py:212
+#: src/constants.py:214
 msgid ""
 "(Selfhostable) JP ONLY. API for voicevox anime-like natural sounding tts"
 msgstr "可自架的 API，支援各種動漫類角色的日文語音。"
 
-#: src/constants.py:218
+#: src/constants.py:220
 msgid "VITS API"
 msgstr "VTTS API"
 
-#: src/constants.py:219
+#: src/constants.py:221
 msgid "(Selfhostable) VITS simple API. AI based TTS, very good for Japanese"
 msgstr "可自架的 VITS 簡易 API，特別擅長於日文。"
 
-#: src/constants.py:225
+#: src/constants.py:227
 msgid "Espeak TTS"
 msgstr "Espeak 文本轉語音"
 
-#: src/constants.py:226
+#: src/constants.py:228
 msgid "Offline TTS"
 msgstr "離線文本轉語音"
 
-#: src/constants.py:232
+#: src/constants.py:234
 #, python-brace-format
 msgid "Use a custom command as TTS, {0} will be replaced with the text"
 msgstr "使用自訂指令當作文本轉語音工具，{0} 將會被取代為需處理的文字"
 
-#: src/constants.py:240
+#: src/constants.py:242
 msgid "WordLlama"
 msgstr "WordLlama"
 
-#: src/constants.py:241
+#: src/constants.py:243
 msgid ""
 "Light local embedding model based on llama. Works offline, very low "
 "resources usage"
 msgstr "基於 llama 的輕量級模型。可離線使用，資源消耗極低。"
 
-#: src/constants.py:246
+#: src/constants.py:248
 msgid "Ollama Embedding"
 msgstr "Ollama 嵌入"
 
-#: src/constants.py:247
+#: src/constants.py:249
 msgid ""
 "Use Ollama models for Embedding. Works offline, very low resources usage"
 msgstr "使用 Ollama 模型嵌入內容"
 
-#: src/constants.py:259
+#: src/constants.py:261
 msgid "Use Google Gemini API to get embeddings"
 msgstr "使用 Google Gemini API 取得嵌入內容"
 
-#: src/constants.py:267
+#: src/constants.py:269
 msgid "User Summary"
 msgstr "聊天歷史大意"
 
-#: src/constants.py:268
+#: src/constants.py:270
 msgid "Generate a summary of the user's conversation"
 msgstr "從對話內容中生成大意"
 
-#: src/constants.py:273
+#: src/constants.py:275
 msgid "Memoripy"
 msgstr "Memoripy"
 
-#: src/constants.py:274
+#: src/constants.py:276
 msgid ""
 "Extract messages from previous conversations using contextual memory "
 "retrivial, memory decay, concept extraction and other advanced techniques. "
@@ -1258,261 +1502,646 @@ msgstr ""
 "使用前後文記憶處理其他聊天歷史的內容，包括取得、壓縮、記憶損失、以及概念分析"
 "等技術。每次訊息將呼叫一次。"
 
-#: src/constants.py:279
+#: src/constants.py:281
 msgid "User Summary + Memoripy"
 msgstr "聊天歷史大意＋Memoripy"
 
-#: src/constants.py:280
+#: src/constants.py:282
 msgid "Use both technologies for long term memory"
 msgstr "同時使用聊天歷史大意以及 Memoripy"
 
-#: src/constants.py:288
+#: src/constants.py:290
 msgid "Document reader"
 msgstr "文件閱讀器"
 
-#: src/constants.py:289
+#: src/constants.py:291
 msgid ""
 "Classic RAG approach - chunk documents and embed them, then compare them to "
 "the query and return the most relevant documents"
 msgstr "傳統 RAG — 將檔案縮減並嵌入，最後與序列比對，輸出最相關的檔案"
 
-#: src/constants.py:296
+#: src/constants.py:298
 msgid "Live2D"
 msgstr "Live2D"
 
-#: src/constants.py:297
+#: src/constants.py:299
 msgid "Cubism Live2D, usually used by VTubers"
 msgstr "Cubism Live2D，常被 VTuber 使用"
 
-#: src/constants.py:302
+#: src/constants.py:304
 msgid "LivePNG"
 msgstr "LivePNG"
 
-#: src/constants.py:303
+#: src/constants.py:305
 msgid "LivePNG model"
 msgstr "LivePNG 模型"
 
-#: src/constants.py:311
+#: src/constants.py:313
 msgid "Google Translator"
 msgstr "Google 翻譯"
 
-#: src/constants.py:312
+#: src/constants.py:314
 msgid "Use Google transate"
 msgstr "使用 Google 翻譯"
 
-#: src/constants.py:317
+#: src/constants.py:319
 msgid "Libre Translate"
 msgstr "Libre 翻譯"
 
-#: src/constants.py:318 src/constants.py:324
+#: src/constants.py:320 src/constants.py:326
 msgid "Open source self hostable translator"
 msgstr "開源可自架翻譯"
 
-#: src/constants.py:323
+#: src/constants.py:325
 msgid "Ligva Translate"
 msgstr "Ligva 翻譯"
 
-#: src/constants.py:329
+#: src/constants.py:331
 msgid "Custom Translator"
 msgstr "自訂翻譯"
 
-#: src/constants.py:330
+#: src/constants.py:332
 msgid "Use a custom translator"
 msgstr "使用自訂的翻譯"
 
-#: src/constants.py:338
+#: src/constants.py:340
 msgid "Nyarch Smart Prompt Lite"
 msgstr "Nyarch 智慧提示語（輕量版）"
 
-#: src/constants.py:339
+#: src/constants.py:341
 msgid ""
 "EXPERIMENTAL: Local mini models that helps the llm to provide better "
 "responses"
 msgstr "實驗性：讓本機小模型輔助大型語言模型提供更精確的回應"
 
-#: src/constants.py:344
+#: src/constants.py:346
 msgid "Nyarch Smart Prompt Medium"
 msgstr "Nyarch 智慧提示語（完整版）"
 
-#: src/constants.py:345
+#: src/constants.py:347
 msgid ""
 "EXPERIMENTAL: Local medium models that helps the llm to provide better "
 "responses - Medium ~30MB download"
 msgstr "實驗性：讓本機小模型輔助大型語言模型提供更精確的回應（約佔～30MB）"
 
-#: src/constants.py:353
+#: src/constants.py:355
 msgid "SearXNG"
 msgstr "SearXNG"
 
-#: src/constants.py:354
+#: src/constants.py:356
 msgid "SearXNG - Private and selfhostable search engine"
 msgstr "SearXNG — 尊重隱私的開源元搜尋引擎"
 
-#: src/constants.py:359
+#: src/constants.py:361
 msgid "DuckDuckGo"
 msgstr "DuckDuckGo"
 
-#: src/constants.py:360
+#: src/constants.py:362
 msgid "DuckDuckGo search"
 msgstr "DuckDuckGo 搜尋"
 
-#: src/constants.py:365
+#: src/constants.py:367
 msgid "Tavily"
 msgstr "Tavily"
 
-#: src/constants.py:366
+#: src/constants.py:368
 msgid "Tavily search"
 msgstr "Tavily 搜尋"
 
-#: src/constants.py:515
+#: src/constants.py:512
 msgid "Helpful assistant"
 msgstr "模型最佳化"
 
-#: src/constants.py:516
+#: src/constants.py:513
 msgid "General purpose prompt to enhance the LLM answers and give more context"
 msgstr "讓模型能提供更準確的回應以及提供更多前後文"
 
-#: src/constants.py:524
+#: src/constants.py:521
 msgid "Console access"
 msgstr "終端機取用權"
 
-#: src/constants.py:525
+#: src/constants.py:522
 msgid "Can the program run terminal commands on the computer"
 msgstr "模型將有權使用電腦上的終端機"
 
-#: src/constants.py:532
+#: src/constants.py:529
 msgid "Current directory"
 msgstr "目前所在資料夾"
 
-#: src/constants.py:533
+#: src/constants.py:530
 msgid "What is the current directory"
 msgstr "目前我們在哪個資料夾"
 
-#: src/constants.py:542
+#: src/constants.py:539
 msgid "Allow the LLM to search on the internet"
 msgstr "允許大型語言模型使用網路搜尋"
 
-#: src/constants.py:550
+#: src/constants.py:547
 msgid "Basic functionality"
 msgstr "基本功能"
 
-#: src/constants.py:551
+#: src/constants.py:548
 msgid "Showing tables and code (*can work without it)"
 msgstr "顯示表格與程式（不必啟用）"
 
-#: src/constants.py:559
+#: src/constants.py:556
 msgid "Graphs access"
 msgstr "圖表取用權"
 
-#: src/constants.py:560
+#: src/constants.py:557
 msgid "Can the program display graphs"
 msgstr "模型將有權生成圖表"
 
-#: src/constants.py:568
+#: src/constants.py:565
 msgid "Show image"
 msgstr "顯示圖片"
 
-#: src/constants.py:569
+#: src/constants.py:566
 msgid "Show image in chat"
 msgstr "模型將會生成圖片"
 
-#: src/constants.py:577
+#: src/constants.py:574
 msgid "Show expressions"
 msgstr "顯示擴充功能"
 
-#: src/constants.py:578
+#: src/constants.py:575
 msgid "Let the avatar show expressions"
 msgstr "讓夥伴顯示各種表情"
 
-#: src/constants.py:586
+#: src/constants.py:583
 msgid "Show a personality"
 msgstr "突顯個性"
 
-#: src/constants.py:587
+#: src/constants.py:584
 msgid "Show a personality in chat"
 msgstr "使用提示語使人工智慧突顯某種個性"
 
-#: src/constants.py:595
+#: src/constants.py:592
 msgid "Custom Prompt"
 msgstr "自訂提示語"
 
-#: src/constants.py:596
+#: src/constants.py:593
 msgid "Add your own custom prompt"
 msgstr "在此新增自訂的提示文字"
 
-#: src/constants.py:609
+#: src/constants.py:646
 msgid "LLM and Secondary LLM settings"
 msgstr "大型語言模型與輔助模型設定"
 
-#: src/constants.py:614
+#: src/constants.py:651
 msgid "Text to Speech settings"
 msgstr "語音轉文本設定"
 
-#: src/constants.py:617
+#: src/constants.py:654
 msgid "STT"
 msgstr "語音辨識"
 
-#: src/constants.py:619
+#: src/constants.py:656
 msgid "Speech to Text settings"
 msgstr "語音辨識設定"
 
-#: src/constants.py:624
+#: src/constants.py:661
 msgid "Avatar settings"
 msgstr "夥伴設定"
 
-#: src/constants.py:627
+#: src/constants.py:664
 msgid "Embedding"
 msgstr "嵌入"
 
-#: src/constants.py:629
+#: src/constants.py:666
 msgid "Embedding settings"
 msgstr "嵌入設定"
 
-#: src/constants.py:632
+#: src/constants.py:669
 msgid "Memory"
 msgstr "記憶"
 
-#: src/constants.py:634
+#: src/constants.py:671
 msgid "Memory settings"
 msgstr "設定"
 
-#: src/constants.py:637
+#: src/constants.py:674
 msgid "Websearch"
 msgstr "網路搜尋"
 
-#: src/constants.py:639
+#: src/constants.py:676
 msgid "Websearch settings"
 msgstr "網路搜尋設定"
 
-#: src/constants.py:642
+#: src/constants.py:679
 msgid "RAG"
 msgstr "RAG"
 
-#: src/constants.py:644
+#: src/constants.py:681
 msgid "Document analyzer settings"
 msgstr "檔案分析器設定"
 
-#: src/constants.py:649
+#: src/constants.py:686
 msgid "Extensions settings"
 msgstr "擴充功能設定"
 
-#: src/constants.py:652
+#: src/constants.py:689
 msgid "Inteface"
 msgstr "界面"
 
-#: src/constants.py:654
+#: src/constants.py:691
 msgid "Interface settings, hidden files, reverse order, zoom..."
 msgstr "界面設定、隱藏檔、反向順序、放大等..."
 
-#: src/constants.py:659
+#: src/constants.py:696
 msgid ""
 "General settings, virtualization, offers, memory length, automatically "
 "generate chat name, current folder..."
 msgstr "一般設定、指令虛擬化、記憶長度、自動生成聊天室名稱、目前資料夾等..."
 
-#: src/constants.py:664
+#: src/constants.py:701
 msgid "Prompts settings, custom extra prompt, custom prompts..."
 msgstr "提示文字設定、自訂提示文字等..."
+
+#: src/handlers/stt/googlesr_handler.py:13
+#: src/handlers/stt/openaisr_handler.py:17 src/handlers/stt/witai_handler.py:12
+#: src/handlers/stt/groqsr_handler.py:13 src/handlers/llm/openai_handler.py:75
+#: src/handlers/embeddings/openai_handler.py:35
+#: src/handlers/tts/groq_tts_handler.py:32
+#: src/handlers/llm/claude_handler.py:84
+#: src/handlers/tts/custom_openai_tts.py:18
+#: src/handlers/tts/elevenlabs_handler.py:9
+#: src/handlers/tts/openai_tts_handler.py:18
+msgid "API Key"
+msgstr "API 金鑰"
+
+#: src/handlers/stt/googlesr_handler.py:14
+msgid "API Key for Google SR, write 'default' to use the default one"
+msgstr "Google SR 的 API 金鑰，設定「default」將使用預設金鑰"
+
+#: src/handlers/stt/googlesr_handler.py:21
+#: src/handlers/stt/whispercpp_handler.py:47
+#: src/handlers/stt/openaisr_handler.py:32
+#: src/handlers/stt/groqsr_handler.py:29
+msgid "Language"
+msgstr "語言"
+
+#: src/handlers/stt/googlesr_handler.py:22
+msgid "The language of the text to recgnize in IETF"
+msgstr "IETF 的辨識語言"
+
+#: src/handlers/stt/custom_handler.py:14
+#, python-brace-format
+msgid "{0} will be replaced with the model fullpath"
+msgstr "{0} 參數會被模型的絕對路徑取代"
+
+#: src/ui/widgets/profilerow.py:26
+msgid "Select profile"
+msgstr "選擇設定檔"
+
+#: src/ui/widgets/profilerow.py:53
+msgid "Delete Profile"
+msgstr "刪除設定檔"
+
+#: src/ui/thread_editing.py:36
+msgid "No threads are running"
+msgstr "沒有正在執行的執行緒"
+
+#: src/ui/thread_editing.py:42
+msgid "Thread number: "
+msgstr "執行緒序號："
+
+#: src/handlers/stt/vosk_handler.py:17
+msgid "Model Path"
+msgstr "模型路徑"
+
+#: src/handlers/stt/vosk_handler.py:18
+msgid "Absolute path to the VOSK model (unzipped)"
+msgstr "VOSK 模型的絕對路徑（已解壓縮）"
+
+#: src/handlers/stt/whispercpp_handler.py:40
+#: src/handlers/stt/whisper_handler.py:15 src/handlers/llm/openai_handler.py:87
+#: src/handlers/embeddings/openai_handler.py:44
+#: src/handlers/llm/g4f_handler.py:44 src/handlers/tts/groq_tts_handler.py:34
+#: src/handlers/llm/claude_handler.py:89 src/handlers/llm/claude_handler.py:93
+#: src/handlers/tts/custom_openai_tts.py:20
+#: src/handlers/llm/gemini_handler.py:97
+#: src/handlers/tts/elevenlabs_handler.py:24
+#: src/handlers/tts/openai_tts_handler.py:20
+msgid "Model"
+msgstr "模型"
+
+#: src/handlers/stt/whispercpp_handler.py:41
+#: src/handlers/stt/whisper_handler.py:16
+msgid "Name of the Whisper model"
+msgstr "Whisper 模型的名稱"
+
+#: src/handlers/stt/whispercpp_handler.py:47
+msgid "Language of the recognition. For example en, it..."
+msgstr "將被偵測的語言。例如 en、it 等"
+
+#: src/handlers/stt/whispercpp_handler.py:48
+msgid "Model Library"
+msgstr "模型資料庫"
+
+#: src/handlers/stt/whispercpp_handler.py:48
+msgid "Manage Whisper models"
+msgstr "管理 Whisper 模型"
+
+#: src/handlers/stt/whispercpp_handler.py:49
+msgid "Advanced Settings"
+msgstr "更多設定"
+
+#: src/handlers/stt/whispercpp_handler.py:49
+msgid "More advanced settings"
+msgstr "更多設定"
+
+#: src/handlers/stt/whispercpp_handler.py:50
+#: src/handlers/llm/openai_handler.py:107
+msgid "Temperature"
+msgstr "溫度"
+
+#: src/handlers/stt/whispercpp_handler.py:50
+msgid "Temperature to use"
+msgstr "溫度"
+
+#: src/handlers/stt/whispercpp_handler.py:51
+msgid "Prompt for the recognition"
+msgstr "語音辨識提示語"
+
+#: src/handlers/stt/whispercpp_handler.py:51
+msgid "Prompt to use for the recognition"
+msgstr "語音辨識所使用的提示語"
+
+#: src/handlers/stt/sphinx_handler.py:19
+msgid "Could not understand the audio"
+msgstr "無法理解語音"
+
+#: src/handlers/stt/openaisr_handler.py:10
+#: src/handlers/llm/openai_handler.py:78
+#: src/handlers/embeddings/openai_handler.py:38
+#: src/handlers/embeddings/ollama_handler.py:32
+#: src/handlers/llm/ollama_handler.py:150
+msgid "API Endpoint"
+msgstr "API 端點"
+
+#: src/handlers/stt/openaisr_handler.py:11
+msgid "Endpoint for OpenAI requests"
+msgstr "OpenAI 的端點網址"
+
+#: src/handlers/stt/openaisr_handler.py:18
+msgid "API Key for OpenAI"
+msgstr "OpenAI 的 API 金鑰"
+
+#: src/handlers/stt/openaisr_handler.py:25
+msgid "Whisper Model"
+msgstr "Whisper 模型"
+
+#: src/handlers/stt/openaisr_handler.py:26
+msgid "Name of the OpenAI model"
+msgstr "OpenAI 的模型名稱"
+
+#: src/handlers/stt/openaisr_handler.py:33
+msgid ""
+"Optional: Specify the language for transcription. Use ISO 639-1 language "
+"codes (e.g. \"en\" for English, \"fr\" for French, etc.). "
+msgstr ""
+"可選：自訂文字紀錄的語言。使用 ISO 639-1 語言碼（例如「en」為英文，「fr」為法"
+"文等）"
+
+#: src/handlers/stt/witai_handler.py:13
+msgid "Server Access Token for wit.ai"
+msgstr "wit.ai 的伺服器存取權杖"
+
+#: src/handlers/stt/groqsr_handler.py:14
+msgid "API Key for Groq SR, write 'default' to use the default one"
+msgstr "Groq SR 的 API 金鑰，設定「default」將使用預設金鑰"
+
+#: src/handlers/stt/groqsr_handler.py:21
+msgid "Groq Model"
+msgstr "Groq 模型"
+
+#: src/handlers/stt/groqsr_handler.py:22
+msgid "Name of the Groq Model"
+msgstr "Groq 模型名稱"
+
+#: src/handlers/stt/groqsr_handler.py:30
+msgid ""
+"Specify the language for transcription. Use ISO 639-1 language codes (e.g. "
+"\"en\" for English, \"fr\" for French, etc.). "
+msgstr "選擇紀錄的語言。使用 ISO 639-1 語言碼（例如「en」英文，「fr」法文等）"
+
+#: src/handlers/avatar/livepng_handler.py:23
+msgid "LivePNG Model"
+msgstr "LivePNG 模型"
+
+#: src/handlers/avatar/livepng_handler.py:24
+msgid "LivePNG Model to use"
+msgstr "使用的 LivePNG 模型"
+
+#: src/handlers/avatar/livepng_handler.py:34
+#: src/handlers/avatar/live2d_handler.py:70
+msgid "Lipsync Framerate"
+msgstr "對嘴幀數"
+
+#: src/handlers/avatar/livepng_handler.py:35
+#: src/handlers/avatar/live2d_handler.py:71
+msgid "Maximum amount of frames to generate for lipsync"
+msgstr "對嘴的最大幀數"
+
+#: src/handlers/avatar/livepng_handler.py:44
+msgid "LivePNG model style"
+msgstr "LivePNG 模型風格"
+
+#: src/handlers/avatar/livepng_handler.py:45
+msgid "Choose the style of the model for the specified one"
+msgstr "選擇模型的風格"
+
+#: src/handlers/rag/rag_handler.py:104
+msgid "Index your documents"
+msgstr "將檔案編入索引"
+
+#: src/handlers/rag/rag_handler.py:105
+msgid ""
+"Index all the documents in your document folder. You have to run this "
+"operation every time you edit/create a document, change document analyzer or "
+"change embedding model"
+msgstr ""
+"將文件資料夾內的所有檔案編入索引。您必須於每次有檔案變更、改變文件分析緝或嵌"
+"入模行時使用"
+
+#: src/handlers/avatar/live2d_handler.py:59
+msgid "Live2D Model"
+msgstr "Live2D 模型"
+
+#: src/handlers/avatar/live2d_handler.py:60
+msgid "Live2D Model to use"
+msgstr "使用的 Live2D 模型"
+
+#: src/handlers/avatar/live2d_handler.py:80
+msgid "Background Color"
+msgstr "背景顏色"
+
+#: src/handlers/avatar/live2d_handler.py:81
+msgid "Background color of the avatar"
+msgstr "夥伴的背景顏色"
+
+#: src/handlers/avatar/live2d_handler.py:87
+msgid "Zoom Model"
+msgstr "放大模型"
+
+#: src/handlers/avatar/live2d_handler.py:88
+msgid "Zoom the Live2D model"
+msgstr "將您的夥伴放大"
+
+#: src/utility/util.py:136 src/handlers/llm/newelle_handler.py:27
+#: src/handlers/llm/gemini_handler.py:119 src/handlers/llm/custom_handler.py:20
+#: src/handlers/llm/gpt4all_handler.py:153
+msgid "Message Streaming"
+msgstr "訊息串流"
+
+#: src/utility/util.py:137 src/handlers/llm/newelle_handler.py:28
+#: src/handlers/llm/gemini_handler.py:120 src/handlers/llm/custom_handler.py:20
+#: src/handlers/llm/gpt4all_handler.py:153
+msgid "Gradually stream message output"
+msgstr "逐漸的將訊息輸出串流"
+
+#: src/handlers/llm/openrouter_handler.py:14
+msgid "Provider Sorting"
+msgstr "供給者排序"
+
+#: src/handlers/llm/openrouter_handler.py:14
+msgid "Choose providers based on pricing/throughput or latency"
+msgstr "根據最佳價格、流量或最低延遲選擇供給者"
+
+#: src/handlers/llm/openrouter_handler.py:14
+msgid "Price"
+msgstr "價格"
+
+#: src/handlers/llm/openrouter_handler.py:14
+msgid "Throughput"
+msgstr "流量"
+
+#: src/handlers/llm/openrouter_handler.py:14
+msgid "Latency"
+msgstr "延遲"
+
+#: src/handlers/llm/openrouter_handler.py:15
+msgid "Providers Order"
+msgstr "供給者排序"
+
+#: src/handlers/llm/openrouter_handler.py:15
+msgid ""
+"Add order of providers to use, names separated by a comma.\n"
+"Empty to not specify"
+msgstr "新增自訂供給者，將不同供給者名稱以逗號隔開。留空以不使用"
+
+#: src/handlers/llm/openrouter_handler.py:16
+msgid "Allow Fallbacks"
+msgstr "允許後備供給者"
+
+#: src/handlers/llm/openrouter_handler.py:16
+msgid "Allow fallbacks to other providers"
+msgstr "允許在無法使用主要供給者時使用其他供給者"
+
+#: src/handlers/websearch/duckduckgo_handler.py:14
+#: src/handlers/websearch/tavily.py:21
+msgid "Max Results"
+msgstr "搜尋結果數最大值"
+
+#: src/handlers/websearch/duckduckgo_handler.py:14
+#: src/handlers/websearch/tavily.py:21
+msgid "Number of results to consider"
+msgstr "限制搜尋的結果數目"
+
+#: src/handlers/websearch/duckduckgo_handler.py:15
+msgid "Region"
+msgstr "區間"
+
+#: src/handlers/websearch/duckduckgo_handler.py:15
+msgid "Region for the search results"
+msgstr "搜尋的區間"
+
+#: src/handlers/llm/openai_handler.py:75
+#: src/handlers/embeddings/openai_handler.py:35
+msgid "API Key for "
+msgstr "API 金鑰："
+
+#: src/handlers/llm/openai_handler.py:78
+#: src/handlers/embeddings/ollama_handler.py:32
+#: src/handlers/llm/ollama_handler.py:150
+msgid "API base url, change this to use interference APIs"
+msgstr "API 擷取的網址"
+
+#: src/handlers/llm/openai_handler.py:81
+#: src/handlers/embeddings/openai_handler.py:41
+msgid "Use Custom Model"
+msgstr "使用自訂模型"
+
+#: src/handlers/llm/openai_handler.py:81
+#: src/handlers/embeddings/openai_handler.py:41
+#: src/handlers/embeddings/ollama_handler.py:34
+#: src/handlers/llm/claude_handler.py:85 src/handlers/llm/ollama_handler.py:153
+msgid "Use a custom model"
+msgstr "使用自訂的模型"
+
+#: src/handlers/llm/openai_handler.py:84 src/handlers/llm/gemini_handler.py:135
+msgid "Advanced Parameters"
+msgstr "更多設定"
+
+#: src/handlers/llm/openai_handler.py:84
+msgid "Include parameters like Top-P, Temperature, etc."
+msgstr "包含 Token 限制、Top-P、溫度等參數"
+
+#: src/handlers/llm/openai_handler.py:87
+msgid "Name of the LLM Model to use"
+msgstr "使用的大型語言模型"
+
+#: src/handlers/llm/openai_handler.py:94
+#: src/handlers/embeddings/openai_handler.py:51
+msgid " Model"
+msgstr " 模型"
+
+#: src/handlers/llm/openai_handler.py:106
+msgid "Top-P"
+msgstr "Top-P"
+
+#: src/handlers/llm/openai_handler.py:106
+msgid "An alternative to sampling with temperature, called nucleus sampling"
+msgstr "一種調整隨機性的替代的技術"
+
+#: src/handlers/llm/openai_handler.py:107
+msgid ""
+"What sampling temperature to use. Higher values will make the output more "
+"random"
+msgstr "溫度越高隨機性越高"
+
+#: src/handlers/llm/openai_handler.py:108
+msgid "Frequency Penalty"
+msgstr "重複懲罰"
+
+#: src/handlers/llm/openai_handler.py:108
+msgid ""
+"Number between -2.0 and 2.0. Positive values decrease the model's likelihood "
+"to repeat the same line verbatim"
+msgstr "數值介於±2.0。數值越大將減少輸出重複率"
+
+#: src/handlers/llm/openai_handler.py:109
+msgid "Presence Penalty"
+msgstr "存在懲罰"
+
+#: src/handlers/llm/openai_handler.py:109
+msgid ""
+"Number between -2.0 and 2.0. Positive values decrease the model's likelihood "
+"to talk about new topics"
+msgstr "數值介於±2.0。數值越大將讓模型搬出新話題的機率"
+
+#: src/handlers/llm/openai_handler.py:114
+#: src/handlers/llm/newelle_handler.py:18
+#: src/handlers/llm/gemini_handler.py:131
+msgid "Privacy Policy"
+msgstr "隱私政策"
+
+#: src/handlers/llm/openai_handler.py:114
+#: src/handlers/llm/newelle_handler.py:19
+#: src/handlers/llm/gemini_handler.py:132
+msgid "Open privacy policy website"
+msgstr "開啟隱私政策網站"
 
 #: src/handlers/websearch/tavily.py:20
 msgid "Token"
@@ -1521,16 +2150,6 @@ msgstr "Token"
 #: src/handlers/websearch/tavily.py:20
 msgid "Tavily API key"
 msgstr "Tavily API 金鑰"
-
-#: src/handlers/websearch/tavily.py:21
-#: src/handlers/websearch/duckduckgo_handler.py:13
-msgid "Max Results"
-msgstr "搜尋結果數最大值"
-
-#: src/handlers/websearch/tavily.py:21
-#: src/handlers/websearch/duckduckgo_handler.py:13
-msgid "Number of results to consider"
-msgstr "限制搜尋的結果數目"
 
 #: src/handlers/websearch/tavily.py:22
 msgid "The depth of the search"
@@ -1633,233 +2252,139 @@ msgstr "排除網域"
 msgid "A list of domains to specifically exclude from the search results."
 msgstr "在搜尋結果內排除這些網域"
 
-#: src/handlers/websearch/duckduckgo_handler.py:14
-msgid "Region"
-msgstr "區間"
-
-#: src/handlers/websearch/duckduckgo_handler.py:14
-msgid "Region for the search results"
-msgstr "搜尋的區間"
-
-#: src/handlers/llm/openrouter_handler.py:14
-msgid "Provider Sorting"
-msgstr "供給者排序"
-
-#: src/handlers/llm/openrouter_handler.py:14
-msgid "Choose providers based on pricing/throughput or latency"
-msgstr "根據最佳價格、流量或最低延遲選擇供給者"
-
-#: src/handlers/llm/openrouter_handler.py:14
-msgid "Price"
-msgstr "價格"
-
-#: src/handlers/llm/openrouter_handler.py:14
-msgid "Throughput"
-msgstr "流量"
-
-#: src/handlers/llm/openrouter_handler.py:14
-msgid "Latency"
-msgstr "延遲"
-
-#: src/handlers/llm/openrouter_handler.py:15
-msgid "Providers Order"
-msgstr "供給者排序"
-
-#: src/handlers/llm/openrouter_handler.py:15
-msgid ""
-"Add order of providers to use, names separated by a comma.\n"
-"Empty to not specify"
-msgstr "新增自訂供給者，將不同供給者名稱以逗號隔開。留空以不使用"
-
-#: src/handlers/llm/openrouter_handler.py:16
-msgid "Allow Fallbacks"
-msgstr "允許後備供給者"
-
-#: src/handlers/llm/openrouter_handler.py:16
-msgid "Allow fallbacks to other providers"
-msgstr "允許在無法使用主要供給者時使用其他供給者"
-
-#: src/handlers/llm/openai_handler.py:75 src/handlers/llm/claude_handler.py:84
-#: src/handlers/embeddings/openai_handler.py:35
-#: src/handlers/stt/openaisr_handler.py:17
-#: src/handlers/tts/custom_openai_tts.py:18
-#: src/handlers/stt/googlesr_handler.py:13
-#: src/handlers/tts/openai_tts_handler.py:18
-#: src/handlers/stt/groqsr_handler.py:13
-#: src/handlers/tts/groq_tts_handler.py:32 src/handlers/stt/witai_handler.py:12
-#: src/handlers/tts/elevenlabs_handler.py:9
-msgid "API Key"
-msgstr "API 金鑰"
-
-#: src/handlers/llm/openai_handler.py:75
-#: src/handlers/embeddings/openai_handler.py:35
-msgid "API Key for "
-msgstr "API 金鑰："
-
-#: src/handlers/llm/openai_handler.py:78 src/handlers/llm/ollama_handler.py:149
-#: src/handlers/embeddings/ollama_handler.py:32
 #: src/handlers/embeddings/openai_handler.py:38
-#: src/handlers/stt/openaisr_handler.py:10
-msgid "API Endpoint"
-msgstr "API 端點"
-
-#: src/handlers/llm/openai_handler.py:78 src/handlers/llm/ollama_handler.py:149
-#: src/handlers/embeddings/ollama_handler.py:32
-msgid "API base url, change this to use interference APIs"
+msgid "API base url, change this to use different APIs"
 msgstr "API 擷取的網址"
 
-#: src/handlers/llm/openai_handler.py:81
-#: src/handlers/embeddings/openai_handler.py:41
-msgid "Use Custom Model"
-msgstr "使用自訂模型"
-
-#: src/handlers/llm/openai_handler.py:81 src/handlers/llm/ollama_handler.py:151
-#: src/handlers/llm/claude_handler.py:85
-#: src/handlers/embeddings/ollama_handler.py:34
-#: src/handlers/embeddings/openai_handler.py:41
-msgid "Use a custom model"
-msgstr "使用自訂的模型"
-
-#: src/handlers/llm/openai_handler.py:84 src/handlers/llm/gemini_handler.py:135
-msgid "Advanced Parameters"
-msgstr "更多設定"
-
-#: src/handlers/llm/openai_handler.py:84
-msgid "Include parameters like Max Tokens, Top-P, Temperature, etc."
-msgstr "包含 Token 限制、Top-P、溫度等參數"
-
-#: src/handlers/llm/openai_handler.py:87 src/handlers/llm/gemini_handler.py:97
-#: src/handlers/llm/claude_handler.py:89 src/handlers/llm/claude_handler.py:93
 #: src/handlers/embeddings/openai_handler.py:44
-#: src/handlers/tts/custom_openai_tts.py:20
-#: src/handlers/tts/openai_tts_handler.py:20
-#: src/handlers/stt/whisper_handler.py:15
-#: src/handlers/stt/whispercpp_handler.py:39
-#: src/handlers/tts/groq_tts_handler.py:34
-#: src/handlers/tts/elevenlabs_handler.py:24
-msgid "Model"
-msgstr "模型"
+msgid "Name of the Embedding Model to use"
+msgstr "嵌入模型的名稱"
 
-#: src/handlers/llm/openai_handler.py:87
-msgid "Name of the LLM Model to use"
-msgstr "使用的大型語言模型"
-
-#: src/handlers/llm/openai_handler.py:94
-#: src/handlers/embeddings/openai_handler.py:51
-msgid " Model"
-msgstr " 模型"
-
-#: src/handlers/llm/openai_handler.py:106
-msgid "max Tokens"
-msgstr "Token 限制"
-
-#: src/handlers/llm/openai_handler.py:106
-msgid "Max tokens of the generated text"
-msgstr "使用的最多 Token 數量"
-
-#: src/handlers/llm/openai_handler.py:107
-msgid "Top-P"
-msgstr "Top-P"
-
-#: src/handlers/llm/openai_handler.py:107
-msgid "An alternative to sampling with temperature, called nucleus sampling"
-msgstr "一種調整隨機性的替代的技術"
-
-#: src/handlers/llm/openai_handler.py:108
-msgid "Temperature"
-msgstr "溫度"
-
-#: src/handlers/llm/openai_handler.py:108
-msgid ""
-"What sampling temperature to use. Higher values will make the output more "
-"random"
-msgstr "溫度越高隨機性越高"
-
-#: src/handlers/llm/openai_handler.py:109
-msgid "Frequency Penalty"
-msgstr "重複懲罰"
-
-#: src/handlers/llm/openai_handler.py:109
-msgid ""
-"Number between -2.0 and 2.0. Positive values decrease the model's likelihood "
-"to repeat the same line verbatim"
-msgstr "數值介於±2.0。數值越大將減少輸出重複率"
-
-#: src/handlers/llm/openai_handler.py:110
-msgid "Presence Penalty"
-msgstr "存在懲罰"
-
-#: src/handlers/llm/openai_handler.py:110
-msgid ""
-"Number between -2.0 and 2.0. Positive values decrease the model's likelihood "
-"to talk about new topics"
-msgstr "數值介於±2.0。數值越大將讓模型搬出新話題的機率"
-
-#: src/handlers/llm/openai_handler.py:115
-#: src/handlers/llm/gemini_handler.py:131
-#: src/handlers/llm/newelle_handler.py:18
-msgid "Privacy Policy"
-msgstr "隱私政策"
-
-#: src/handlers/llm/openai_handler.py:115
-#: src/handlers/llm/gemini_handler.py:132
-#: src/handlers/llm/newelle_handler.py:19
-msgid "Open privacy policy website"
-msgstr "開啟隱私政策網站"
-
-#: src/handlers/llm/ollama_handler.py:150
 #: src/handlers/embeddings/ollama_handler.py:33
+#: src/handlers/llm/ollama_handler.py:151
 msgid "Automatically Serve"
 msgstr "自動開啟 Ollama"
 
-#: src/handlers/llm/ollama_handler.py:150
 #: src/handlers/embeddings/ollama_handler.py:33
+#: src/handlers/llm/ollama_handler.py:151
 msgid ""
 "Automatically run ollama serve in background when needed if it's not "
 "running. You can kill it with killall ollama"
 msgstr ""
 "若尚未執行將自動啟動 Ollama（ollama serve）。執行 killall ollama 以停止"
 
-#: src/handlers/llm/ollama_handler.py:151
 #: src/handlers/embeddings/ollama_handler.py:34
+#: src/handlers/llm/ollama_handler.py:153
 msgid "Custom Model"
 msgstr "自訂模型"
 
-#: src/handlers/llm/ollama_handler.py:157
-#: src/handlers/llm/ollama_handler.py:166
 #: src/handlers/embeddings/ollama_handler.py:40
 #: src/handlers/embeddings/ollama_handler.py:49
+#: src/handlers/llm/ollama_handler.py:159
+#: src/handlers/llm/ollama_handler.py:168
 msgid "Ollama Model"
 msgstr "Ollama 模型"
 
-#: src/handlers/llm/ollama_handler.py:158
-#: src/handlers/llm/ollama_handler.py:166
 #: src/handlers/embeddings/ollama_handler.py:41
 #: src/handlers/embeddings/ollama_handler.py:49
+#: src/handlers/llm/ollama_handler.py:160
+#: src/handlers/llm/ollama_handler.py:168
 msgid "Name of the Ollama Model"
 msgstr "Ollama 模型名稱"
 
-#: src/handlers/llm/ollama_handler.py:170
+#: src/handlers/llm/g4f_handler.py:44 src/handlers/llm/gpt4all_handler.py:154
+msgid "Model to use"
+msgstr "使用的模型"
+
+#: src/handlers/llm/g4f_handler.py:45
+msgid "Update G4F"
+msgstr "更新 G4F"
+
+#: src/handlers/tts/groq_tts_handler.py:32
+#: src/handlers/llm/claude_handler.py:84
+#: src/handlers/tts/custom_openai_tts.py:18
+#: src/handlers/tts/openai_tts_handler.py:18
+msgid "The API key to use"
+msgstr "使用的 API 金鑰"
+
+#: src/handlers/tts/groq_tts_handler.py:33
+#: src/handlers/tts/custom_openai_tts.py:19
+#: src/handlers/tts/openai_tts_handler.py:19
+msgid "The voice to use"
+msgstr "使用的聲音"
+
+#: src/handlers/tts/groq_tts_handler.py:34
+#: src/handlers/llm/claude_handler.py:89 src/handlers/llm/claude_handler.py:93
+#: src/handlers/tts/custom_openai_tts.py:20
+#: src/handlers/tts/openai_tts_handler.py:20
+msgid "The model to use"
+msgstr "使用的模型"
+
+#: src/handlers/tts/tts.py:34
+msgid "Choose the preferred voice"
+msgstr "選擇聲音"
+
+#: src/handlers/llm/claude_handler.py:96
+msgid "Max Tokens"
+msgstr "Token 限制"
+
+#: src/handlers/llm/claude_handler.py:96
+msgid "The maximum number of tokens to generate"
+msgstr "使用的最多 Token 數量"
+
+#: src/handlers/llm/ollama_handler.py:152
+#: src/handlers/llm/gemini_handler.py:110
+msgid "Enable Thinking"
+msgstr "啟用思考"
+
+#: src/handlers/llm/ollama_handler.py:152
+msgid "Allow thinking in the model, only some models are supported"
+msgstr "啟用模型思考，僅支援某些模型"
+
+#: src/handlers/llm/ollama_handler.py:172
 #: src/handlers/llm/gpt4all_handler.py:155
 msgid "Model Manager"
 msgstr "模型管理器"
 
-#: src/handlers/llm/ollama_handler.py:170
+#: src/handlers/llm/ollama_handler.py:172
 #: src/handlers/llm/gpt4all_handler.py:155
 msgid "List of models available"
 msgstr "可使用的模型列表"
 
-#: src/handlers/llm/ollama_handler.py:174
+#: src/handlers/llm/ollama_handler.py:176
 msgid "Add custom model"
 msgstr "新增自訂模型"
 
-#: src/handlers/llm/ollama_handler.py:175
+#: src/handlers/llm/ollama_handler.py:177
 msgid ""
 "Add any model to this list by putting name:size\n"
 "Or any gguf from hf with hf.co/username/model"
 msgstr ""
 "在此以「模型名稱:大小」的格式新增其他模型\n"
 "或是從 HuggingFace（hf.co/username/model）的任何 gguf"
+
+#: src/handlers/llm/ollama_handler.py:187
+msgid "Update Ollama"
+msgstr "更新 Ollama"
+
+#: src/handlers/tts/custom_openai_tts.py:17
+msgid "Endpoint"
+msgstr "端點"
+
+#: src/handlers/tts/custom_openai_tts.py:17
+msgid "Custom endpoint of the service to use"
+msgstr "使用的自訂端點"
+
+#: src/handlers/tts/custom_openai_tts.py:21
+#: src/handlers/tts/openai_tts_handler.py:21
+msgid "Instructions"
+msgstr "使用說明"
+
+#: src/handlers/tts/custom_openai_tts.py:21
+#: src/handlers/tts/openai_tts_handler.py:21
+msgid ""
+"Instructions for the voice generation. Leave it blank to avoid this field"
+msgstr "聲音生成的步驟，留空以忽略此欄。"
 
 #: src/handlers/llm/gemini_handler.py:94
 msgid "API Key (required)"
@@ -1902,10 +2427,6 @@ msgid "Settings about thinking models"
 msgstr "有關推理模型的設定"
 
 #: src/handlers/llm/gemini_handler.py:110
-msgid "Enable Thinking"
-msgstr "啟用思考"
-
-#: src/handlers/llm/gemini_handler.py:110
 msgid "Show thinking, disable it if your model does not support it"
 msgstr "顯示思考過程，若您使用的模型不支援請停用此設定"
 
@@ -1945,82 +2466,10 @@ msgstr "啟用 Google 的安全設定以排除不當內容"
 msgid "Enable advanced parameters"
 msgstr "調整更多參數"
 
-#: src/handlers/avatar/live2d_handler.py:59
-msgid "Live2D Model"
-msgstr "Live2D 模型"
-
-#: src/handlers/avatar/live2d_handler.py:60
-msgid "Live2D Model to use"
-msgstr "使用的 Live2D 模型"
-
-#: src/handlers/avatar/live2d_handler.py:70
-#: src/handlers/avatar/livepng_handler.py:34
-msgid "Lipsync Framerate"
-msgstr "對嘴幀數"
-
-#: src/handlers/avatar/live2d_handler.py:71
-#: src/handlers/avatar/livepng_handler.py:35
-msgid "Maximum amount of frames to generate for lipsync"
-msgstr "對嘴的最大幀數"
-
-#: src/handlers/avatar/live2d_handler.py:80
-msgid "Background Color"
-msgstr "背景顏色"
-
-#: src/handlers/avatar/live2d_handler.py:81
-msgid "Background color of the avatar"
-msgstr "夥伴的背景顏色"
-
-#: src/handlers/avatar/live2d_handler.py:87
-msgid "Zoom Model"
-msgstr "放大模型"
-
-#: src/handlers/avatar/live2d_handler.py:88
-msgid "Zoom the Live2D model"
-msgstr "將您的夥伴放大"
-
-#: src/handlers/llm/gpt4all_handler.py:67
-msgid "RAM Required: "
-msgstr "記憶體要求："
-
-#: src/handlers/llm/gpt4all_handler.py:68
-msgid "Parameters: "
-msgstr "參數："
-
-#: src/handlers/llm/gpt4all_handler.py:69
-msgid "Size: "
-msgstr "大小："
-
-#: src/handlers/llm/gpt4all_handler.py:154
-msgid "Model to use"
-msgstr "使用的模型"
-
-#: src/handlers/llm/gpt4all_handler.py:154
-#: src/handlers/tts/elevenlabs_handler.py:25
-msgid "Name of the model to use"
-msgstr "使用的模型名稱"
-
-#: src/handlers/llm/claude_handler.py:84
-#: src/handlers/tts/custom_openai_tts.py:18
-#: src/handlers/tts/openai_tts_handler.py:18
-#: src/handlers/tts/groq_tts_handler.py:32
-msgid "The API key to use"
-msgstr "使用的 API 金鑰"
-
-#: src/handlers/llm/claude_handler.py:89 src/handlers/llm/claude_handler.py:93
-#: src/handlers/tts/custom_openai_tts.py:20
-#: src/handlers/tts/openai_tts_handler.py:20
-#: src/handlers/tts/groq_tts_handler.py:34
-msgid "The model to use"
-msgstr "使用的模型"
-
-#: src/handlers/llm/claude_handler.py:96
-msgid "Max Tokens"
-msgstr "Token 限制"
-
-#: src/handlers/llm/claude_handler.py:96
-msgid "The maximum number of tokens to generate"
-msgstr "使用的最多 Token 數量"
+#: src/handlers/tts/custom_handler.py:17
+#, python-brace-format
+msgid "{0} will be replaced with the file fullpath, {1} with the text"
+msgstr "{0} 參數會被模型的絕對路徑，{1} 被文字取代"
 
 #: src/handlers/llm/custom_handler.py:21
 msgid "Command to execute to get bot output"
@@ -2048,154 +2497,6 @@ msgstr ""
 "{0} 參數會被以 JSON 格式儲存的聊天紀錄取代，{1} 包含系統提示，{2}則包含需要生"
 "成的數量。必須傳回以建議（字串）組成的 JSON 陣列"
 
-#: src/handlers/avatar/livepng_handler.py:23
-msgid "LivePNG Model"
-msgstr "LivePNG 模型"
-
-#: src/handlers/avatar/livepng_handler.py:24
-msgid "LivePNG Model to use"
-msgstr "使用的 LivePNG 模型"
-
-#: src/handlers/avatar/livepng_handler.py:44
-msgid "LivePNG model style"
-msgstr "LivePNG 模型風格"
-
-#: src/handlers/avatar/livepng_handler.py:45
-msgid "Choose the style of the model for the specified one"
-msgstr "選擇模型的風格"
-
-#: src/handlers/rag/rag_handler.py:104
-msgid "Index your documents"
-msgstr "將檔案編入索引"
-
-#: src/handlers/rag/rag_handler.py:105
-msgid ""
-"Index all the documents in your document folder. You have to run this "
-"operation every time you edit/create a document, change document analyzer or "
-"change embedding model"
-msgstr ""
-"將文件資料夾內的所有檔案編入索引。您必須於每次有檔案變更、改變文件分析緝或嵌"
-"入模行時使用"
-
-#: src/handlers/embeddings/openai_handler.py:38
-msgid "API base url, change this to use different APIs"
-msgstr "API 擷取的網址"
-
-#: src/handlers/embeddings/openai_handler.py:44
-msgid "Name of the Embedding Model to use"
-msgstr "嵌入模型的名稱"
-
-#: src/handlers/stt/openaisr_handler.py:11
-msgid "Endpoint for OpenAI requests"
-msgstr "OpenAI 的端點網址"
-
-#: src/handlers/stt/openaisr_handler.py:18
-msgid "API Key for OpenAI"
-msgstr "OpenAI 的 API 金鑰"
-
-#: src/handlers/stt/openaisr_handler.py:25
-msgid "Whisper Model"
-msgstr "Whisper 模型"
-
-#: src/handlers/stt/openaisr_handler.py:26
-msgid "Name of the OpenAI model"
-msgstr "OpenAI 的模型名稱"
-
-#: src/handlers/stt/openaisr_handler.py:32
-#: src/handlers/stt/googlesr_handler.py:21
-#: src/handlers/stt/groqsr_handler.py:29
-msgid "Language"
-msgstr "語言"
-
-#: src/handlers/stt/openaisr_handler.py:33
-msgid ""
-"Optional: Specify the language for transcription. Use ISO 639-1 language "
-"codes (e.g. \"en\" for English, \"fr\" for French, etc.). "
-msgstr ""
-"可選：自訂文字紀錄的語言。使用 ISO 639-1 語言碼（例如「en」為英文，「fr」為法"
-"文等）"
-
-#: src/handlers/tts/custom_openai_tts.py:17
-msgid "Endpoint"
-msgstr "端點"
-
-#: src/handlers/tts/custom_openai_tts.py:17
-msgid "Custom endpoint of the service to use"
-msgstr "使用的自訂端點"
-
-#: src/handlers/tts/custom_openai_tts.py:19
-#: src/handlers/tts/openai_tts_handler.py:19
-#: src/handlers/tts/groq_tts_handler.py:33
-msgid "The voice to use"
-msgstr "使用的聲音"
-
-#: src/handlers/tts/custom_openai_tts.py:21
-#: src/handlers/tts/openai_tts_handler.py:21
-msgid "Instructions"
-msgstr "使用說明"
-
-#: src/handlers/tts/custom_openai_tts.py:21
-#: src/handlers/tts/openai_tts_handler.py:21
-msgid ""
-"Instructions for the voice generation. Leave it blank to avoid this field"
-msgstr "聲音生成的步驟，留空以忽略此欄。"
-
-#: src/handlers/stt/googlesr_handler.py:14
-msgid "API Key for Google SR, write 'default' to use the default one"
-msgstr "Google SR 的 API 金鑰，設定「default」將使用預設金鑰"
-
-#: src/handlers/stt/googlesr_handler.py:22
-msgid "The language of the text to recgnize in IETF"
-msgstr "IETF 的辨識語言"
-
-#: src/handlers/stt/vosk_handler.py:17
-msgid "Model Path"
-msgstr "模型路徑"
-
-#: src/handlers/stt/vosk_handler.py:18
-msgid "Absolute path to the VOSK model (unzipped)"
-msgstr "VOSK 模型的絕對路徑（已解壓縮）"
-
-#: src/handlers/tts/tts.py:38
-msgid "Choose the preferred voice"
-msgstr "選擇聲音"
-
-#: src/handlers/stt/sphinx_handler.py:19
-msgid "Could not understand the audio"
-msgstr "無法理解語音"
-
-#: src/handlers/stt/custom_handler.py:14 src/handlers/tts/custom_handler.py:23
-#, python-brace-format
-msgid "{0} will be replaced with the model fullpath"
-msgstr "{0} 參數會被模型的絕對路徑取代"
-
-#: src/handlers/stt/whisper_handler.py:16
-#: src/handlers/stt/whispercpp_handler.py:40
-msgid "Name of the Whisper model"
-msgstr "Whisper 模型的名稱"
-
-#: src/handlers/stt/groqsr_handler.py:14
-msgid "API Key for Groq SR, write 'default' to use the default one"
-msgstr "Groq SR 的 API 金鑰，設定「default」將使用預設金鑰"
-
-#: src/handlers/stt/groqsr_handler.py:21
-msgid "Groq Model"
-msgstr "Groq 模型"
-
-#: src/handlers/stt/groqsr_handler.py:22
-msgid "Name of the Groq Model"
-msgstr "Groq 模型名稱"
-
-#: src/handlers/stt/groqsr_handler.py:30
-msgid ""
-"Specify the language for transcription. Use ISO 639-1 language codes (e.g. "
-"\"en\" for English, \"fr\" for French, etc.). "
-msgstr "選擇紀錄的語言。使用 ISO 639-1 語言碼（例如「en」英文，「fr」法文等）"
-
-#: src/handlers/stt/witai_handler.py:13
-msgid "Server Access Token for wit.ai"
-msgstr "wit.ai 的伺服器存取權杖"
-
 #: src/handlers/tts/elevenlabs_handler.py:10
 msgid "API Key for ElevenLabs"
 msgstr "ElevenLabs 的 API 金鑰"
@@ -2203,6 +2504,11 @@ msgstr "ElevenLabs 的 API 金鑰"
 #: src/handlers/tts/elevenlabs_handler.py:18
 msgid "Voice ID to use"
 msgstr "使用的 Voice ID"
+
+#: src/handlers/tts/elevenlabs_handler.py:25
+#: src/handlers/llm/gpt4all_handler.py:154
+msgid "Name of the model to use"
+msgstr "使用的模型名稱"
 
 #: src/handlers/tts/elevenlabs_handler.py:32
 msgid "Stability"
@@ -2228,6 +2534,18 @@ msgstr "加強語調"
 msgid ""
 "High values are reccomended if the style of the speech must be exaggerated"
 msgstr "數值越高將越加強語調"
+
+#: src/handlers/llm/gpt4all_handler.py:67
+msgid "RAM Required: "
+msgstr "記憶體要求："
+
+#: src/handlers/llm/gpt4all_handler.py:68
+msgid "Parameters: "
+msgstr "參數："
+
+#: src/handlers/llm/gpt4all_handler.py:69
+msgid "Size: "
+msgstr "大小："
 
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:7
 #: data/moe.nyarchlinux.assistant.desktop.in:2
@@ -2260,96 +2578,101 @@ msgid "Chat page 4"
 msgstr "第四頁"
 
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:41
-msgid "Improve local documents reading and loading performances"
-msgstr "改善檔案閱讀理解速度"
-
-#: data/moe.nyarchlinux.assistant.appdata.xml.in:42
-msgid "Add option to send with CTRL+Enter"
-msgstr "新增 CTRL＋Enter 快捷鍵"
-
-#: data/moe.nyarchlinux.assistant.appdata.xml.in:43
-msgid "Improve codeblocks"
-msgstr "改善程式碼區塊顯示"
-
-#: data/moe.nyarchlinux.assistant.appdata.xml.in:44
-msgid "Fix Kokoro TTS"
-msgstr "修復 Kokoro 文本轉語音"
-
-#: data/moe.nyarchlinux.assistant.appdata.xml.in:45
-msgid "Remove emoji from TTS"
-msgstr "從文本轉語音移除表情符號"
-
-#: data/moe.nyarchlinux.assistant.appdata.xml.in:46
-msgid "Set API keys as password fields"
-msgstr "設定 API 金鑰為「密碼」型輸入框"
-
-#: data/moe.nyarchlinux.assistant.appdata.xml.in:47
-msgid "Add thinking support for Gemini"
-msgstr "新增 Gemini 思考支援"
-
-#: data/moe.nyarchlinux.assistant.appdata.xml.in:48
-msgid "Updated translations"
-msgstr "更新翻譯"
-
-#: data/moe.nyarchlinux.assistant.appdata.xml.in:55
-msgid "Added new features"
-msgstr "新增更多新功能"
-
-#: data/moe.nyarchlinux.assistant.appdata.xml.in:56
-#: data/moe.nyarchlinux.assistant.appdata.xml.in:117
-#: data/moe.nyarchlinux.assistant.appdata.xml.in:122
-#: data/moe.nyarchlinux.assistant.appdata.xml.in:127
-#: data/moe.nyarchlinux.assistant.appdata.xml.in:132
-#: data/moe.nyarchlinux.assistant.appdata.xml.in:137
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:64
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:125
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:130
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:135
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:140
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:145
 msgid "Bug fixes"
 msgstr "修正各種錯誤"
 
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:42
+msgid "Small improvements"
+msgstr "小小改良"
+
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:49
+msgid "Improve local documents reading and loading performances"
+msgstr "改善檔案閱讀理解速度"
+
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:50
+msgid "Add option to send with CTRL+Enter"
+msgstr "新增 CTRL＋Enter 快捷鍵"
+
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:51
+msgid "Improve codeblocks"
+msgstr "改善程式碼區塊顯示"
+
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:52
+msgid "Fix Kokoro TTS"
+msgstr "修復 Kokoro 文本轉語音"
+
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:53
+msgid "Remove emoji from TTS"
+msgstr "從文本轉語音移除表情符號"
+
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:54
+msgid "Set API keys as password fields"
+msgstr "設定 API 金鑰為「密碼」型輸入框"
+
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:55
+msgid "Add thinking support for Gemini"
+msgstr "新增 Gemini 思考支援"
+
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:56
+msgid "Updated translations"
+msgstr "更新翻譯"
+
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:63
+msgid "Added new features"
+msgstr "新增更多新功能"
+
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:71
 msgid "Website reading and web search with SearXNG, DuckDuckGo, and Tavily"
 msgstr "網站閱讀與支援 SearXNG、DuckDuckGo、與 Tavily 等搜尋引擎"
 
-#: data/moe.nyarchlinux.assistant.appdata.xml.in:64
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:72
 msgid "Improved LaTeX rendering and document management"
 msgstr "改良 LaTeX 處理以及文件管理"
 
-#: data/moe.nyarchlinux.assistant.appdata.xml.in:65
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:73
 msgid "New Thinking Widget and OpenRouter handler"
 msgstr "新增推理模型的「思考過程」以及 OpenRouter 管理"
 
-#: data/moe.nyarchlinux.assistant.appdata.xml.in:66
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:74
 msgid "Vision support for Llama4 on Groq"
 msgstr "新增 Groq Llama4 圖片辨識支援"
 
-#: data/moe.nyarchlinux.assistant.appdata.xml.in:67
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:75
 msgid "New translations (Traditional Chinese, Bengali, Hindi)"
 msgstr "新翻譯（繁體中文、孟加拉文、印度文）"
 
-#: data/moe.nyarchlinux.assistant.appdata.xml.in:73
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:81
 msgid "Fixed many bugs, added some features!"
 msgstr "新增更多新功能以及修正錯誤"
 
-#: data/moe.nyarchlinux.assistant.appdata.xml.in:78
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:86
 msgid "Support for new features and bug fixes"
 msgstr "新增更多新功能以及修正錯誤"
 
-#: data/moe.nyarchlinux.assistant.appdata.xml.in:83
-#: data/moe.nyarchlinux.assistant.appdata.xml.in:88
-#: data/moe.nyarchlinux.assistant.appdata.xml.in:93
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:91
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:96
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:101
 msgid "Added many new features and bug fixes"
 msgstr "新增更多新功能以及修正錯誤"
 
-#: data/moe.nyarchlinux.assistant.appdata.xml.in:98
-#: data/moe.nyarchlinux.assistant.appdata.xml.in:103
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:106
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:111
 msgid "Added new features and bug fixes"
 msgstr "新增更多新功能以及修正錯誤"
 
-#: data/moe.nyarchlinux.assistant.appdata.xml.in:107
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:115
 msgid ""
 "Updated the g4f library with versioning, added user guides, improved "
 "extension browsing, and enhanced model handling."
 msgstr "改良 g4f 資料庫的版本管理、使用者說明、擴充功能瀏覽、以及模型處理。"
 
-#: data/moe.nyarchlinux.assistant.appdata.xml.in:112
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:120
 msgid ""
 "Bug fixes and new features have been implemented. We've modified the "
 "extension architecture, added new models, and introduced vision support, "
@@ -2358,27 +2681,27 @@ msgstr ""
 "新增更多新功能以及修正錯誤。我們不但更改了擴充功能架構、新增新模型、以及新增"
 "圖片上傳功能等。"
 
-#: data/moe.nyarchlinux.assistant.appdata.xml.in:142
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:150
 msgid "Stable version"
 msgstr "穩定版本"
 
-#: data/moe.nyarchlinux.assistant.appdata.xml.in:147
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:155
 msgid "Added extension"
 msgstr "已新增擴充功能"
 
-#: data/moe.nyarchlinux.assistant.appdata.xml.in:152
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:160
 msgid "Blacklist of commands"
 msgstr "指令黑名單"
 
-#: data/moe.nyarchlinux.assistant.appdata.xml.in:157
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:165
 msgid "Localization"
 msgstr "翻譯"
 
-#: data/moe.nyarchlinux.assistant.appdata.xml.in:162
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:170
 msgid "Redesign"
 msgstr "重新設計"
 
-#: data/moe.nyarchlinux.assistant.appdata.xml.in:167
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:175
 msgid "NyarchLinux"
 msgstr "Nyarch Linux"
 
@@ -2387,12 +2710,19 @@ msgid "Advanced AI waifu to help you"
 msgstr "強大的二次元老婆在此為您服務"
 
 #: data/moe.nyarchlinux.assistant.desktop.in:10
-msgid "chat;ai;gpt;chatgpt;assistant;"
-msgstr "chat;ai;gpt;chatgpt;assistant;"
+msgid "ai;assistant;chat;chatgpt;gpt;llm;ollama;"
+msgstr "ai;assistant;chat;chatgpt;gpt;llm;ollama;"
+
+#~ msgid "Newelle Tips"
+#~ msgstr "Newelle 小秘訣"
+
+#~ msgid "Newelle"
+#~ msgstr "Newelle"
 
 #~ msgid "Welcome to Newelle"
 #~ msgstr "歡迎來到 Newelle"
 
+#, fuzzy
 #~ msgid ""
 #~ "Newelle can be used to run commands on your system, but pay attention at "
 #~ "what you run! <b>The LLM is not under our control, so it might generate "
@@ -2404,13 +2734,15 @@ msgstr "chat;ai;gpt;chatgpt;assistant;"
 #~ "問題的程式碼！</b>\n"
 #~ "即使指令大多可能將於<b> Flatpak 沙盒中執行</b>，但請仍小心。"
 
-#~ msgid "Newelle"
-#~ msgstr "Newelle"
+#, fuzzy
+#~ msgid "Newelle: Your advanced chat bot"
+#~ msgstr "NyarchAssistant：您強大的聊天機器人"
 
+#, fuzzy
 #~ msgid ""
 #~ "Train Newelle to do more with custom extensions and new AI modules, "
 #~ "giving your chatbot endless possibilities."
-#~ msgstr "利用擴充功能讓 Newelle 的功能多又更多！"
+#~ msgstr "利用擴充功能讓 NyarchAssistant 的功能多又更多！"
 
 #~ msgid "AI chatbot"
 #~ msgstr "AI 聊天機器人"
@@ -2424,11 +2756,73 @@ msgstr "chat;ai;gpt;chatgpt;assistant;"
 #~ msgid "More than 10 standard AI providers"
 #~ msgstr "多過 10 種 AI 服務"
 
+#~ msgid ""
+#~ "Mini Apps support! Extensions can now show custom mini apps on the sidebar"
+#~ msgstr "迷你應用程式支援！擴充功能將能於側欄顯示迷你應用程式"
+
+#~ msgid ""
+#~ "Added integrated browser Mini App: browse the web directly in Newelle and "
+#~ "attach web pages"
+#~ msgstr "新增內建瀏覽器迷你應用程式：直接地於 Newelle 瀏覽並內嵌網頁"
+
+#~ msgid ""
+#~ "Improved integrated file manager, supporting multiple file operations"
+#~ msgstr "改良內建檔案管理，支援多檔案操作"
+
+#~ msgid ""
+#~ "Integrated file editor: edit files and codeblocks directly in Newelle"
+#~ msgstr "內建檔案編輯器：直接地於 Newelle 編輯檔案與程式碼"
+
+#~ msgid "Integrated Terminal mini app: open the terminal directly in Newelle"
+#~ msgstr "內建終端機迷你應用程式：於 Newelle 直接地開啟終端機"
+
+#~ msgid ""
+#~ "Programmable prompts: add dynamic content to prompts with conditionals "
+#~ "and random strings"
+#~ msgstr "動態提示語"
+
+#~ msgid "Add ability to manually edit chat name"
+#~ msgstr "現在可直接更改聊天室名稱"
+
+#, fuzzy
+#~ msgid "Minor bug fixes"
+#~ msgstr "修正各種錯誤"
+
+#~ msgid "Added support for multiple languages for Kokoro TTS and Whisper.CPP"
+#~ msgstr "支援 Kokoro TTS 與 Whisper.CPP 的更多語言"
+
+#~ msgid "Run HTML/CSS/JS websites directly in app"
+#~ msgstr "直接地於應用程式內執行 HTML/CSS/JS"
+
+#~ msgid "New animation on chat change"
+#~ msgstr "新增更動聊天室時的小動畫"
+
 #~ msgid "Qwersyk"
 #~ msgstr "Qwersyk"
 
-#~ msgid "Newelle: Your advanced chat bot"
-#~ msgstr "Newelle：您強大的聊天機器人"
+#~ msgid "max Tokens"
+#~ msgstr "Token 限制"
+
+#~ msgid "Max tokens of the generated text"
+#~ msgstr "使用的最多 Token 數量"
+
+#~ msgid "Any free Provider"
+#~ msgstr "其他免費服務"
+
+#~ msgid "chat;ai;gpt;chatgpt;assistant;"
+#~ msgstr "chat;ai;gpt;chatgpt;assistant;"
+
+#, fuzzy
+#~ msgid "_Cancel"
+#~ msgstr "取消"
+
+#, fuzzy
+#~ msgid "_Delete"
+#~ msgstr "刪除設定檔"
+
+#, fuzzy, python-brace-format
+#~ msgid "Name of the {provider_name} Model"
+#~ msgstr "Groq 模型名稱"
 
 #~ msgid "Choose an extension"
 #~ msgstr "從檔案安裝..."
@@ -2445,11 +2839,17 @@ msgstr "chat;ai;gpt;chatgpt;assistant;"
 #~ msgid "This is not an extension"
 #~ msgstr "此非擴充功能"
 
-#~ msgid "Failed to send bot a message"
-#~ msgstr "訊息傳送失敗"
-
 #~ msgid "Chat has been stopped"
 #~ msgstr "已停止聊天室"
 
 #~ msgid "The change will take effect after you restart the program."
 #~ msgstr "將在下次重新啟動後套用設定。"
+
+#~ msgid "NyarchAssistant Profiles"
+#~ msgstr "NyarchAssistant 設定檔"
+
+#~ msgid "Welcome to NyarchAssistant"
+#~ msgstr "歡迎來到 NyarchAssistant"
+
+#~ msgid "NyarchAssistant"
+#~ msgstr "NyarchAssistant"

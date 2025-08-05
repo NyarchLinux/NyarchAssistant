@@ -1,182 +1,180 @@
+# English translations for PACKAGE package.
+# Copyright (C) 2025 THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# Oliver Tzeng（曾嘉禾）<olivertzeng@proton.me>, 2025.
+#
 msgid ""
 msgstr ""
-"Project-Id-Version: 1.0\n"
+"Project-Id-Version: Newelle 0.3.0\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2025-07-23 20:40+0800\n"
-"PO-Revision-Date: 2025-07-03 09:00+0200\n"
-"Last-Translator: Yehor Hliebov <qsk@gmx.at>\n"
-"Language-Team: Czech <qsk@gmx.at>\n"
-"Language: cs\n"
+"PO-Revision-Date: 2025-03-26 19:30\n"
+"Last-Translator: Oliver Tzeng（曾嘉禾）<olivertzeng@proton.me>\n"
+"Language-Team: l10n-tw\n"
+"Language: zh_TW\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
 #: src/window.py:129 src/ui/thread_editing.py:6
 msgid "Thread editing"
-msgstr "Úprava vlákna"
+msgstr "執行緒編輯"
 
 #: src/window.py:130 src/ui/presentation.py:131 src/ui/extension.py:19
 #: src/constants.py:684
 msgid "Extensions"
-msgstr "Rozšíření"
+msgstr "擴充功能"
 
 #: src/window.py:131 src/ui/profile.py:33
 msgid "Settings"
-msgstr "Nastavení"
+msgstr "設定"
 
 #: src/window.py:132
 msgid "Keyboard shorcuts"
-msgstr "Klávesové zkratky"
+msgstr "快捷鍵"
 
 #: src/window.py:133
 msgid "About"
-msgstr "O aplikaci"
+msgstr "關於"
 
 #: src/window.py:140 src/window.py:209
 msgid "Chat"
-msgstr "Chat"
+msgstr "聊天"
 
 #: src/window.py:182
 msgid "History"
-msgstr "Historie"
+msgstr "最近的聊天紀錄"
 
 #: src/window.py:203
 msgid "Create a chat"
-msgstr "Vytvořit chat"
+msgstr "新增聊天室"
 
 #: src/window.py:208
 msgid "Chats"
-msgstr "Chaty"
+msgstr "聊天室"
 
 #: src/window.py:279
 msgid " Stop"
-msgstr " Zastavit"
+msgstr " 停止"
 
 #: src/window.py:318
 msgid " Clear"
-msgstr " Vymazat"
+msgstr " 清除"
 
 #: src/window.py:333
 msgid " Continue"
-msgstr " Pokračovat"
+msgstr " 繼續"
 
 #: src/window.py:346
 msgid " Regenerate"
-msgstr " Znovu vygenerovat"
+msgstr " 重新生成"
 
 #: src/window.py:412
 msgid "Send a message..."
-msgstr "Odeslat zprávu..."
+msgstr "傳送訊息......"
 
 #: src/window.py:508
 msgid "Explorer Tab"
-msgstr "Záložka Průzkumník"
+msgstr "探索分頁"
 
 #: src/window.py:509
 msgid "Terminal Tab"
-msgstr "Záložka Terminál"
+msgstr "終端機監分頁"
 
 #: src/window.py:510
 msgid "Browser Tab"
-msgstr "Záložka Prohlížeč"
+msgstr "瀏覽器分頁"
 
 #: src/window.py:630
 msgid "Ask about a website"
-msgstr "Zeptejte se na webovou stránku"
+msgstr "詢問有關一個網站的資訊"
 
 #: src/window.py:630
 msgid "Write #https://website.com in chat to ask information about a website"
-msgstr ""
-"Napište #https://website.com do chatu pro získání informací o webové stránce"
+msgstr "在聊天室內以 #https://網站.名稱 的格式以詢問一個網站的資訊"
 
 #: src/window.py:631
 msgid "Check out our Extensions!"
-msgstr "Podívejte se na naše rozšíření!"
+msgstr "看看我們的擴充功能"
 
 #: src/window.py:631
 msgid "We have a lot of extensions for different things. Check it out!"
-msgstr "Máme spoustu rozšíření pro různé věci. Zkontrolujte je!"
+msgstr "我們有五花八門的擴充功能可供使用！"
 
 #: src/window.py:632
 msgid "Chat with documents!"
-msgstr "Chatujte s dokumenty!"
+msgstr "與檔案互動！"
 
 #: src/window.py:632
 msgid ""
 "Add your documents to your documents folder and chat using the information "
 "contained in them!"
-msgstr ""
-"Přidejte své dokumenty do složky dokumentů a chatujte s využitím informací "
-"obsažených v nich!"
+msgstr "在「文件」資料夾內放置檔案以讓人工智慧讀取，提供更精確的回覆"
 
 #: src/window.py:633
 msgid "Surf the web!"
-msgstr "Surfujte po webu!"
+msgstr "支援網路搜尋！"
 
 #: src/window.py:633
 msgid ""
 "Enable web search to allow the LLM to surf the web and provide up to date "
 "answers"
-msgstr ""
-"Povolte webové vyhledávání, aby LLM mohla surfovat po webu a poskytovat "
-"aktuální odpovědi"
+msgstr "提供網路搜尋的功能以提供更新的資訊"
 
 #: src/window.py:634
 msgid "Mini Window"
-msgstr "Mini okno"
+msgstr "迷你視窗"
 
 #: src/window.py:634
 msgid "Ask questions on the fly using the mini window mode"
-msgstr "Klást otázky za pochodu pomocí režimu mini okna"
+msgstr "啟用迷你視窗模式以更方便地問問題"
 
 #: src/window.py:635
 msgid "Text to Speech"
-msgstr "Převod textu na řeč"
+msgstr "文本轉語音"
 
 #: src/window.py:635
 msgid "Newelle supports text-to-speech! Enable it in the settings"
-msgstr "Newelle podporuje převod textu na řeč! Povolte jej v nastavení"
+msgstr "Newelle 提供文本轉語音功能"
 
 #: src/window.py:636
 msgid "Keyboard Shortcuts"
-msgstr "Klávesové zkratky"
+msgstr "快捷鍵"
 
 #: src/window.py:636
 msgid "Control Newelle using Keyboard Shortcuts"
-msgstr "Ovládejte Newelle pomocí klávesových zkratek"
+msgstr "使用快捷鍵以更便捷地使用 Newelle"
 
 #: src/window.py:637
 msgid "Prompt Control"
-msgstr "Ovládání výzev"
+msgstr "提示語控制"
 
 #: src/window.py:637
 msgid "Newelle gives you 100% prompt control. Tune your prompts for your use."
-msgstr ""
-"Newelle vám poskytuje 100% kontrolu nad výzvami. Upravte si výzvy pro vaše "
-"použití."
+msgstr "Newelle 讓您能夠完全控制提示語。"
 
 #: src/window.py:638
 msgid "Thread Editing"
-msgstr "Úprava vlákna"
+msgstr "執行緒編輯"
 
 #: src/window.py:638
 msgid "Check the programs and processes you run from Newelle"
-msgstr "Zkontrolujte programy a procesy, které spouštíte z Newelle"
+msgstr "檢視從 Newelle 執行的各種行程"
 
 #: src/window.py:639
 msgid "Programmable Prompts"
-msgstr "Programovatelné výzvy"
+msgstr "高自由度的提示語"
 
 #: src/window.py:639
 msgid ""
 "You can add dynamic prompts to Newelle, with conditions and probabilities"
-msgstr ""
-"Do Newelle můžete přidávat dynamické výzvy s podmínkami a pravděpodobnostmi"
+msgstr "您可以"
 
 #: src/window.py:640
 #, fuzzy
 msgid "Use any avatar model"
-msgstr "Použít vlastní model"
+msgstr "使用自訂的模型"
 
 #: src/window.py:640
 msgid "Use any Live2D or LivePNG model"
@@ -184,119 +182,119 @@ msgstr ""
 
 #: src/window.py:647
 msgid "New Chat"
-msgstr "Nový chat"
+msgstr "新聊天室"
 
 #: src/window.py:665
 msgid "Provider Errror"
-msgstr "Chyba poskytovatele"
+msgstr "供給者錯誤"
 
 #: src/window.py:721
 msgid "Local Documents"
-msgstr "Místní dokumenty"
+msgstr "本地檔案"
 
 #: src/window.py:722 src/ui/settings.py:120
 msgid "Long Term Memory"
-msgstr "Dlouhodobá paměť"
+msgstr "長期記憶"
 
 #: src/window.py:723 src/constants.py:649
 msgid "TTS"
-msgstr "TTS"
+msgstr "文本轉語音"
 
 #: src/window.py:724 src/ui/settings.py:291
 msgid "Command virtualization"
-msgstr "Virtualizace příkazů"
+msgstr "指令虛擬化"
 
 #: src/window.py:725
 msgid "Web search"
-msgstr "Webové hledání"
+msgstr "網路搜尋"
 
 #: src/window.py:979
 msgid "This provider does not have a model list"
-msgstr "Tento poskytovatel nemá seznam modelů"
+msgstr "此供給者沒有模型清單"
 
 #: src/window.py:984
 msgid " Models"
-msgstr " Modely"
+msgstr " 個模型"
 
 #: src/window.py:987
 msgid "Search Models..."
-msgstr "Hledat modely..."
+msgstr "搜尋模型......"
 
 #: src/window.py:1254
 msgid "Create new profile"
-msgstr "Vytvořit nový profil"
+msgstr "建立新設定檔"
 
 #: src/window.py:1388
 msgid "Could not recognize your voice"
-msgstr "Nepodařilo se rozpoznat váš hlas"
+msgstr "無法辨識聲音"
 
 #: src/window.py:1425
 msgid "Images"
-msgstr "Obrázky"
+msgstr "圖片"
 
 #: src/window.py:1429
 msgid "LLM Supported Files"
-msgstr "Soubory podporované LLM"
+msgstr "大型語言模型支援的檔案"
 
 #: src/window.py:1437
 msgid "RAG Supported files"
-msgstr "Soubory podporované RAG"
+msgstr "RAG 支援的檔案"
 
 #: src/window.py:1455
 msgid "Supported Files"
-msgstr "Podporované soubory"
+msgstr "支援的檔案"
 
 #: src/window.py:1459
 msgid "All Files"
-msgstr "Všechny soubory"
+msgstr "所有檔案"
 
 #: src/window.py:1465
 msgid "Attach file"
-msgstr "Připojit soubor"
+msgstr "嵌入檔案"
 
 #: src/window.py:1725 src/ui/explorer.py:340
 msgid "File not found"
-msgstr "Soubor nenalezen"
+msgstr "找不到檔案"
 
 #: src/window.py:1743
 msgid "The file cannot be sent until the program is finished"
-msgstr "Soubor nelze odeslat, dokud program neskončí"
+msgstr "在執行完成前無法上傳檔案"
 
 #: src/window.py:1765
 msgid "The file is not recognized"
-msgstr "Soubor není rozpoznán"
+msgstr "檔案無法辨識"
 
 #: src/window.py:1785
 msgid "You can no longer continue the message."
-msgstr "Zprávu již nelze pokračovat."
+msgstr "您無法繼續此訊息。"
 
 #: src/window.py:1810
 msgid "You can no longer regenerate the message."
-msgstr "Zprávu již nelze znovu vygenerovat."
+msgstr "您無法重新生成此訊息。"
 
 #: src/window.py:1998 src/controller.py:159
 msgid "Chat "
-msgstr "Chat "
+msgstr "聊天室 "
 
 #: src/window.py:2042
 msgid "Chat is cleared"
-msgstr "Chat je vymazán"
+msgstr "已清除聊天紀錄"
 
 #: src/window.py:2067
 msgid "The message was canceled and deleted from history"
-msgstr "Zpráva byla zrušena a smazána z historie"
+msgstr "此訊息已從聊天紀錄中取消並且刪除"
 
 #: src/window.py:2111
 msgid "The message cannot be sent until the program is finished"
-msgstr "Zprávu nelze odeslat, dokud program neskončí"
+msgstr "在執行完成前無法傳送訊息"
 
 #: src/window.py:3112
 msgid "You can't edit a message while the program is running."
-msgstr "Nemůžete upravovat zprávu, když program běží."
+msgstr "在執行完成前無法編輯訊息"
 
 #: src/window.py:3237
 msgid "Prompt content"
-msgstr "Obsah výzvy"
+msgstr "提示內容"
 
 #: src/window.py:3496
 msgid ""
@@ -304,9 +302,9 @@ msgid ""
 "can run commands, be careful, we are not responsible for the neural network. "
 "Do not share any sensitive information."
 msgstr ""
-"Neuronová síť má přístup k vašemu počítači a veškerým datům v tomto chatu a "
-"může spouštět příkazy, buďte opatrní, neneseme odpovědnost za neuronovou "
-"síť. Nesdílejte žádné citlivé informace."
+"注意：此人工智慧模型有權取用電腦中的資料\n"
+"我們對這些模型不承擔任何責任\n"
+"請勿分享機密資訊"
 
 #: src/window.py:3525
 msgid ""
@@ -314,34 +312,35 @@ msgid ""
 "not responsible for the neural network. Do not share any sensitive "
 "information."
 msgstr ""
-"Neuronová síť má přístup ke všem datům v tomto chatu, buďte opatrní, "
-"neneseme odpovědnost za neuronovou síť. Nesdílejte žádné citlivé informace."
+"注意：此人工智慧模型有權取用電腦中的資料\n"
+"我們對這些模型不承擔任何責任\n"
+"請勿分享機密資訊"
 
 #: src/window.py:3574
 msgid "Wrong folder path"
-msgstr "Špatná cesta ke složce"
+msgstr "錯誤資料夾路徑"
 
 #: src/window.py:3607
 msgid "Thread has not been completed, thread number: "
-msgstr "Vlákno nebylo dokončeno, číslo vlákna: "
+msgstr "執行緒尚未完成，執行緒序號："
 
 #: src/window.py:3619
 msgid "Failed to open the folder"
-msgstr "Nepodařilo se otevřít složku"
+msgstr "無法開啟資料夾"
 
 #: src/window.py:3798
 msgid "Chat is empty"
-msgstr "Chat je prázdný"
+msgstr "聊天室為空"
 
 #: src/window.py:3859 src/ui/stdout_monitor.py:109 src/ui/stdout_monitor.py:182
 #: src/ui/stdout_monitor.py:191
 msgid "Monitoring: Active"
-msgstr "Monitorování: Aktivní"
+msgstr "監測：已啟用"
 
 #: src/smart_prompt.py:95 src/handlers/smart_prompt/smart_prompt.py:95
 #, fuzzy
 msgid "Model Dimension"
-msgstr "Přidáno rozšíření"
+msgstr "已新增擴充功能"
 
 #: src/smart_prompt.py:96 src/handlers/smart_prompt/smart_prompt.py:96
 msgid "Use bigger models for bigger accuracy less than 100MB"
@@ -351,12 +350,12 @@ msgstr ""
 #: src/handlers/translator/customtr_handler.py:17
 #: src/handlers/tts/custom_handler.py:17
 msgid "Command to execute"
-msgstr "Příkaz ke spuštění"
+msgstr "執行的指令"
 
 #: src/translator.py:68 src/handlers/translator/customtr_handler.py:18
 #, fuzzy, python-brace-format
 msgid "{0} will be replaced with the text to translate"
-msgstr "{0} bude nahrazeno plnou cestou k modelu"
+msgstr "{0} 參數會被模型的絕對路徑取代"
 
 #: src/ui/widgets/tipscarousel.py:41
 msgid "Nyarch Assistant Tips"
@@ -365,73 +364,73 @@ msgstr ""
 #: src/ui/stdout_monitor.py:31 src/ui/stdout_monitor.py:41
 #: src/ui/settings.py:323
 msgid "Program Output Monitor"
-msgstr "Monitor výstupu programu"
+msgstr "程式輸出監測器"
 
 #: src/ui/stdout_monitor.py:48
 msgid "Clear output"
-msgstr "Vyčistit výstup"
+msgstr "清除輸出"
 
 #: src/ui/stdout_monitor.py:61
 msgid "Start/Stop monitoring"
-msgstr "Spustit/Zastavit monitorování"
+msgstr "開始/停止監測"
 
 #: src/ui/stdout_monitor.py:109 src/ui/stdout_monitor.py:208
 msgid "Monitoring: Stopped"
-msgstr "Monitorování: Zastaveno"
+msgstr "監測：已停用"
 
 #: src/ui/stdout_monitor.py:116 src/ui/stdout_monitor.py:252
 #, python-brace-format
 msgid "Lines: {}"
-msgstr "Řádky: {}"
+msgstr "行數：{}"
 
 #: src/ui/stdout_monitor.py:267
 msgid "Lines: 0"
-msgstr "Řádky: 0"
+msgstr "行數：0"
 
 #: src/main.py:209
 msgid "Terminal threads are still running in the background"
-msgstr "Terminálová vlákna stále běží na pozadí"
+msgstr "終端機執行緒正在背景中執行"
 
 #: src/main.py:210
 msgid "When you close the window, they will be automatically terminated"
-msgstr "Když zavřete okno, budou automaticky ukončeny"
+msgstr "關閉視窗後將自動停止執行"
 
 #: src/main.py:213 src/ui/explorer.py:448 src/ui/explorer.py:501
 #: src/ui/explorer.py:689
 msgid "Cancel"
-msgstr "Zrušit"
+msgstr "取消"
 
 #: src/main.py:214
 msgid "Close"
-msgstr "Zavřít"
+msgstr "關閉"
 
 #: src/main.py:250
 msgid "Chat is rebooted"
-msgstr "Chat byl restartován"
+msgstr "重新整理聊天紀錄完成"
 
 #: src/main.py:255
 msgid "Folder is rebooted"
-msgstr "Složka byla restartována"
+msgstr "重新整理資料夾完成"
 
 #: src/main.py:260
 msgid "Chat is created"
-msgstr "Chat je vytvořen"
+msgstr "已建立新的聊天室"
 
 #: src/ui/settings.py:59 src/constants.py:694
 msgid "General"
-msgstr "Obecné"
+msgstr "一般"
 
 #: src/ui/settings.py:60 src/constants.py:644
 msgid "LLM"
-msgstr "LLM"
+msgstr "模型"
 
 #: src/ui/settings.py:61 src/constants.py:699
 msgid "Prompts"
-msgstr "Výzvy"
+msgstr "提示語"
 
 #: src/ui/settings.py:62
 msgid "Knowledge"
-msgstr "Znalosti"
+msgstr "認知"
 
 #: src/ui/settings.py:63 src/ui/settings.py:182 src/constants.py:659
 msgid "Avatar"
@@ -439,71 +438,68 @@ msgstr ""
 
 #: src/ui/settings.py:67
 msgid "Language Model"
-msgstr "Jazykový model"
+msgstr "語言模型"
 
 #: src/ui/settings.py:77 src/ui/settings.py:98
 msgid "Other LLMs"
-msgstr "Ostatní LLM"
+msgstr "其他大型語言模型"
 
 #: src/ui/settings.py:77 src/ui/settings.py:98
 msgid "Other available LLM providers"
-msgstr "Další dostupní poskytovatelé LLM"
+msgstr "其他提供大型語言模型的服務"
 
 #: src/ui/settings.py:88
 msgid "Advanced LLM Settings"
-msgstr "Pokročilé nastavení LLM"
+msgstr "更多設定"
 
 #: src/ui/settings.py:92
 msgid "Secondary Language Model"
-msgstr "Sekundární jazykový model"
+msgstr "輔助語言模型"
 
 #: src/ui/settings.py:92
 #, fuzzy
 msgid ""
 "Model used for secondary tasks, like offers, chat name and memory generation"
-msgstr ""
-"Model používaný pro sekundární úkoly, jako je nabídka, název chatu a "
-"generování paměti"
+msgstr "專門執行第二類工作：例如聊天室名稱生成以及記憶生成"
 
 #: src/ui/settings.py:109
 msgid "Embedding Model"
-msgstr "Model vkládání"
+msgstr "嵌入模型"
 
 #: src/ui/settings.py:109
 msgid ""
 "Embedding is used to trasform text into vectors. Used by Long Term Memory "
 "and RAG. Changing it might require you to re-index documents or reset memory."
 msgstr ""
-"Vkládání se používá k transformaci textu na vektory. Používá se pro "
-"Dlouhodobou paměť a RAG. Změna může vyžadovat opětovnou indexaci dokumentů "
-"nebo resetování paměti."
+"專門將文字轉成向量以提供給 RAG 與長期記憶所使用的模型。改變此設定後請重整索引"
+"與清除記憶。"
 
 #: src/ui/settings.py:120
 msgid "Keep memory of old conversations"
-msgstr "Udržovat paměť starých konverzací"
+msgstr "將舊聊天紀錄內容形成記憶"
 
 #: src/ui/settings.py:132 src/constants.py:538
 msgid "Web Search"
-msgstr "Webové hledání"
+msgstr "網路搜尋"
 
 #: src/ui/settings.py:132
 msgid "Search information on the Web"
-msgstr "Vyhledávat informace na webu"
+msgstr "在網路上搜尋更多資訊"
 
 #: src/ui/settings.py:144 src/handlers/tts/groq_tts_handler.py:33
 #: src/handlers/tts/tts.py:33 src/handlers/tts/custom_openai_tts.py:19
 #: src/handlers/tts/elevenlabs_handler.py:17
 #: src/handlers/tts/openai_tts_handler.py:19
 msgid "Voice"
-msgstr "Hlas"
+msgstr "語音"
 
 #: src/ui/settings.py:148
 msgid "Text To Speech Program"
-msgstr "Program převodu textu na řeč"
+msgstr "文本轉語音程式"
 
 #: src/ui/settings.py:148
 msgid "Choose which text to speech to use"
-msgstr "Vyberte, který program pro převod textu na řeč použít"
+msgstr "選擇文本轉語音的程式"
 
 #: src/ui/settings.py:161
 msgid "Translator program"
@@ -515,19 +511,19 @@ msgstr ""
 
 #: src/ui/settings.py:169
 msgid "Speech To Text Engine"
-msgstr "Engine pro převod řeči na text"
+msgstr "語音辨識"
 
 #: src/ui/settings.py:169
 msgid "Choose which speech recognition engine you want"
-msgstr "Vyberte, který engine pro rozpoznávání řeči chcete"
+msgstr "選擇語音辨識引擎"
 
 #: src/ui/settings.py:177
 msgid "Automatic Speech To Text"
-msgstr "Automatický převod řeči na text"
+msgstr "自動語音辨識"
 
 #: src/ui/settings.py:177
 msgid "Automatically restart speech to text at the end of a text/TTS"
-msgstr "Automaticky restartovat převod řeči na text po dokončení textu/TTS"
+msgstr "在朗讀完畢後自動重新啟動語音辨識服務"
 
 #: src/ui/settings.py:186
 msgid "Avatar model"
@@ -536,12 +532,12 @@ msgstr ""
 #: src/ui/settings.py:186
 #, fuzzy
 msgid "Choose which avatar model to choose"
-msgstr "Vyberte, který program pro převod textu na řeč použít"
+msgstr "選擇文本轉語音的程式"
 
 #: src/ui/settings.py:195
 #, fuzzy
 msgid "Smart Prompt"
-msgstr "Vlastní výzva"
+msgstr "自訂提示語"
 
 #: src/ui/settings.py:199
 msgid "Smart Prompt selector"
@@ -553,39 +549,39 @@ msgstr ""
 
 #: src/ui/settings.py:208
 msgid "Prompt control"
-msgstr "Ovládání výzev"
+msgstr "提示控制"
 
 #: src/ui/settings.py:213
 msgid "Interface"
-msgstr "Rozhraní"
+msgstr "界面"
 
 #: src/ui/settings.py:216
 msgid "Interface Size"
-msgstr "Velikost rozhraní"
+msgstr "界面大小"
 
 #: src/ui/settings.py:216
 msgid "Adjust the size of the interface"
-msgstr "Upravte velikost rozhraní"
+msgstr "調整界面的大小"
 
 #: src/ui/settings.py:228
 msgid "Editor color scheme"
-msgstr "Barevné schéma editoru"
+msgstr "編輯器顏色主題"
 
 #: src/ui/settings.py:228
 msgid "Change the color scheme of the editor and codeblocks"
-msgstr "Změnit barevné schéma editoru a bloků kódu"
+msgstr "更改編輯器顏色主題"
 
 #: src/ui/settings.py:235
 msgid "Hidden files"
-msgstr "Skryté soubory"
+msgstr "隱藏檔"
 
 #: src/ui/settings.py:235
 msgid "Show hidden files"
-msgstr "Zobrazit skryté soubory"
+msgstr "顯示隱藏檔"
 
 #: src/ui/settings.py:241
 msgid "Send with ENTER"
-msgstr "Odeslat pomocí ENTER"
+msgstr "使用 Enter 輸入"
 
 #: src/ui/settings.py:241
 msgid ""
@@ -593,58 +589,54 @@ msgid ""
 "CTRL+ENTER. If disabled, messages will be sent with SHIFT+ENTER, and newline "
 "with enter"
 msgstr ""
-"Pokud je povoleno, zprávy se budou odesílat pomocí ENTER, pro nový řádek "
-"použijte CTRL+ENTER. Pokud je zakázáno, zprávy se budou odesílat pomocí "
-"SHIFT+ENTER a nový řádek pomocí ENTER"
+"若啟用此功能將會讓 Enter 鍵傳送訊息，否則將文字換行，並使用 Shift＋Enter 傳送"
+"訊息。"
 
 #: src/ui/settings.py:247
 msgid "Remove thinking from history"
-msgstr "Odstranit myšlenky z historie"
+msgstr "將思考過程從歷史移除"
 
 #: src/ui/settings.py:247
 msgid ""
 "Do not send old thinking blocks for reasoning models in order to reduce "
 "token usage"
-msgstr ""
-"Neposílat staré myšlenkové bloky pro modely uvažování, aby se snížilo "
-"využití tokenů"
+msgstr "將推論模型的思考內容從歷史中移除以節省 Token 消耗"
 
 #: src/ui/settings.py:253
 msgid "Display LaTeX"
-msgstr "Zobrazit LaTeX"
+msgstr "顯示 LaTeX"
 
 #: src/ui/settings.py:253
 msgid "Display LaTeX formulas in chat"
-msgstr "Zobrazit LaTeX vzorce v chatu"
+msgstr "在聊天室顯示 LaTeX 數學式"
 
 #: src/ui/settings.py:259
 msgid "Reverse Chat Order"
-msgstr "Obrátit pořadí chatu"
+msgstr "反向聊天室"
 
 #: src/ui/settings.py:259
 msgid "Show most recent chats on top in chat list (change chat to apply)"
-msgstr ""
-"Zobrazit nejnovější chaty nahoře v seznamu chatů (pro použití změnit chat)"
+msgstr "將最新的訊息至頂"
 
 #: src/ui/settings.py:265
 msgid "Automatically Generate Chat Names"
-msgstr "Automaticky generovat názvy chatů"
+msgstr "自動生成聊天室名稱"
 
 #: src/ui/settings.py:265
 msgid "Generate chat names automatically after the first two messages"
-msgstr "Automaticky generovat názvy chatů po prvních dvou zprávách"
+msgstr "生成第一則訊息後自動生成聊天室名稱"
 
 #: src/ui/settings.py:271
 msgid "Number of offers"
-msgstr "Počet nabídek"
+msgstr "建議訊息數量"
 
 #: src/ui/settings.py:271
 msgid "Number of message suggestions to send to chat "
-msgstr "Počet návrhů zpráv k odeslání do chatu "
+msgstr "建議訊息的顯示數量"
 
 #: src/ui/settings.py:278
 msgid "Username"
-msgstr "Uživatelské jméno"
+msgstr "使用者名稱"
 
 #: src/ui/settings.py:278
 #, python-brace-format
@@ -652,172 +644,160 @@ msgid ""
 "Change the label that appears before your message\n"
 "This information is not sent to the LLM by default\n"
 "You can add it to a prompt using the {USER} variable"
-msgstr ""
-"Změňte popisek, který se zobrazí před vaší zprávou\n"
-"Tyto informace nejsou ve výchozím nastavení odesílány do LLM\n"
-"Můžete je přidat do výzvy pomocí proměnné {USER}"
+msgstr "更改聊天室內的使用者名稱，預設將不會將此資訊傳送給模型"
 
 #: src/ui/settings.py:288
 msgid "Neural Network Control"
-msgstr "Ovládání neuronové sítě"
+msgstr "類神經網路控制"
 
 #: src/ui/settings.py:291
 msgid "Run commands in a virtual machine"
-msgstr "Spouštět příkazy ve virtuálním stroji"
+msgstr "在模擬器中執行指令"
 
 #: src/ui/settings.py:304
 msgid "External Terminal"
-msgstr "Externí terminál"
+msgstr "外部終端機"
 
 #: src/ui/settings.py:304
 msgid "Choose the external terminal where to run the console commands"
-msgstr "Vyberte externí terminál, ve kterém se mají spouštět konzolové příkazy"
+msgstr "選擇執行指令的外部終端機"
 
 #: src/ui/settings.py:313
 msgid "Program memory"
-msgstr "Paměť programu"
+msgstr "模型記憶"
 
 #: src/ui/settings.py:313
 msgid "How long the program remembers the chat "
-msgstr "Jak dlouho si program pamatuje chat "
+msgstr "模型將會記得多久的聊天紀錄"
 
 #: src/ui/settings.py:320
 msgid "Developer"
-msgstr "Vývojář"
+msgstr "開發者"
 
 #: src/ui/settings.py:323
 msgid ""
 "Monitor the program output in real-time, useful for debugging and seeing "
 "downloads progress"
-msgstr ""
-"Monitorujte výstup programu v reálném čase, užitečné pro ladění a sledování "
-"průběhu stahování"
+msgstr "即時的監測程式，對於除錯與下載進度十分方便"
 
 #: src/ui/settings.py:324
 msgid "Open"
-msgstr "Otevřít"
+msgstr "開啟"
 
 #: src/ui/settings.py:329
 msgid "Delete pip path"
-msgstr "Smazat cestu pip"
+msgstr "刪除 pip 路徑"
 
 #: src/ui/settings.py:329
 msgid "Remove the extra dependencies installed"
-msgstr "Odebrat nainstalované extra závislosti"
+msgstr "刪除多餘依賴"
 
 #: src/ui/settings.py:330 src/ui/settings.py:402 src/ui/explorer.py:366
 #: src/ui/explorer.py:502
 msgid "Delete"
-msgstr "Smazat"
+msgstr "刪除"
 
 #: src/ui/settings.py:350
 msgid "Auto-run commands"
-msgstr "Automatické spouštění příkazů"
+msgstr "自訂自動執行指令"
 
 #: src/ui/settings.py:350
 msgid "Commands that the bot will write will automatically run"
-msgstr "Příkazy, které bot napíše, se automaticky spustí"
+msgstr "將會在終端機內自動執行指令"
 
 #: src/ui/settings.py:353
 msgid "Max number of commands"
-msgstr "Max. počet příkazů"
+msgstr "最多指令數量"
 
 #: src/ui/settings.py:353
 msgid ""
 "Maximum number of commands that the bot will write after a single user "
 "request"
-msgstr ""
-"Maximální počet příkazů, které bot napíše po jediném uživatelském požadavku"
+msgstr "一次訊息的最多指令數量"
 
 #: src/ui/settings.py:384
 msgid "Browser"
-msgstr "Prohlížeč"
+msgstr "瀏覽器"
 
 #: src/ui/settings.py:384
 msgid "Settings for the browser"
-msgstr "Nastavení prohlížeče"
+msgstr "瀏覽器設定"
 
 #: src/ui/settings.py:389
 msgid "Use external browser"
-msgstr "Použít externí prohlížeč"
+msgstr "使用外部瀏覽器"
 
 #: src/ui/settings.py:389
 msgid "Use an external browser to open links instead of integrated one"
-msgstr "Použít externí prohlížeč pro otevírání odkazů namísto integrovaného"
+msgstr "使用外部瀏覽棄取代內部瀏覽器開啟連結"
 
 #: src/ui/settings.py:396
 msgid "Persist browser session"
-msgstr "Udržet relaci prohlížeče"
+msgstr "保留當前瀏覽器分頁"
 
 #: src/ui/settings.py:396
 msgid ""
 "Persist browser session between restarts. Turning this off requires "
 "restarting the program"
-msgstr ""
-"Zachovat relaci prohlížeče mezi restarty. Vypnutí této možnosti vyžaduje "
-"restart programu"
+msgstr "在重新啟動時開啟關閉前的分頁狀態。請重新啟動應用程式以套用此變更"
 
 #: src/ui/settings.py:401
 msgid "Delete browser data"
-msgstr "Smazat data prohlížeče"
+msgstr "刪除瀏覽器資料"
 
 #: src/ui/settings.py:401
 msgid "Delete browser session and data"
-msgstr "Smazat relaci a data prohlížeče"
+msgstr "刪除瀏覽器的所有資料"
 
 #: src/ui/settings.py:408
 msgid "Initial browser page"
-msgstr "Počáteční stránka prohlížeče"
+msgstr "初始瀏覽頁面"
 
 #: src/ui/settings.py:408
 msgid "The page where the browser will start"
-msgstr "Stránka, na které se prohlížeč spustí"
+msgstr "瀏覽器開啟後將開啟的頁面"
 
 #: src/ui/settings.py:415
 msgid "Search string"
-msgstr "Vyhledávací řetězec"
+msgstr "搜尋字串"
 
 #: src/ui/settings.py:415
 #, python-format
 msgid "The search string used in the browser, %s is replaced with the query"
-msgstr "Vyhledávací řetězec použitý v prohlížeči, %s je nahrazen dotazem"
+msgstr "將在瀏覽器搜尋的字串，%s 將以搜尋序列取代"
 
 #: src/ui/settings.py:436
 msgid "Document Sources (RAG)"
-msgstr "Zdroje dokumentů (RAG)"
+msgstr "檔案來源（RAG）"
 
 #: src/ui/settings.py:436
 msgid "Include content from your documents in the responses"
-msgstr "Zahrnout obsah z vašich dokumentů do odpovědí"
+msgstr "在回應中包含檔案內容"
 
 #: src/ui/settings.py:437
 msgid "Document Analyzer"
-msgstr "Analyzátor dokumentů"
+msgstr "檔案分析器"
 
 #: src/ui/settings.py:437
 msgid ""
 "The document analyzer uses multiple techniques to extract relevant "
 "information about your documents"
-msgstr ""
-"Analyzátor dokumentů používá více technik k extrakci relevantních informací "
-"z vašich dokumentů"
+msgstr "使用不同技術提取各個檔案的相關內容"
 
 #: src/ui/settings.py:448
 msgid "Read documents if unsupported"
-msgstr "Číst dokumenty, pokud nejsou podporovány"
+msgstr "不支援時閱讀檔案"
 
 #: src/ui/settings.py:448
 msgid ""
 "If the LLM does not support reading documents, relevant information about "
 "documents sent in the chat will be given to the LLM using your Document "
 "Analyzer."
-msgstr ""
-"Pokud LLM nepodporuje čtení dokumentů, relevantní informace o dokumentech "
-"odeslaných v chatu budou předány LLM pomocí vašeho analyzátoru dokumentů."
+msgstr "如果模型不支援閱讀文件將會利用檔案分析器傳送檔案相關資訊給模型"
 
 #: src/ui/settings.py:452
 msgid "Maximum tokens for RAG"
-msgstr "Maximální počet tokenů pro RAG"
+msgstr "RAG 使用 Tokens 的最大值"
 
 #: src/ui/settings.py:452
 msgid ""
@@ -825,74 +805,66 @@ msgid ""
 "exceed this token count,\n"
 "dump all of them in the context"
 msgstr ""
-"Maximální počet tokenů, které mají být použity pro RAG. Pokud dokumenty "
-"nepřesáhnou tento počet tokenů,\n"
-"vložte je všechny do kontextu"
+"此將限制每次呼叫 RAG 時使用的 Tokens 的數量。如果需要使用的 Tokens 多過於此數"
+"值，將僅傳送檔案的大致內容"
 
 #: src/ui/settings.py:469
 msgid "Document Folder"
-msgstr "Složka dokumentů"
+msgstr "文件資料夾"
 
 #: src/ui/settings.py:469
 msgid ""
 "Put the documents you want to query in your document folder. The document "
 "analyzer will find relevant information in them if this option is enabled"
-msgstr ""
-"Vložte dokumenty, které chcete dotazovat, do vaší složky dokumentů. "
-"Analyzátor dokumentů v nich najde relevantní informace, pokud je tato "
-"možnost povolena"
+msgstr "檔案分析器將從資料夾內提取資訊"
 
 #: src/ui/settings.py:472
 msgid "Put all the documents you want to index in this folder"
-msgstr "Vložte všechny dokumenty, které chcete indexovat, do této složky"
+msgstr "將欲索引的檔案放置此資料夾內。"
 
 #: src/ui/settings.py:508
 msgid "Silence threshold"
-msgstr "Prah ticha"
+msgstr "靜音門檻"
 
 #: src/ui/settings.py:508
 msgid ""
 "Silence threshold in seconds, percentage of the volume to be considered "
 "silence"
-msgstr ""
-"Prah ticha v sekundách, procento hlasitosti, které má být považováno za ticho"
+msgstr "靜音門檻以秒為單位，當音量為 0 時也視為靜音"
 
 #: src/ui/settings.py:521
 msgid "Silence time"
-msgstr "Čas ticha"
+msgstr "靜音時間"
 
 #: src/ui/settings.py:521
 msgid "Silence time in seconds before recording stops automatically"
-msgstr "Čas ticha v sekundách před automatickým zastavením nahrávání"
+msgstr "靜音時間以秒為單位，當靜音時間達到此秒數將自動停止錄音"
 
 #: src/ui/settings.py:1108
 msgid "Not enough permissions"
-msgstr "Nedostatečná oprávnění"
+msgstr "權限不足"
 
 #: src/ui/settings.py:1112
 #, fuzzy
 msgid ""
 "Nyarch Assistant does not have enough permissions to run commands on your "
 "system, please run the following command"
-msgstr ""
-"Newelle nemá dostatečná oprávnění ke spouštění příkazů ve vašem systému, "
-"spusťte prosím následující příkaz"
+msgstr "Newelle 沒有足夠權限在系統內執行指令，請執行以下指令"
 
 #: src/ui/settings.py:1113 src/ui/settings.py:1126
 msgid "Understood"
-msgstr "Rozumím"
+msgstr "確認"
 
 #: src/ui/settings.py:1125
 msgid "Pip path deleted"
-msgstr "Cesta pip smazána"
+msgstr "已刪除 pip 路徑"
 
 #: src/ui/settings.py:1125
 msgid ""
 "The pip path has been deleted, you can now reinstall the dependencies. This "
 "operation requires a restart of the application."
 msgstr ""
-"Cesta pip byla smazána, nyní můžete přeinstalovat závislosti. Tato operace "
-"vyžaduje restart aplikace."
+"pip 路徑已被刪除，您可以重新安裝其依賴。請重新啟動應用程式以套用此操作。"
 
 #: src/ui/mini_window.py:9
 msgid "Nyarch Linux"
@@ -900,55 +872,55 @@ msgstr ""
 
 #: src/ui/mini_window.py:20
 msgid "Chat is opened in mini window"
-msgstr "Chat je otevřen v mini okně"
+msgstr "已在新視窗開啟聊天室"
 
 #: src/ui/shortcuts.py:6
 msgid "Help"
-msgstr "Nápověda"
+msgstr "幫助"
 
 #: src/ui/shortcuts.py:12
 msgid "Shortcuts"
-msgstr "Zkratky"
+msgstr "捷徑"
 
 #: src/ui/shortcuts.py:13
 msgid "Reload chat"
-msgstr "Načíst chat"
+msgstr "重新整理聊天室"
 
 #: src/ui/shortcuts.py:14
 msgid "Reload folder"
-msgstr "Načíst složku"
+msgstr "重新整理資料夾"
 
 #: src/ui/shortcuts.py:15
 msgid "New tab"
-msgstr "Nová záložka"
+msgstr "新分頁"
 
 #: src/ui/shortcuts.py:16
 msgid "Paste Image"
-msgstr "Vložit obrázek"
+msgstr "貼上圖片"
 
 #: src/ui/shortcuts.py:17
 msgid "Focus message box"
-msgstr "Zaměřit se na pole zprávy"
+msgstr "將焦點移動到訊息輸入框上"
 
 #: src/ui/shortcuts.py:18
 msgid "Start/stop recording"
-msgstr "Spustit/zastavit nahrávání"
+msgstr "開始/停止錄影"
 
 #: src/ui/shortcuts.py:19
 msgid "Save"
-msgstr "Uložit"
+msgstr "儲存"
 
 #: src/ui/shortcuts.py:20
 msgid "Stop TTS"
-msgstr "Zastavit TTS"
+msgstr "停止文本轉語音"
 
 #: src/ui/shortcuts.py:21
 msgid "Zoom in"
-msgstr "Přiblížit"
+msgstr "放大"
 
 #: src/ui/shortcuts.py:22
 msgid "Zoom out"
-msgstr "Oddálit"
+msgstr "縮小"
 
 #: src/ui/presentation.py:93
 msgid "Welcome to Nyarch Assistant!"
@@ -957,15 +929,15 @@ msgstr ""
 #: src/ui/presentation.py:94
 #, fuzzy
 msgid "Your ultimate AI Waifu assistant."
-msgstr "Váš dokonalý virtuální asistent."
+msgstr "您的個人助理"
 
 #: src/ui/presentation.py:98
 msgid "Github Page"
-msgstr "Stránka na Githubu"
+msgstr "原始碼（GitHub）"
 
 #: src/ui/presentation.py:105
 msgid "Choose your favourite AI Language Model"
-msgstr "Vyberte si svůj oblíbený jazykový model AI"
+msgstr "選擇您最喜歡的人工智慧模型"
 
 #: src/ui/presentation.py:106
 #, fuzzy
@@ -973,16 +945,16 @@ msgid ""
 "Nyarch Assistant can be used with mutiple models and providers!\n"
 "<b>Note: It is strongly suggested to read the Guide to LLM page</b>"
 msgstr ""
-"Newelle lze použít s více modely a poskytovateli!\n"
-"<b>Poznámka: Důrazně doporučujeme přečíst si stránku Průvodce LLM</b>"
+"Newelle 可與不同模型與服務使用！\n"
+"<b>註記：強烈建議您閱讀「大型語言模型 101」頁面</b>"
 
 #: src/ui/presentation.py:110
 msgid "Guide to LLM"
-msgstr "Průvodce LLM"
+msgstr "大型語言模型 101"
 
 #: src/ui/presentation.py:117
 msgid "Chat with your documents"
-msgstr "Chatujte s vašimi dokumenty"
+msgstr "與檔案互動"
 
 #: src/ui/presentation.py:118
 #, fuzzy
@@ -990,15 +962,12 @@ msgid ""
 "Nyarch Assistant can retrieve relevant information from documents you send "
 "in the chat or from your own files! Information relevant to your query will "
 "be sent to the LLM."
-msgstr ""
-"Newelle dokáže získávat relevantní informace z dokumentů, které odešlete v "
-"chatu, nebo z vašich vlastních souborů! Informace relevantní k vašemu dotazu "
-"budou odeslány do LLM."
+msgstr "Newelle 能擷取檔案的相關資訊並且傳送給模型以給予更精確的回覆！"
 
 #: src/ui/presentation.py:124
 #, fuzzy
 msgid "Choose your favourite Voice configuration"
-msgstr "Vyberte si svůj oblíbený jazykový model AI"
+msgstr "選擇您最喜歡的人工智慧模型"
 
 #: src/ui/presentation.py:125
 msgid ""
@@ -1011,11 +980,11 @@ msgstr ""
 msgid ""
 "You can extend Nyarch Assistant's functionalities using extensions! They are "
 "easy to make and to install!"
-msgstr "Funkcionalitu Newelle můžete rozšířit pomocí rozšíření!"
+msgstr "利用擴充功能讓 Newelle 的功能多又更多！"
 
 #: src/ui/presentation.py:136
 msgid "Download extensions"
-msgstr "Stáhnout rozšíření"
+msgstr "下載擴充功能"
 
 #: src/ui/presentation.py:143
 msgid "Pay attention!"
@@ -1033,256 +1002,255 @@ msgstr ""
 
 #: src/ui/presentation.py:152
 msgid "Permission Error"
-msgstr "Chyba oprávnění"
+msgstr "權限錯誤"
 
 #: src/ui/presentation.py:153
 #, fuzzy
 msgid ""
 "nyarchassistant does not have enough permissions to run commands on your "
 "system."
-msgstr ""
-"Newelle nemá dostatečná oprávnění ke spouštění příkazů ve vašem systému."
+msgstr "Newelle 沒有足夠權限在系統內執行指令"
 
 #: src/ui/presentation.py:164
 msgid "Begin using the app"
-msgstr "Začněte používat aplikaci"
+msgstr "開始使用應用程式"
 
 #: src/ui/presentation.py:169
 msgid "Start chatting"
-msgstr "Začít chatovat"
+msgstr "開始聊天"
 
 #: src/ui/explorer.py:192
 msgid "Folder is Empty"
-msgstr "Složka je prázdná"
+msgstr "資料夾為空"
 
 #: src/ui/explorer.py:355
 msgid "Open in new tab"
-msgstr "Otevřít v nové kartě"
+msgstr "於新分頁開啟"
 
 #: src/ui/explorer.py:357
 msgid "Open in integrated editor"
-msgstr "Otevřít v integrovaném editoru"
+msgstr "於編輯器開啟"
 
 #: src/ui/explorer.py:360 src/ui/explorer.py:589
 msgid "Open in file manager"
-msgstr "Otevřít ve správci souborů"
+msgstr "於檔案管理員開啟"
 
 #: src/ui/explorer.py:363 src/ui/explorer.py:451
 msgid "Rename"
-msgstr "Přejmenovat"
+msgstr "重新命名"
 
 #: src/ui/explorer.py:369
 msgid "Copy full path"
-msgstr "Zkopírovat plnou cestu"
+msgstr "複製絕對路徑"
 
 #: src/ui/explorer.py:420 src/ui/explorer.py:657
 msgid "Failed to open file manager"
-msgstr "Nepodařilo se otevřít správce souborů"
+msgstr "無法開啟檔案管理員"
 
 #: src/ui/explorer.py:436
 msgid "New name:"
-msgstr "Nový název:"
+msgstr "新名稱："
 
 #: src/ui/explorer.py:471
 msgid "Renamed successfully"
-msgstr "Úspěšně přejmenováno"
+msgstr "重新命名成功"
 
 #: src/ui/explorer.py:476
 #, python-brace-format
 msgid "Failed to rename: {}"
-msgstr "Nepodařilo se přejmenovat: {}"
+msgstr "重新命名 {} 失敗"
 
 #: src/ui/explorer.py:497
 msgid "Delete File?"
-msgstr "Smazat soubor?"
+msgstr "是否刪除檔案？"
 
 #: src/ui/explorer.py:499
 #, python-brace-format
 msgid "Are you sure you want to delete \"{}\"?"
-msgstr "Opravdu chcete smazat „{}“?"
+msgstr "是否刪除「{}」？"
 
 #: src/ui/explorer.py:520
 msgid "Deleted successfully"
-msgstr "Úspěšně smazáno"
+msgstr "刪除成功"
 
 #: src/ui/explorer.py:525
 #, python-brace-format
 msgid "Failed to delete: {}"
-msgstr "Nepodařilo se smazat: {}"
+msgstr "無法刪除 {}"
 
 #: src/ui/explorer.py:538
 msgid "Path copied to clipboard"
-msgstr "Cesta zkopírována do schránky"
+msgstr "已複製路徑"
 
 #: src/ui/explorer.py:542
 msgid "Failed to copy path"
-msgstr "Nepodařilo se zkopírovat cestu"
+msgstr "複製路徑失敗"
 
 #: src/ui/explorer.py:580
 msgid "Create new folder"
-msgstr "Vytvořit novou složku"
+msgstr "建立新資料夾"
 
 #: src/ui/explorer.py:583
 msgid "Create new file"
-msgstr "Vytvořit nový soubor"
+msgstr "建立新檔案"
 
 #: src/ui/explorer.py:586
 msgid "Open Terminal Here"
-msgstr "Otevřít zde terminál"
+msgstr "開啟終端機"
 
 #: src/ui/explorer.py:640
 msgid "Create New Folder"
-msgstr "Vytvořit novou složku"
+msgstr "建立新設定檔"
 
 #: src/ui/explorer.py:640
 msgid "Folder name:"
-msgstr "Název složky:"
+msgstr "資料夾名稱："
 
 #: src/ui/explorer.py:644
 msgid "Create New File"
-msgstr "Vytvořit nový soubor"
+msgstr "建立新檔"
 
 #: src/ui/explorer.py:644
 msgid "File name:"
-msgstr "Název souboru:"
+msgstr "新檔案名稱："
 
 #: src/ui/explorer.py:692 src/ui/profile.py:109
 msgid "Create"
-msgstr "Vytvořit"
+msgstr "新增聊天室"
 
 #: src/ui/explorer.py:713
 msgid "Folder created successfully"
-msgstr "Složka úspěšně vytvořena"
+msgstr "資料夾建立成功"
 
 #: src/ui/explorer.py:720
 msgid "File created successfully"
-msgstr "Soubor úspěšně vytvořen"
+msgstr "檔案建立成功"
 
 #: src/ui/explorer.py:725
 msgid "A file or folder with that name already exists"
-msgstr "Soubor nebo složka s tímto názvem již existuje"
+msgstr "已有相同名稱的檔案或資料夾"
 
 #: src/ui/explorer.py:728
 msgid "folder"
-msgstr "složka"
+msgstr "資料夾"
 
 #: src/ui/explorer.py:728
 msgid "file"
-msgstr "soubor"
+msgstr "檔案"
 
 #: src/ui/explorer.py:730
 #, python-brace-format
 msgid "Failed to create {}: {}"
-msgstr "Nepodařilo se vytvořit {}: {}"
+msgstr "建立 {} 失敗：{}"
 
 #: src/ui/extension.py:52
 msgid "Installed Extensions"
-msgstr "Nainstalovaná rozšíření"
+msgstr "已安裝的擴充功能"
 
 #: src/ui/extension.py:88
 msgid "User guide to Extensions"
-msgstr "Uživatelská příručka k rozšířením"
+msgstr "擴充功能使用說明"
 
 #: src/ui/extension.py:91
 msgid "Download new Extensions"
-msgstr "Stáhnout nová rozšíření"
+msgstr "下載擴充功能"
 
 #: src/ui/extension.py:94
 msgid "Install extension from file..."
-msgstr "Nainstalovat rozšíření ze souboru..."
+msgstr "從檔案安裝檔案..."
 
 #: src/ui/profile.py:53
 msgid "Profile Name"
-msgstr "Název profilu"
+msgstr "設定檔名稱"
 
 #: src/ui/profile.py:58
 msgid "Copied Settings"
-msgstr "Kopírované nastavení"
+msgstr "已複製設定"
 
 #: src/ui/profile.py:58
 msgid "Settings that will be copied to the new profile"
-msgstr "Nastavení, která budou zkopírována do nového profilu"
+msgstr "新設定檔將複製的設定"
 
 #: src/ui/profile.py:70
 msgid "Create Profile"
-msgstr "Vytvořit profil"
+msgstr "建立新設定檔"
 
 #: src/ui/profile.py:72 src/ui/profile.py:74 src/ui/profile.py:129
 msgid "Import Profile"
-msgstr "Importovat profil"
+msgstr "導入設定檔"
 
 #: src/ui/profile.py:79 src/ui/widgets/profilerow.py:43
 msgid "Edit Profile"
-msgstr "Upravit profil"
+msgstr "編輯設定檔"
 
 #: src/ui/profile.py:84 src/ui/profile.py:99 src/ui/profile.py:123
 msgid "Export Profile"
-msgstr "Exportovat profil"
+msgstr "導出設定檔"
 
 #: src/ui/profile.py:87
 msgid "Export Passwords"
-msgstr "Exportovat hesla"
+msgstr "導出密碼"
 
 #: src/ui/profile.py:87
 msgid "Also export password-like fields"
-msgstr "Exportovat také pole podobná heslům"
+msgstr "並且導出密鑰內容"
 
 #: src/ui/profile.py:89
 msgid "Export Propic"
-msgstr "Exportovat obrázek profilu"
+msgstr "導出頭像"
 
 #: src/ui/profile.py:89
 msgid "Also export the profile picture"
-msgstr "Exportovat také profilový obrázek"
+msgstr "並且導出頭像"
 
 #: src/ui/profile.py:109
 msgid "Apply"
-msgstr "Použít"
+msgstr "套用"
 
 #: src/ui/profile.py:116
 msgid "The settings of the current profile will be copied into the new one"
-msgstr "Nastavení aktuálního profilu budou zkopírována do nového"
+msgstr "目前的設定將複製到新的設定檔"
 
 #: src/ui/profile.py:122 src/ui/profile.py:128
 msgid "Newelle Profiles"
-msgstr "Profily Newelle"
+msgstr "Newelle 設定檔"
 
 #: src/ui/profile.py:123
 msgid "Export"
-msgstr "Exportovat"
+msgstr "導出"
 
 #: src/ui/profile.py:129
 msgid "Import"
-msgstr "Importovat"
+msgstr "導入"
 
 #: src/ui/profile.py:197
 msgid "Set profile picture"
-msgstr "Nastavit profilový obrázek"
+msgstr "設定頭像"
 
 #: src/ui/widgets/thinking.py:26
 msgid "Thoughts"
-msgstr "Myšlenky"
+msgstr "思考過程"
 
 #: src/ui/widgets/thinking.py:27 src/ui/widgets/thinking.py:134
 msgid "Expand to see details"
-msgstr "Rozbalte pro zobrazení podrobností"
+msgstr "點開以顯示完整內容"
 
 #: src/ui/widgets/thinking.py:122
 msgid "Thinking..."
-msgstr "Přemýšlím..."
+msgstr "思考中..."
 
 #: src/ui/widgets/thinking.py:123
 msgid "The LLM is thinking... Expand to see thought process"
-msgstr "LLM přemýšlí... Rozbalte pro zobrazení průběhu myšlení"
+msgstr "思考中...點開以顯示完整內容"
 
 #: src/ui/widgets/thinking.py:136
 msgid "No thought process recorded"
-msgstr "Žádný zaznamenaný myšlenkový proces"
+msgstr "沒有思考過程"
 
 #: src/constants.py:28
 #, fuzzy
 msgid "Nyarch Demo API"
-msgstr "Demo API Newelle"
+msgstr "Newelle 預覽 API"
 
 #: src/constants.py:34
 msgid "GPT4Free"
@@ -1290,23 +1258,22 @@ msgstr "GPT4Free"
 
 #: src/constants.py:42
 msgid "Local Model"
-msgstr "Lokální model"
+msgstr "本地模型"
 
 #: src/constants.py:43
 msgid ""
 "NO GPU SUPPORT, USE OLLAMA INSTEAD. Run a LLM model locally, more privacy "
 "but slower"
 msgstr ""
-"BEZ PODPORY GPU, POUŽIJTE MÍSTO TOHO OLLAMA. Spusťte model LLM lokálně, více "
-"soukromí, ale pomalejší"
+"不支援顯卡加速，僅有「Ollama 模型」選項支援。不過選擇此選項能保有更多隱私"
 
 #: src/constants.py:48
 msgid "Ollama Instance"
-msgstr "Instance Ollamy"
+msgstr "Ollama 模型"
 
 #: src/constants.py:49
 msgid "Easily run multiple LLM models on your own hardware"
-msgstr "Snadno spusťte více LLM modelů na vlastním hardwaru"
+msgstr "讓同時在硬體上執行多個模型更加容易"
 
 #: src/constants.py:55
 msgid "Groq"
@@ -1314,17 +1281,15 @@ msgstr "Groq"
 
 #: src/constants.py:62 src/constants.py:260
 msgid "Google Gemini API"
-msgstr "API Google Gemini"
+msgstr "Google Gemini API"
 
 #: src/constants.py:68 src/constants.py:254 src/constants.py:255
 msgid "OpenAI API"
-msgstr "API OpenAI"
+msgstr "OpenAI API"
 
 #: src/constants.py:69
 msgid "OpenAI API. Custom endpoints supported. Use this for custom providers"
-msgstr ""
-"OpenAI API. Podporovány vlastní koncové body. Použijte pro vlastní "
-"poskytovatele"
+msgstr "支援自訂 API 端點。"
 
 #: src/constants.py:74
 msgid "Anthropic Claude"
@@ -1334,9 +1299,7 @@ msgstr "Anthropic Claude"
 msgid ""
 "Official APIs for Anthropic Claude's models, with image and file support, "
 "requires an API key"
-msgstr ""
-"Oficiální API pro modely Anthropic Claude, s podporou obrázků a souborů, "
-"vyžaduje API klíč"
+msgstr "Anthropic Claude 的官方 API，支援圖形與檔案上傳。需要 API 金鑰"
 
 #: src/constants.py:81
 msgid "Mistral"
@@ -1344,7 +1307,7 @@ msgstr "Mistral"
 
 #: src/constants.py:82
 msgid "Mistral API"
-msgstr "API Mistral"
+msgstr "Mistral API"
 
 #: src/constants.py:89
 msgid "OpenRouter"
@@ -1352,7 +1315,7 @@ msgstr "OpenRouter"
 
 #: src/constants.py:90
 msgid "Openrouter.ai API, supports lots of models"
-msgstr "Openrouter.ai API, podporuje mnoho modelů"
+msgstr "支援廣泛種類的模型"
 
 #: src/constants.py:97
 msgid "Deepseek"
@@ -1360,15 +1323,15 @@ msgstr "Deepseek"
 
 #: src/constants.py:98
 msgid "Deepseek API, strongest open source models"
-msgstr "Deepseek API, nejsilnější open source modely"
+msgstr "擁有最強大的開源模型"
 
 #: src/constants.py:104 src/constants.py:233
 msgid "Custom Command"
-msgstr "Vlastní příkaz"
+msgstr "自動執行的指令"
 
 #: src/constants.py:105
 msgid "Use the output of a custom command"
-msgstr "Použijte výstup vlastního příkazu"
+msgstr "從自訂指令中使用"
 
 #: src/constants.py:114
 msgid "Whisper C++"
@@ -1376,7 +1339,7 @@ msgstr "Whisper C++"
 
 #: src/constants.py:115
 msgid "Works offline. Optimized Whisper impelementation written in C++"
-msgstr "Funguje offline. Optimalizovaná implementace Whisper napsaná v C++"
+msgstr "可離線執行。此為使用 C++ 改良過的 Whisper 模型"
 
 #: src/constants.py:121
 msgid "CMU Sphinx"
@@ -1384,19 +1347,19 @@ msgstr "CMU Sphinx"
 
 #: src/constants.py:122
 msgid "Works offline. Only English supported"
-msgstr "Funguje offline. Podporována je pouze angličtina"
+msgstr "可離線執行，僅支援英文"
 
 #: src/constants.py:128
 msgid "Google Speech Recognition"
-msgstr "Rozpoznávání řeči Google"
+msgstr "Google 語音辨識"
 
 #: src/constants.py:129 src/constants.py:135
 msgid "Google Speech Recognition online"
-msgstr "Online rozpoznávání řeči Google"
+msgstr "Google 線上語音辨識"
 
 #: src/constants.py:134
 msgid "Groq Speech Recognition"
-msgstr "Groq Rozpoznávání řeči"
+msgstr "Groq 語音辨識"
 
 #: src/constants.py:140
 msgid "Wit AI"
@@ -1404,36 +1367,36 @@ msgstr "Wit AI"
 
 #: src/constants.py:141
 msgid "wit.ai speech recognition free API (language chosen on the website)"
-msgstr "Bezplatné API pro rozpoznávání řeči wit.ai (jazyk vybraný na webu)"
+msgstr "免費線上語音辨識 API（請在網站上選擇語言）"
 
 #: src/constants.py:147
 msgid "Vosk API"
-msgstr "API Vosk"
+msgstr "Vosk API"
 
 #: src/constants.py:148
 msgid "Works Offline"
-msgstr "Funguje offline"
+msgstr "可離線執行"
 
 #: src/constants.py:154
 msgid "Whisper API"
-msgstr "API Whisper"
+msgstr "Whisper API"
 
 #: src/constants.py:155
 msgid "Uses OpenAI Whisper API"
-msgstr "Používá API OpenAI Whisper"
+msgstr "使用 OpenAI Whisper API"
 
 #: src/constants.py:161
 msgid "Custom command"
-msgstr "Vlastní příkaz"
+msgstr "自動執行的指令"
 
 #: src/constants.py:162
 msgid "Runs a custom command"
-msgstr "Spustí vlastní příkaz"
+msgstr "此可執行自訂指令"
 
 #: src/constants.py:171
 #, fuzzy
 msgid "Edge TTS"
-msgstr "Google TTS"
+msgstr "Google 文本轉語音"
 
 #: src/constants.py:172
 msgid "Use Microsoft Edge online TTS without any API Key"
@@ -1441,49 +1404,49 @@ msgstr ""
 
 #: src/constants.py:177
 msgid "Google TTS"
-msgstr "Google TTS"
+msgstr "Google 文本轉語音"
 
 #: src/constants.py:178
 msgid "Google's text to speech"
-msgstr "Převod textu na řeč od Google"
+msgstr "Google 的文本轉語音"
 
 #: src/constants.py:183
 msgid "Kokoro TTS"
-msgstr "Kokoro TTS"
+msgstr "Kokoro 文本轉語音"
 
 #: src/constants.py:184
 msgid ""
 "Lightweight and fast open source TTS engine. ~3GB dependencies, 400MB model"
-msgstr "Lehký a rychlý open source TTS engine. ~3GB závislostí, 400MB model"
+msgstr "輕量且快速的開源文本轉語音。～3GB 依賴，400MB 模型"
 
 #: src/constants.py:189
 msgid "ElevenLabs TTS"
-msgstr "ElevenLabs TTS"
+msgstr "ElevenLabs 文本轉語音"
 
 #: src/constants.py:190
 msgid "Natural sounding TTS"
-msgstr "TTS s přirozeným zvukem"
+msgstr "自然、多樣的聲線"
 
 #: src/constants.py:195 src/constants.py:196
 msgid "OpenAI TTS"
-msgstr "OpenAI TTS"
+msgstr "OpenAI 文本轉語音"
 
 #: src/constants.py:201
 msgid "Groq TTS"
-msgstr "Groq TTS"
+msgstr "Groq 文本轉語音"
 
 #: src/constants.py:202
 msgid "Groq TTS API"
-msgstr "Groq TTS API"
+msgstr "Groq 文本轉語音 API"
 
 #: src/constants.py:207 src/constants.py:208
 msgid "Custom OpenAI TTS"
-msgstr "Vlastní OpenAI TTS"
+msgstr "自訂 OpenAI 文本轉語音"
 
 #: src/constants.py:213
 #, fuzzy
 msgid "Voicevox API"
-msgstr "API Vosk"
+msgstr "Vosk API"
 
 #: src/constants.py:214
 msgid ""
@@ -1493,7 +1456,7 @@ msgstr ""
 #: src/constants.py:220
 #, fuzzy
 msgid "VITS API"
-msgstr "API Vosk"
+msgstr "Vosk API"
 
 #: src/constants.py:221
 msgid "(Selfhostable) VITS simple API. AI based TTS, very good for Japanese"
@@ -1501,16 +1464,16 @@ msgstr ""
 
 #: src/constants.py:227
 msgid "Espeak TTS"
-msgstr "Espeak TTS"
+msgstr "Espeak 文本轉語音"
 
 #: src/constants.py:228
 msgid "Offline TTS"
-msgstr "Offline TTS"
+msgstr "離線文本轉語音"
 
 #: src/constants.py:234
 #, python-brace-format
 msgid "Use a custom command as TTS, {0} will be replaced with the text"
-msgstr "Použít vlastní příkaz jako TTS, {0} bude nahrazeno textem"
+msgstr "使用自訂指令當作文本轉語音工具，{0} 將會被取代為需處理的文字"
 
 #: src/constants.py:242
 msgid "WordLlama"
@@ -1520,32 +1483,28 @@ msgstr "WordLlama"
 msgid ""
 "Light local embedding model based on llama. Works offline, very low "
 "resources usage"
-msgstr ""
-"Lehký lokální model vkládání založený na llama. Funguje offline, velmi nízká "
-"spotřeba zdrojů"
+msgstr "基於 llama 的輕量級模型。可離線使用，資源消耗極低。"
 
 #: src/constants.py:248
 msgid "Ollama Embedding"
-msgstr "Ollama Vkládání"
+msgstr "Ollama 嵌入"
 
 #: src/constants.py:249
 msgid ""
 "Use Ollama models for Embedding. Works offline, very low resources usage"
-msgstr ""
-"Použijte modely Ollama pro vkládání (Embedding). Funguje offline, velmi "
-"nízká spotřeba zdrojů"
+msgstr "使用 Ollama 模型嵌入內容"
 
 #: src/constants.py:261
 msgid "Use Google Gemini API to get embeddings"
-msgstr "Použijte API Google Gemini k získání vkládání"
+msgstr "使用 Google Gemini API 取得嵌入內容"
 
 #: src/constants.py:269
 msgid "User Summary"
-msgstr "Shrnutí uživatele"
+msgstr "聊天歷史大意"
 
 #: src/constants.py:270
 msgid "Generate a summary of the user's conversation"
-msgstr "Generovat shrnutí uživatelské konverzace"
+msgstr "從對話內容中生成大意"
 
 #: src/constants.py:275
 msgid "Memoripy"
@@ -1557,29 +1516,26 @@ msgid ""
 "retrivial, memory decay, concept extraction and other advanced techniques. "
 "Does 1 llm call per message."
 msgstr ""
-"Extrahujte zprávy z předchozích konverzací pomocí kontextového načítání "
-"paměti, rozpadu paměti, extrakce konceptů a dalších pokročilých technik. "
-"Provádí 1 volání LLM na zprávu."
+"使用前後文記憶處理其他聊天歷史的內容，包括取得、壓縮、記憶損失、以及概念分析"
+"等技術。每次訊息將呼叫一次。"
 
 #: src/constants.py:281
 msgid "User Summary + Memoripy"
-msgstr "Shrnutí uživatele + Memoripy"
+msgstr "聊天歷史大意＋Memoripy"
 
 #: src/constants.py:282
 msgid "Use both technologies for long term memory"
-msgstr "Použít obě technologie pro dlouhodobou paměť"
+msgstr "同時使用聊天歷史大意以及 Memoripy"
 
 #: src/constants.py:290
 msgid "Document reader"
-msgstr "Čtečka dokumentů"
+msgstr "文件閱讀器"
 
 #: src/constants.py:291
 msgid ""
 "Classic RAG approach - chunk documents and embed them, then compare them to "
 "the query and return the most relevant documents"
-msgstr ""
-"Klasický RAG přístup – rozdělit dokumenty na části a vložit je, poté je "
-"porovnat s dotazem a vrátit nejrelevantnější dokumenty"
+msgstr "傳統 RAG — 將檔案縮減並嵌入，最後與序列比對，輸出最相關的檔案"
 
 #: src/constants.py:298
 msgid "Live2D"
@@ -1620,12 +1576,12 @@ msgstr ""
 #: src/constants.py:331
 #, fuzzy
 msgid "Custom Translator"
-msgstr "Vlastní výzva"
+msgstr "自訂提示語"
 
 #: src/constants.py:332
 #, fuzzy
 msgid "Use a custom translator"
-msgstr "Použít vlastní model"
+msgstr "使用自訂的模型"
 
 #: src/constants.py:340
 msgid "Nyarch Smart Prompt Lite"
@@ -1653,7 +1609,7 @@ msgstr "SearXNG"
 
 #: src/constants.py:356
 msgid "SearXNG - Private and selfhostable search engine"
-msgstr "SearXNG - Soukromý a samostatně hostovatelný vyhledávač"
+msgstr "SearXNG — 尊重隱私的開源元搜尋引擎"
 
 #: src/constants.py:361
 msgid "DuckDuckGo"
@@ -1661,7 +1617,7 @@ msgstr "DuckDuckGo"
 
 #: src/constants.py:362
 msgid "DuckDuckGo search"
-msgstr "Vyhledávání DuckDuckGo"
+msgstr "DuckDuckGo 搜尋"
 
 #: src/constants.py:367
 msgid "Tavily"
@@ -1669,64 +1625,64 @@ msgstr "Tavily"
 
 #: src/constants.py:368
 msgid "Tavily search"
-msgstr "Vyhledávání Tavily"
+msgstr "Tavily 搜尋"
 
 #: src/constants.py:512
 msgid "Helpful assistant"
-msgstr "Užitečný asistent"
+msgstr "模型最佳化"
 
 #: src/constants.py:513
 msgid "General purpose prompt to enhance the LLM answers and give more context"
-msgstr "Obecná výzva pro vylepšení odpovědí LLM a poskytnutí více kontextu"
+msgstr "讓模型能提供更準確的回應以及提供更多前後文"
 
 #: src/constants.py:521
 msgid "Console access"
-msgstr "Přístup ke konzoli"
+msgstr "終端機取用權"
 
 #: src/constants.py:522
 msgid "Can the program run terminal commands on the computer"
-msgstr "Může program spouštět terminálové příkazy na počítači"
+msgstr "模型將有權使用電腦上的終端機"
 
 #: src/constants.py:529
 msgid "Current directory"
-msgstr "Aktuální adresář"
+msgstr "目前所在資料夾"
 
 #: src/constants.py:530
 msgid "What is the current directory"
-msgstr "Jaký je aktuální adresář"
+msgstr "目前我們在哪個資料夾"
 
 #: src/constants.py:539
 msgid "Allow the LLM to search on the internet"
-msgstr "Povolit LLM hledat na internetu"
+msgstr "允許大型語言模型使用網路搜尋"
 
 #: src/constants.py:547
 msgid "Basic functionality"
-msgstr "Základní funkcionalita"
+msgstr "基本功能"
 
 #: src/constants.py:548
 msgid "Showing tables and code (*can work without it)"
-msgstr "Zobrazování tabulek a kódu (*může fungovat i bez toho)"
+msgstr "顯示表格與程式（不必啟用）"
 
 #: src/constants.py:556
 msgid "Graphs access"
-msgstr "Přístup ke grafům"
+msgstr "圖表取用權"
 
 #: src/constants.py:557
 msgid "Can the program display graphs"
-msgstr "Může program zobrazovat grafy"
+msgstr "模型將有權生成圖表"
 
 #: src/constants.py:565
 msgid "Show image"
-msgstr "Zobrazit obrázek"
+msgstr "顯示圖片"
 
 #: src/constants.py:566
 msgid "Show image in chat"
-msgstr "Zobrazit obrázek v chatu"
+msgstr "模型將會生成圖片"
 
 #: src/constants.py:574
 #, fuzzy
 msgid "Show expressions"
-msgstr "Stáhnout rozšíření"
+msgstr "下載擴充功能"
 
 #: src/constants.py:575
 msgid "Let the avatar show expressions"
@@ -1739,60 +1695,60 @@ msgstr ""
 #: src/constants.py:584
 #, fuzzy
 msgid "Show a personality in chat"
-msgstr "Zobrazit obrázek v chatu"
+msgstr "模型將會生成圖片"
 
 #: src/constants.py:592
 msgid "Custom Prompt"
-msgstr "Vlastní výzva"
+msgstr "自訂提示語"
 
 #: src/constants.py:593
 msgid "Add your own custom prompt"
-msgstr "Přidejte si vlastní výzvu"
+msgstr "在此新增自訂的提示語"
 
 #: src/constants.py:646
 msgid "LLM and Secondary LLM settings"
-msgstr "Nastavení LLM a sekundárního LLM"
+msgstr "大型語言模型與輔助模型設定"
 
 #: src/constants.py:651
 msgid "Text to Speech settings"
-msgstr "Nastavení převodu textu na řeč"
+msgstr "文本轉語音設定"
 
 #: src/constants.py:654
 msgid "STT"
-msgstr "STT"
+msgstr "語音辨識"
 
 #: src/constants.py:656
 msgid "Speech to Text settings"
-msgstr "Nastavení převodu řeči na text"
+msgstr "語音辨識設定"
 
 #: src/constants.py:661
 #, fuzzy
 msgid "Avatar settings"
-msgstr "Pokročilé nastavení"
+msgstr "更多設定"
 
 #: src/constants.py:664
 msgid "Embedding"
-msgstr "Vkládání"
+msgstr "嵌入"
 
 #: src/constants.py:666
 msgid "Embedding settings"
-msgstr "Nastavení vkládání"
+msgstr "嵌入設定"
 
 #: src/constants.py:669
 msgid "Memory"
-msgstr "Paměť"
+msgstr "記憶"
 
 #: src/constants.py:671
 msgid "Memory settings"
-msgstr "Nastavení paměti"
+msgstr "設定"
 
 #: src/constants.py:674
 msgid "Websearch"
-msgstr "Webové hledání"
+msgstr "網路搜尋"
 
 #: src/constants.py:676
 msgid "Websearch settings"
-msgstr "Nastavení webového hledání"
+msgstr "網路搜尋設定"
 
 #: src/constants.py:679
 msgid "RAG"
@@ -1800,31 +1756,29 @@ msgstr "RAG"
 
 #: src/constants.py:681
 msgid "Document analyzer settings"
-msgstr "Nastavení analyzátoru dokumentů"
+msgstr "檔案分析器設定"
 
 #: src/constants.py:686
 msgid "Extensions settings"
-msgstr "Nastavení rozšíření"
+msgstr "擴充功能設定"
 
 #: src/constants.py:689
 msgid "Inteface"
-msgstr "Rozhraní"
+msgstr "界面"
 
 #: src/constants.py:691
 msgid "Interface settings, hidden files, reverse order, zoom..."
-msgstr "Nastavení rozhraní, skryté soubory, obrácené pořadí, zoom..."
+msgstr "界面設定、隱藏檔、反向順序、放大等..."
 
 #: src/constants.py:696
 msgid ""
 "General settings, virtualization, offers, memory length, automatically "
 "generate chat name, current folder..."
-msgstr ""
-"Obecná nastavení, virtualizace, nabídky, délka paměti, automatické "
-"generování názvu chatu, aktuální složka..."
+msgstr "一般設定、指令虛擬化、記憶長度、自動生成聊天室名稱、目前資料夾等..."
 
 #: src/constants.py:701
 msgid "Prompts settings, custom extra prompt, custom prompts..."
-msgstr "Nastavení výzev, vlastní extra výzva, vlastní výzvy..."
+msgstr "提示語設定、自訂提示語等..."
 
 #: src/handlers/stt/googlesr_handler.py:13
 #: src/handlers/stt/openaisr_handler.py:17 src/handlers/stt/witai_handler.py:12
@@ -1836,51 +1790,51 @@ msgstr "Nastavení výzev, vlastní extra výzva, vlastní výzvy..."
 #: src/handlers/tts/elevenlabs_handler.py:9
 #: src/handlers/tts/openai_tts_handler.py:18
 msgid "API Key"
-msgstr "API klíč"
+msgstr "API 金鑰"
 
 #: src/handlers/stt/googlesr_handler.py:14
 msgid "API Key for Google SR, write 'default' to use the default one"
-msgstr "API klíč pro Google SR, napište 'default' pro použití výchozího"
+msgstr "Google SR 的 API 金鑰，設定「default」將使用預設金鑰"
 
 #: src/handlers/stt/googlesr_handler.py:21
 #: src/handlers/stt/whispercpp_handler.py:47
 #: src/handlers/stt/openaisr_handler.py:32
 #: src/handlers/stt/groqsr_handler.py:29
 msgid "Language"
-msgstr "Jazyk"
+msgstr "語言"
 
 #: src/handlers/stt/googlesr_handler.py:22
 msgid "The language of the text to recgnize in IETF"
-msgstr "Jazyk textu k rozpoznání ve formátu IETF"
+msgstr "IETF 的辨識語言"
 
 #: src/handlers/stt/custom_handler.py:14
 #, python-brace-format
 msgid "{0} will be replaced with the model fullpath"
-msgstr "{0} bude nahrazeno plnou cestou k modelu"
+msgstr "{0} 參數會被模型的絕對路徑取代"
 
 #: src/ui/widgets/profilerow.py:26
 msgid "Select profile"
-msgstr "Vybrat profil"
+msgstr "選擇設定檔"
 
 #: src/ui/widgets/profilerow.py:53
 msgid "Delete Profile"
-msgstr "Smazat profil"
+msgstr "刪除設定檔"
 
 #: src/ui/thread_editing.py:36
 msgid "No threads are running"
-msgstr "Žádná vlákna nejsou spuštěna"
+msgstr "沒有正在執行的執行緒"
 
 #: src/ui/thread_editing.py:42
 msgid "Thread number: "
-msgstr "Číslo vlákna: "
+msgstr "執行緒序號："
 
 #: src/handlers/stt/vosk_handler.py:17
 msgid "Model Path"
-msgstr "Cesta k modelu"
+msgstr "模型路徑"
 
 #: src/handlers/stt/vosk_handler.py:18
 msgid "Absolute path to the VOSK model (unzipped)"
-msgstr "Absolutní cesta k modelu VOSK (rozbalený)"
+msgstr "VOSK 模型的絕對路徑（已解壓縮）"
 
 #: src/handlers/stt/whispercpp_handler.py:40
 #: src/handlers/stt/whisper_handler.py:15 src/handlers/llm/openai_handler.py:87
@@ -1892,54 +1846,53 @@ msgstr "Absolutní cesta k modelu VOSK (rozbalený)"
 #: src/handlers/tts/elevenlabs_handler.py:24
 #: src/handlers/tts/openai_tts_handler.py:20
 msgid "Model"
-msgstr "Model"
+msgstr "模型"
 
 #: src/handlers/stt/whispercpp_handler.py:41
 #: src/handlers/stt/whisper_handler.py:16
 msgid "Name of the Whisper model"
-msgstr "Název modelu Whisper"
+msgstr "Whisper 模型的名稱"
 
 #: src/handlers/stt/whispercpp_handler.py:47
-#, fuzzy
 msgid "Language of the recognition. For example en, it..."
-msgstr "Jazyk rozpoznání."
+msgstr "辨識的語言，如 en，it..."
 
 #: src/handlers/stt/whispercpp_handler.py:48
 msgid "Model Library"
-msgstr "Knihovna modelů"
+msgstr "模型資料庫"
 
 #: src/handlers/stt/whispercpp_handler.py:48
 msgid "Manage Whisper models"
-msgstr "Spravovat modely Whisper"
+msgstr "管理 Whisper 模型"
 
 #: src/handlers/stt/whispercpp_handler.py:49
 msgid "Advanced Settings"
-msgstr "Pokročilé nastavení"
+msgstr "更多設定"
 
 #: src/handlers/stt/whispercpp_handler.py:49
 msgid "More advanced settings"
-msgstr "Další pokročilá nastavení"
+msgstr "更多設定"
 
 #: src/handlers/stt/whispercpp_handler.py:50
 #: src/handlers/llm/openai_handler.py:107
 msgid "Temperature"
-msgstr "Teplota"
+msgstr "溫度"
 
 #: src/handlers/stt/whispercpp_handler.py:50
 msgid "Temperature to use"
-msgstr "Teplota k použití"
+msgstr "使用的溫度"
 
 #: src/handlers/stt/whispercpp_handler.py:51
 msgid "Prompt for the recognition"
-msgstr "Výzva pro rozpoznání"
+msgstr "語音辨識提示語"
 
 #: src/handlers/stt/whispercpp_handler.py:51
 msgid "Prompt to use for the recognition"
-msgstr "Výzva k použití pro rozpoznání"
+msgstr "使用語音辨識時傳入的提示語"
 
 #: src/handlers/stt/sphinx_handler.py:19
 msgid "Could not understand the audio"
-msgstr "Nepodařilo se porozumět zvuku"
+msgstr "無法理解語音"
 
 #: src/handlers/stt/openaisr_handler.py:10
 #: src/handlers/llm/openai_handler.py:78
@@ -1947,65 +1900,63 @@ msgstr "Nepodařilo se porozumět zvuku"
 #: src/handlers/embeddings/ollama_handler.py:32
 #: src/handlers/llm/ollama_handler.py:150
 msgid "API Endpoint"
-msgstr "Koncový bod API"
+msgstr "API 端點"
 
 #: src/handlers/stt/openaisr_handler.py:11
 msgid "Endpoint for OpenAI requests"
-msgstr "Koncový bod pro požadavky OpenAI"
+msgstr "OpenAI 的端點網址"
 
 #: src/handlers/stt/openaisr_handler.py:18
 msgid "API Key for OpenAI"
-msgstr "API klíč pro OpenAI"
+msgstr "OpenAI 的 API 金鑰"
 
 #: src/handlers/stt/openaisr_handler.py:25
 msgid "Whisper Model"
-msgstr "Whisper Model"
+msgstr "Whisper 模型"
 
 #: src/handlers/stt/openaisr_handler.py:26
 msgid "Name of the OpenAI model"
-msgstr "Název modelu OpenAI"
+msgstr "OpenAI 的模型名稱"
 
 #: src/handlers/stt/openaisr_handler.py:33
 msgid ""
 "Optional: Specify the language for transcription. Use ISO 639-1 language "
 "codes (e.g. \"en\" for English, \"fr\" for French, etc.). "
 msgstr ""
-"Volitelné: Zadejte jazyk pro transkripci. Použijte kódy jazyků ISO 639-1 "
-"(např. „en“ pro angličtinu, „fr“ pro francouzštinu atd.). "
+"可選：自訂文字紀錄的語言。使用 ISO 639-1 語言碼（例如「en」為英文，「fr」為法"
+"文等）"
 
 #: src/handlers/stt/witai_handler.py:13
 msgid "Server Access Token for wit.ai"
-msgstr "Přístupový token serveru pro wit.ai"
+msgstr "wit.ai 的伺服器存取權杖"
 
 #: src/handlers/stt/groqsr_handler.py:14
 msgid "API Key for Groq SR, write 'default' to use the default one"
-msgstr "API klíč pro Groq SR, napište 'default' pro použití výchozího"
+msgstr "Groq SR 的 API 金鑰，設定「default」將使用預設金鑰"
 
 #: src/handlers/stt/groqsr_handler.py:21
 msgid "Groq Model"
-msgstr "Groq model"
+msgstr "Groq 模型"
 
 #: src/handlers/stt/groqsr_handler.py:22
 msgid "Name of the Groq Model"
-msgstr "Název modelu Groq"
+msgstr "Groq 模型名稱"
 
 #: src/handlers/stt/groqsr_handler.py:30
 msgid ""
 "Specify the language for transcription. Use ISO 639-1 language codes (e.g. "
 "\"en\" for English, \"fr\" for French, etc.). "
-msgstr ""
-"Zadejte jazyk pro transkripci. Použijte kódy jazyků ISO 639-1 (např. „en“ "
-"pro angličtinu, „fr“ pro francouzštinu atd.). "
+msgstr "選擇紀錄的語言。使用 ISO 639-1 語言碼（例如「en」英文，「fr」法文等）"
 
 #: src/handlers/avatar/livepng_handler.py:23
 #, fuzzy
 msgid "LivePNG Model"
-msgstr " Model"
+msgstr " 模型"
 
 #: src/handlers/avatar/livepng_handler.py:24
 #, fuzzy
 msgid "LivePNG Model to use"
-msgstr "Model k použití"
+msgstr "使用的模型"
 
 #: src/handlers/avatar/livepng_handler.py:34
 #: src/handlers/avatar/live2d_handler.py:70
@@ -2027,7 +1978,7 @@ msgstr ""
 
 #: src/handlers/rag/rag_handler.py:104
 msgid "Index your documents"
-msgstr "Indexovat vaše dokumenty"
+msgstr "將檔案編入索引"
 
 #: src/handlers/rag/rag_handler.py:105
 msgid ""
@@ -2035,19 +1986,18 @@ msgid ""
 "operation every time you edit/create a document, change document analyzer or "
 "change embedding model"
 msgstr ""
-"Indexujte všechny dokumenty ve vaší složce dokumentů. Tuto operaci musíte "
-"spustit pokaždé, když upravíte/vytvoříte dokument, změníte analyzátor "
-"dokumentů nebo změníte model vkládání"
+"將文件資料夾內的所有檔案編入索引。您必須於每次有檔案變更、改變文件分析緝或嵌"
+"入模行時使用"
 
 #: src/handlers/avatar/live2d_handler.py:59
 #, fuzzy
 msgid "Live2D Model"
-msgstr " Model"
+msgstr " 模型"
 
 #: src/handlers/avatar/live2d_handler.py:60
 #, fuzzy
 msgid "Live2D Model to use"
-msgstr "Model k použití"
+msgstr "使用的模型"
 
 #: src/handlers/avatar/live2d_handler.py:80
 msgid "Background Color"
@@ -2060,123 +2010,120 @@ msgstr ""
 #: src/handlers/avatar/live2d_handler.py:87
 #, fuzzy
 msgid "Zoom Model"
-msgstr " Model"
+msgstr " 模型"
 
 #: src/handlers/avatar/live2d_handler.py:88
 #, fuzzy
 msgid "Zoom the Live2D model"
-msgstr "Název modelu Whisper"
+msgstr "Whisper 模型的名稱"
 
 #: src/utility/util.py:136 src/handlers/llm/newelle_handler.py:27
 #: src/handlers/llm/gemini_handler.py:119 src/handlers/llm/custom_handler.py:20
 #: src/handlers/llm/gpt4all_handler.py:153
 msgid "Message Streaming"
-msgstr "Streamování zpráv"
+msgstr "訊息串流"
 
 #: src/utility/util.py:137 src/handlers/llm/newelle_handler.py:28
 #: src/handlers/llm/gemini_handler.py:120 src/handlers/llm/custom_handler.py:20
 #: src/handlers/llm/gpt4all_handler.py:153
 msgid "Gradually stream message output"
-msgstr "Postupné streamování výstupu zpráv"
+msgstr "逐漸的將訊息輸出串流"
 
 #: src/handlers/llm/openrouter_handler.py:14
 msgid "Provider Sorting"
-msgstr "Řazení poskytovatelů"
+msgstr "供給者排序"
 
 #: src/handlers/llm/openrouter_handler.py:14
 msgid "Choose providers based on pricing/throughput or latency"
-msgstr "Vyberte poskytovatele na základě ceny/propustnosti nebo latence"
+msgstr "根據最佳價格、流量或最低延遲選擇供給者"
 
 #: src/handlers/llm/openrouter_handler.py:14
 msgid "Price"
-msgstr "Cena"
+msgstr "價格"
 
 #: src/handlers/llm/openrouter_handler.py:14
 msgid "Throughput"
-msgstr "Propustnost"
+msgstr "流量"
 
 #: src/handlers/llm/openrouter_handler.py:14
 msgid "Latency"
-msgstr "Latence"
+msgstr "延遲"
 
 #: src/handlers/llm/openrouter_handler.py:15
 msgid "Providers Order"
-msgstr "Pořadí poskytovatelů"
+msgstr "供給者排序"
 
 #: src/handlers/llm/openrouter_handler.py:15
 msgid ""
 "Add order of providers to use, names separated by a comma.\n"
 "Empty to not specify"
-msgstr ""
-"Přidejte pořadí poskytovatelů k použití, jména oddělená čárkou.\n"
-"Prázdné, pokud nechcete specifikovat"
+msgstr "新增自訂供給者，將不同供給者名稱以逗號隔開。留空以不使用"
 
 #: src/handlers/llm/openrouter_handler.py:16
 msgid "Allow Fallbacks"
-msgstr "Povolit zálohy"
+msgstr "允許後備供給者"
 
 #: src/handlers/llm/openrouter_handler.py:16
 msgid "Allow fallbacks to other providers"
-msgstr "Povolit záložní řešení pro jiné poskytovatele"
+msgstr "允許在無法使用主要供給者時使用其他供給者"
 
 #: src/handlers/websearch/duckduckgo_handler.py:14
 #: src/handlers/websearch/tavily.py:21
 msgid "Max Results"
-msgstr "Max. výsledků"
+msgstr "搜尋結果數最大值"
 
 #: src/handlers/websearch/duckduckgo_handler.py:14
 #: src/handlers/websearch/tavily.py:21
 msgid "Number of results to consider"
-msgstr "Počet výsledků k zohlednění"
+msgstr "限制搜尋的結果數目"
 
 #: src/handlers/websearch/duckduckgo_handler.py:15
 msgid "Region"
-msgstr "Region"
+msgstr "區間"
 
 #: src/handlers/websearch/duckduckgo_handler.py:15
 msgid "Region for the search results"
-msgstr "Region pro výsledky hledání"
+msgstr "搜尋的區間"
 
 #: src/handlers/llm/openai_handler.py:75
 #: src/handlers/embeddings/openai_handler.py:35
 msgid "API Key for "
-msgstr "API klíč pro "
+msgstr "API 金鑰："
 
 #: src/handlers/llm/openai_handler.py:78
 #: src/handlers/embeddings/ollama_handler.py:32
 #: src/handlers/llm/ollama_handler.py:150
 msgid "API base url, change this to use interference APIs"
-msgstr "Základní URL API, změňte pro použití API pro inference"
+msgstr "API 擷取的網址"
 
 #: src/handlers/llm/openai_handler.py:81
 #: src/handlers/embeddings/openai_handler.py:41
 msgid "Use Custom Model"
-msgstr "Použít vlastní model"
+msgstr "使用自訂模型"
 
 #: src/handlers/llm/openai_handler.py:81
 #: src/handlers/embeddings/openai_handler.py:41
 #: src/handlers/embeddings/ollama_handler.py:34
 #: src/handlers/llm/claude_handler.py:85 src/handlers/llm/ollama_handler.py:153
 msgid "Use a custom model"
-msgstr "Použít vlastní model"
+msgstr "使用自訂的模型"
 
 #: src/handlers/llm/openai_handler.py:84 src/handlers/llm/gemini_handler.py:135
 msgid "Advanced Parameters"
-msgstr "Pokročilé parametry"
+msgstr "更多設定"
 
 #: src/handlers/llm/openai_handler.py:84
-#, fuzzy
 msgid "Include parameters like Top-P, Temperature, etc."
-msgstr "Zahrnout parametry jako Max Tokens, Top-P, Teplota atd."
+msgstr "包含 Token 限制、Top-P、溫度等參數"
 
 #: src/handlers/llm/openai_handler.py:87
 msgid "Name of the LLM Model to use"
-msgstr "Název LLM modelu k použití"
+msgstr "使用的大型語言模型"
 
 #: src/handlers/llm/openai_handler.py:94
 #: src/handlers/embeddings/openai_handler.py:51
 msgid " Model"
-msgstr " Model"
+msgstr " 模型"
 
 #: src/handlers/llm/openai_handler.py:106
 msgid "Top-P"
@@ -2184,49 +2131,45 @@ msgstr "Top-P"
 
 #: src/handlers/llm/openai_handler.py:106
 msgid "An alternative to sampling with temperature, called nucleus sampling"
-msgstr "Alternativa k vzorkování s teplotou, nazývaná jaderné vzorkování"
+msgstr "一種調整隨機性的替代的技術"
 
 #: src/handlers/llm/openai_handler.py:107
 msgid ""
 "What sampling temperature to use. Higher values will make the output more "
 "random"
-msgstr "Jakou teplotu vzorkování použít. Vyšší hodnoty učiní výstup náhodnější"
+msgstr "溫度越高隨機性越高"
 
 #: src/handlers/llm/openai_handler.py:108
 msgid "Frequency Penalty"
-msgstr "Penalizace frekvence"
+msgstr "重複懲罰"
 
 #: src/handlers/llm/openai_handler.py:108
 msgid ""
 "Number between -2.0 and 2.0. Positive values decrease the model's likelihood "
 "to repeat the same line verbatim"
-msgstr ""
-"Číslo mezi -2,0 a 2,0. Kladné hodnoty snižují pravděpodobnost, že model bude "
-"doslova opakovat stejný řádek"
+msgstr "數值介於±2.0。數值越大將減少輸出重複率"
 
 #: src/handlers/llm/openai_handler.py:109
 msgid "Presence Penalty"
-msgstr "Penalizace přítomnosti"
+msgstr "存在懲罰"
 
 #: src/handlers/llm/openai_handler.py:109
 msgid ""
 "Number between -2.0 and 2.0. Positive values decrease the model's likelihood "
 "to talk about new topics"
-msgstr ""
-"Číslo mezi -2,0 a 2,0. Kladné hodnoty snižují pravděpodobnost, že model bude "
-"mluvit o nových tématech"
+msgstr "數值介於±2.0。數值越大將讓模型搬出新話題的機率"
 
 #: src/handlers/llm/openai_handler.py:114
 #: src/handlers/llm/newelle_handler.py:18
 #: src/handlers/llm/gemini_handler.py:131
 msgid "Privacy Policy"
-msgstr "Zásady ochrany osobních údajů"
+msgstr "隱私政策"
 
 #: src/handlers/llm/openai_handler.py:114
 #: src/handlers/llm/newelle_handler.py:19
 #: src/handlers/llm/gemini_handler.py:132
 msgid "Open privacy policy website"
-msgstr "Otevřít webové stránky se zásadami ochrany osobních údajů"
+msgstr "開啟隱私政策網站"
 
 #: src/handlers/websearch/tavily.py:20
 msgid "Token"
@@ -2234,11 +2177,11 @@ msgstr "Token"
 
 #: src/handlers/websearch/tavily.py:20
 msgid "Tavily API key"
-msgstr "API klíč Tavily"
+msgstr "Tavily API 金鑰"
 
 #: src/handlers/websearch/tavily.py:22
 msgid "The depth of the search"
-msgstr "Hloubka hledání"
+msgstr "搜尋深度"
 
 #: src/handlers/websearch/tavily.py:22
 msgid ""
@@ -2247,15 +2190,13 @@ msgid ""
 "provides generic content snippets from each source. A basic search costs 1 "
 "API Credit, while an advanced search costs 2 API Credits."
 msgstr ""
-"Hloubka hledání. Pokročilé vyhledávání je přizpůsobeno pro načítání "
-"nejrelevantnějších zdrojů a úryvků obsahu pro váš dotaz, zatímco základní "
-"vyhledávání poskytuje obecné úryvky obsahu z každého zdroje. Základní "
-"vyhledávání stojí 1 API kredit, zatímco pokročilé vyhledávání stojí 2 API "
-"kredity."
+"搜尋的深度。進階搜尋將致力於取得最相關的資料與內容，而基礎搜尋將從各個來源提"
+"供最基本的搜尋結果。每次基礎搜尋將花費一個 API Credit，而進階搜尋將花費兩個 "
+"Credit。"
 
 #: src/handlers/websearch/tavily.py:23
 msgid "The category of the search"
-msgstr "Kategorie hledání"
+msgstr "搜尋的分類"
 
 #: src/handlers/websearch/tavily.py:23
 msgid ""
@@ -2264,99 +2205,93 @@ msgid ""
 "mainstream media sources. General is for broader, more general-purpose "
 "searches that may include a wide range of sources."
 msgstr ""
-"Kategorie hledání. Zprávy jsou užitečné pro získávání aktuálních informací, "
-"zejména o politice, sportu a hlavních aktuálních událostech pokrývaných "
-"hlavními mediálními zdroji. Obecné je pro širší, obecnější hledání, které "
-"může zahrnovat širokou škálu zdrojů."
+"「新聞」分類將能夠方便的取得最新資訊，尤其是有關政治、賽事、等重大新聞。「一"
+"般」分類適用於更廣泛的搜尋，也將取得更多來源。"
 
 #: src/handlers/websearch/tavily.py:24
 msgid "Chunks per source"
-msgstr "Bloky na zdroj"
+msgstr "來源採取段落量"
 
 #: src/handlers/websearch/tavily.py:24
 msgid ""
 "The number of content chunks to retrieve from each source. Each chunk's "
 "length is maximum 500 characters. Available only when search depth is "
 "advanced."
-msgstr ""
-"Počet bloků obsahu k načtení z každého zdroje. Délka každého bloku je "
-"maximálně 500 znaků. K dispozici pouze při pokročilé hloubce hledání."
+msgstr "每個來源將採取的段落量。每個段落約五百個字元。僅適用於進階搜尋。"
 
 #: src/handlers/websearch/tavily.py:25
 msgid "Number of days back from the current date to include"
-msgstr "Počet dnů zpět od aktuálního data k zahrnutí"
+msgstr "搜尋的時間範圍"
 
 #: src/handlers/websearch/tavily.py:25
 msgid "Available only if topic is news."
-msgstr "Dostupné pouze, pokud je tématem zprávy."
+msgstr "僅適用於「新聞」分類"
 
 #: src/handlers/websearch/tavily.py:26
 msgid "Include answer"
-msgstr "Zahrnout odpověď"
+msgstr "包含回覆"
 
 #: src/handlers/websearch/tavily.py:26
 msgid ""
 "Include an LLM-generated answer to the provided query. Basic search returns "
 "a quick answer. Advanced returns a more detailed answer."
 msgstr ""
-"Zahrnout odpověď generovanou LLM k poskytnutému dotazu. Základní hledání "
-"vrátí rychlou odpověď. Pokročilé vrátí podrobnější odpověď."
+"將大型語言模型的回覆置入於搜尋序列中。基礎搜尋將大致回覆，而進階搜尋將給予更"
+"精確的回覆。"
 
 #: src/handlers/websearch/tavily.py:27
 msgid "Include raw content"
-msgstr "Zahrnout syrový obsah"
+msgstr "包含原始內容"
 
 #: src/handlers/websearch/tavily.py:27
 msgid "Include the cleaned and parsed HTML content of each search result."
-msgstr "Zahrnout vyčištěný a analyzovaný HTML obsah každého výsledku hledání."
+msgstr "包含已從搜尋結果處理的 HTML 資料"
 
 #: src/handlers/websearch/tavily.py:28
 msgid "Include images"
-msgstr "Zahrnout obrázky"
+msgstr "包含圖片"
 
 #: src/handlers/websearch/tavily.py:28
 msgid "Perform an image search and include the results in the response."
-msgstr "Proveďte hledání obrázků a zahrňte výsledky do odpovědi."
+msgstr "再往路上搜尋圖片並且將結果輸出。"
 
 #: src/handlers/websearch/tavily.py:29
 msgid "Include image descriptions"
-msgstr "Zahrnout popisy obrázků"
+msgstr "包含圖片說明"
 
 #: src/handlers/websearch/tavily.py:29
 msgid ""
 "When Include images is enabled, also add a descriptive text for each image."
-msgstr ""
-"Pokud je povoleno Zahrnout obrázky, přidejte také popisný text pro každý "
-"obrázek."
+msgstr "當「包含圖片」已被啟用時可啟用此選項以為每個圖片加註"
 
 #: src/handlers/websearch/tavily.py:30
 msgid "Include domains"
-msgstr "Zahrnout domény"
+msgstr "包含網域"
 
 #: src/handlers/websearch/tavily.py:30
 msgid "A list of domains to specifically include in the search results."
-msgstr "Seznam domén, které se mají konkrétně zahrnout do výsledků hledání."
+msgstr "在搜尋結果內包含這些網域"
 
 #: src/handlers/websearch/tavily.py:31
 msgid "Exclude domains"
-msgstr "Vyloučit domény"
+msgstr "排除網域"
 
 #: src/handlers/websearch/tavily.py:31
 msgid "A list of domains to specifically exclude from the search results."
-msgstr "Seznam domén, které se mají konkrétně vyloučit z výsledků hledání."
+msgstr "在搜尋結果內排除這些網域"
 
 #: src/handlers/embeddings/openai_handler.py:38
 msgid "API base url, change this to use different APIs"
-msgstr "Základní URL API, změňte pro použití jiných API"
+msgstr "API 擷取的網址"
 
 #: src/handlers/embeddings/openai_handler.py:44
 msgid "Name of the Embedding Model to use"
-msgstr "Název modelu pro vkládání (Embedding)"
+msgstr "嵌入模型的名稱"
 
 #: src/handlers/embeddings/ollama_handler.py:33
 #: src/handlers/llm/ollama_handler.py:151
 msgid "Automatically Serve"
-msgstr "Automatické spuštění"
+msgstr "自動開啟 Ollama"
 
 #: src/handlers/embeddings/ollama_handler.py:33
 #: src/handlers/llm/ollama_handler.py:151
@@ -2364,229 +2299,220 @@ msgid ""
 "Automatically run ollama serve in background when needed if it's not "
 "running. You can kill it with killall ollama"
 msgstr ""
-"V případě potřeby automaticky spustí ollama serve na pozadí, pokud již "
-"nebude spuštěn. Můžete jej ukončit pomocí killall ollama"
+"若尚未執行將自動啟動 Ollama（ollama serve）。執行 killall ollama 以停止"
 
 #: src/handlers/embeddings/ollama_handler.py:34
 #: src/handlers/llm/ollama_handler.py:153
 msgid "Custom Model"
-msgstr "Vlastní model"
+msgstr "自訂模型"
 
 #: src/handlers/embeddings/ollama_handler.py:40
 #: src/handlers/embeddings/ollama_handler.py:49
 #: src/handlers/llm/ollama_handler.py:159
 #: src/handlers/llm/ollama_handler.py:168
 msgid "Ollama Model"
-msgstr "Ollama model"
+msgstr "Ollama 模型"
 
 #: src/handlers/embeddings/ollama_handler.py:41
 #: src/handlers/embeddings/ollama_handler.py:49
 #: src/handlers/llm/ollama_handler.py:160
 #: src/handlers/llm/ollama_handler.py:168
 msgid "Name of the Ollama Model"
-msgstr "Název Ollama modelu"
+msgstr "Ollama 模型名稱"
 
 #: src/handlers/llm/g4f_handler.py:44 src/handlers/llm/gpt4all_handler.py:154
 msgid "Model to use"
-msgstr "Model k použití"
+msgstr "使用的模型"
 
 #: src/handlers/llm/g4f_handler.py:45
 msgid "Update G4F"
-msgstr "Aktualizovat G4F"
+msgstr "更新 G4F"
 
 #: src/handlers/tts/groq_tts_handler.py:32
 #: src/handlers/llm/claude_handler.py:84
 #: src/handlers/tts/custom_openai_tts.py:18
 #: src/handlers/tts/openai_tts_handler.py:18
 msgid "The API key to use"
-msgstr "API klíč k použití"
+msgstr "使用的 API 金鑰"
 
 #: src/handlers/tts/groq_tts_handler.py:33
 #: src/handlers/tts/custom_openai_tts.py:19
 #: src/handlers/tts/openai_tts_handler.py:19
 msgid "The voice to use"
-msgstr "Hlas k použití"
+msgstr "使用的聲音"
 
 #: src/handlers/tts/groq_tts_handler.py:34
 #: src/handlers/llm/claude_handler.py:89 src/handlers/llm/claude_handler.py:93
 #: src/handlers/tts/custom_openai_tts.py:20
 #: src/handlers/tts/openai_tts_handler.py:20
 msgid "The model to use"
-msgstr "Model k použití"
+msgstr "使用的模型"
 
 #: src/handlers/tts/tts.py:34
 msgid "Choose the preferred voice"
-msgstr "Vyberte preferovaný hlas"
+msgstr "選擇聲音"
 
 #: src/handlers/llm/claude_handler.py:96
 msgid "Max Tokens"
-msgstr "Maximální počet tokenů"
+msgstr "Token 限制"
 
 #: src/handlers/llm/claude_handler.py:96
 msgid "The maximum number of tokens to generate"
-msgstr "Maximální počet tokenů k vygenerování"
+msgstr "使用的最多 Token 數量"
 
 #: src/handlers/llm/ollama_handler.py:152
 #: src/handlers/llm/gemini_handler.py:110
 msgid "Enable Thinking"
-msgstr "Povolit myšlení"
+msgstr "啟用思考"
 
 #: src/handlers/llm/ollama_handler.py:152
 msgid "Allow thinking in the model, only some models are supported"
-msgstr "Povolit myšlení v modelu, podporovány jsou pouze některé modely"
+msgstr "允許模型能夠進行「推理」，僅支援某些模型"
 
 #: src/handlers/llm/ollama_handler.py:172
 #: src/handlers/llm/gpt4all_handler.py:155
 msgid "Model Manager"
-msgstr "Správce modelů"
+msgstr "模型管理器"
 
 #: src/handlers/llm/ollama_handler.py:172
 #: src/handlers/llm/gpt4all_handler.py:155
 msgid "List of models available"
-msgstr "Seznam dostupných modelů"
+msgstr "可使用的模型列表"
 
 #: src/handlers/llm/ollama_handler.py:176
 msgid "Add custom model"
-msgstr "Přidat vlastní model"
+msgstr "新增自訂模型"
 
 #: src/handlers/llm/ollama_handler.py:177
 msgid ""
 "Add any model to this list by putting name:size\n"
 "Or any gguf from hf with hf.co/username/model"
 msgstr ""
-"Přidejte jakýkoli model do tohoto seznamu zadáním název:velikost\n"
-"Nebo jakýkoli gguf z hf s hf.co/uživatelské_jméno/model"
+"在此以「模型名稱:大小」的格式新增其他模型\n"
+"或是從 HuggingFace（hf.co/username/model）的任何 gguf"
 
 #: src/handlers/llm/ollama_handler.py:187
 msgid "Update Ollama"
-msgstr "Aktualizovat Ollamu"
+msgstr "更新 Ollama"
 
 #: src/handlers/tts/custom_openai_tts.py:17
 msgid "Endpoint"
-msgstr "Koncový bod"
+msgstr "端點"
 
 #: src/handlers/tts/custom_openai_tts.py:17
 msgid "Custom endpoint of the service to use"
-msgstr "Vlastní koncový bod služby k použití"
+msgstr "使用的自訂端點"
 
 #: src/handlers/tts/custom_openai_tts.py:21
 #: src/handlers/tts/openai_tts_handler.py:21
 msgid "Instructions"
-msgstr "Pokyny"
+msgstr "使用說明"
 
 #: src/handlers/tts/custom_openai_tts.py:21
 #: src/handlers/tts/openai_tts_handler.py:21
 msgid ""
 "Instructions for the voice generation. Leave it blank to avoid this field"
-msgstr ""
-"Pokyny pro generování hlasu. Ponechte prázdné, aby se toto pole nepoužilo"
+msgstr "聲音生成的步驟，留空以忽略此欄。"
 
 #: src/handlers/llm/gemini_handler.py:94
 msgid "API Key (required)"
-msgstr "API klíč (povinný)"
+msgstr "API 金鑰（必填）"
 
 #: src/handlers/llm/gemini_handler.py:94
 msgid "API key got from ai.google.dev"
-msgstr "API klíč získaný z ai.google.dev"
+msgstr "從 ai.google.dev 取得的 API 金鑰"
 
 #: src/handlers/llm/gemini_handler.py:98
 msgid "AI Model to use"
-msgstr "Model AI k použití"
+msgstr "使用的 AI 模型"
 
 #: src/handlers/llm/gemini_handler.py:103
 msgid "Enable System Prompt"
-msgstr "Povolit systémovou výzvu"
+msgstr "啟用系統提示"
 
 #: src/handlers/llm/gemini_handler.py:103
 msgid ""
 "Some models don't support system prompt (or developers instructions), "
 "disable it if you get errors about it"
-msgstr ""
-"Některé modely nepodporují systémovou výzvu (nebo pokyny pro vývojáře), "
-"vypněte ji, pokud se zobrazí chyby."
+msgstr "某些模型不支援此設定"
 
 #: src/handlers/llm/gemini_handler.py:107
 msgid "Inject system prompt"
-msgstr "Vložit systémovou výzvu"
+msgstr "注入系統提示"
 
 #: src/handlers/llm/gemini_handler.py:107
 msgid ""
 "Even if the model doesn't support system prompts, put the prompts on top of "
 "the user message"
-msgstr ""
-"I když model nepodporuje systémové výzvy, umístěte výzvy nad zprávu uživatele"
+msgstr "即使使用不支援系統提示的模型仍可以開啟此設定"
 
 #: src/handlers/llm/gemini_handler.py:109
 msgid "Thinking Settings"
-msgstr "Nastavení myšlení"
+msgstr "思考設定"
 
 #: src/handlers/llm/gemini_handler.py:109
 msgid "Settings about thinking models"
-msgstr "Nastavení týkající se modelů myšlení"
+msgstr "有關推理模型的設定"
 
 #: src/handlers/llm/gemini_handler.py:110
 msgid "Show thinking, disable it if your model does not support it"
-msgstr "Zobrazit myšlení, vypněte, pokud váš model tuto funkci nepodporuje"
+msgstr "顯示思考過程，若您使用的模型不支援請停用此設定"
 
 #: src/handlers/llm/gemini_handler.py:111
 msgid "Enable Thinking Budget"
-msgstr "Povolit rozpočet na myšlení"
+msgstr "啟用思考預算"
 
 #: src/handlers/llm/gemini_handler.py:111
 msgid "If to enable thinking budget"
-msgstr "Zda povolit rozpočet na myšlení"
+msgstr "是否啟用思考預算"
 
 #: src/handlers/llm/gemini_handler.py:112
 msgid "Thinking Budget"
-msgstr "Rozpočet na myšlení"
+msgstr "思考預算"
 
 #: src/handlers/llm/gemini_handler.py:112
 msgid "How much time to spend thinking"
-msgstr "Kolik času věnovat přemýšlení"
+msgstr "思考時間的最大值"
 
 #: src/handlers/llm/gemini_handler.py:116
 msgid "Image Output"
-msgstr "Výstup obrázků"
+msgstr "影像輸出"
 
 #: src/handlers/llm/gemini_handler.py:116
 msgid "Enable image output, only supported by gemini-2.0-flash-exp"
-msgstr "Povolit výstup obrázků, podporováno pouze modelem gemini-2.0-flash-exp"
+msgstr "啟用影像輸出，僅支援 gemini-2.0-flash-exp"
 
 #: src/handlers/llm/gemini_handler.py:125
 msgid "Enable safety settings"
-msgstr "Povolit nastavení bezpečnosti"
+msgstr "啟用安全設定"
 
 #: src/handlers/llm/gemini_handler.py:126
 msgid "Enable google safety settings to avoid generating harmful content"
-msgstr ""
-"Povolit bezpečnostní nastavení Google, aby se zabránilo generování "
-"škodlivého obsahu"
+msgstr "啟用 Google 的安全設定以排除不當內容"
 
 #: src/handlers/llm/gemini_handler.py:135
 msgid "Enable advanced parameters"
-msgstr "Povolit pokročilé parametry"
+msgstr "調整更多參數"
 
 #: src/handlers/tts/custom_handler.py:17
 #, python-brace-format
 msgid "{0} will be replaced with the file fullpath, {1} with the text"
-msgstr "{0} bude nahrazeno plnou cestou k souboru, {1} textem"
+msgstr "{0} 參數為絕對路徑，{1} 參數則是文字"
 
 #: src/handlers/llm/custom_handler.py:21
 msgid "Command to execute to get bot output"
-msgstr "Příkaz pro získání výstupu bota"
+msgstr "取得輸出的指令"
 
 #: src/handlers/llm/custom_handler.py:21
 #, python-brace-format
 msgid ""
 "Command to execute to get bot response, {0} will be replaced with a JSON "
 "file containing the chat, {1} with the system prompt"
-msgstr ""
-"Příkaz ke spuštění pro získání odpovědi bota, {0} bude nahrazeno JSON "
-"souborem obsahujícím chat, {1} systémovou výzvou"
+msgstr "{0} 參數會被以 JSON 格式儲存的聊天紀錄取代，而 {1} 則是包含系統提示"
 
 #: src/handlers/llm/custom_handler.py:22
 msgid "Command to execute to get bot's suggestions"
-msgstr "Příkaz pro získání návrhů bota"
+msgstr "取得建議的指令"
 
 #: src/handlers/llm/custom_handler.py:22
 #, python-brace-format
@@ -2596,59 +2522,58 @@ msgid ""
 "suggestions to generate. Must return a JSON array containing the suggestions "
 "as strings"
 msgstr ""
-"Příkaz ke spuštění pro získání návrhů chatu, {0} bude nahrazeno JSON "
-"souborem obsahujícím chat, {1} dalšími výzvami, {2} počtem návrhů k "
-"vygenerování. Musí vrátit JSON pole obsahující návrhy jako řetězce"
+"{0} 參數會被以 JSON 格式儲存的聊天紀錄取代，{1} 包含系統提示，{2}則包含需要生"
+"成的數量。必須傳回以建議（字串）組成的 JSON 陣列"
 
 #: src/handlers/tts/elevenlabs_handler.py:10
 msgid "API Key for ElevenLabs"
-msgstr "API klíč pro ElevenLabs"
+msgstr "ElevenLabs 的 API 金鑰"
 
 #: src/handlers/tts/elevenlabs_handler.py:18
 msgid "Voice ID to use"
-msgstr "ID hlasu k použití"
+msgstr "使用的 Voice ID"
 
 #: src/handlers/tts/elevenlabs_handler.py:25
 #: src/handlers/llm/gpt4all_handler.py:154
 msgid "Name of the model to use"
-msgstr "Název modelu k použití"
+msgstr "使用的模型名稱"
 
 #: src/handlers/tts/elevenlabs_handler.py:32
 msgid "Stability"
-msgstr "Stabilita"
+msgstr "穩定度"
 
 #: src/handlers/tts/elevenlabs_handler.py:33
 msgid "stability of the voice"
-msgstr "stabilita hlasu"
+msgstr "聲音的穩定度"
 
 #: src/handlers/tts/elevenlabs_handler.py:42
 msgid "Similarity boost"
-msgstr "Zvýšení podobnosti"
+msgstr "提升聲線相似度"
 
 #: src/handlers/tts/elevenlabs_handler.py:43
 msgid "Boosts overall voice clarity and speaker similarity"
-msgstr "Zvyšuje celkovou čistotu hlasu a podobnost řečníka"
+msgstr "提升聲線的相似度以及清晰度"
 
 #: src/handlers/tts/elevenlabs_handler.py:52
 msgid "Style exaggeration"
-msgstr "Přehánění stylu"
+msgstr "加強語調"
 
 #: src/handlers/tts/elevenlabs_handler.py:53
 msgid ""
 "High values are reccomended if the style of the speech must be exaggerated"
-msgstr "Vysoké hodnoty se doporučují, pokud styl řeči musí být přehnaný"
+msgstr "數值越高將越加強語調"
 
 #: src/handlers/llm/gpt4all_handler.py:67
 msgid "RAM Required: "
-msgstr "Požadovaná RAM: "
+msgstr "記憶體要求："
 
 #: src/handlers/llm/gpt4all_handler.py:68
 msgid "Parameters: "
-msgstr "Parametry: "
+msgstr "參數："
 
 #: src/handlers/llm/gpt4all_handler.py:69
 msgid "Size: "
-msgstr "Velikost: "
+msgstr "大小："
 
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:7
 #: data/moe.nyarchlinux.assistant.desktop.in:2
@@ -2667,22 +2592,22 @@ msgstr ""
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:15
 #, fuzzy
 msgid "Chat page 1"
-msgstr "Chat "
+msgstr "聊天室 "
 
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:19
 #, fuzzy
 msgid "Chat page 2"
-msgstr "Chat "
+msgstr "聊天室 "
 
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:23
 #, fuzzy
 msgid "Chat page 3"
-msgstr "Chat "
+msgstr "聊天室 "
 
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:27
 #, fuzzy
 msgid "Chat page 4"
-msgstr "Chat "
+msgstr "聊天室 "
 
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:41
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:64
@@ -2692,95 +2617,92 @@ msgstr "Chat "
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:140
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:145
 msgid "Bug fixes"
-msgstr "Opravy chyb"
+msgstr "修正各種錯誤"
 
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:42
 msgid "Small improvements"
-msgstr "Malá vylepšení"
+msgstr "小小改進"
 
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:49
 msgid "Improve local documents reading and loading performances"
-msgstr "Vylepšení výkonu čtení a načítání lokálních dokumentů"
+msgstr "改善檔案閱讀理解速度"
 
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:50
 msgid "Add option to send with CTRL+Enter"
-msgstr "Přidat možnost odesílání pomocí CTRL+Enter"
+msgstr "新增 CTRL＋Enter 快捷鍵"
 
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:51
 msgid "Improve codeblocks"
-msgstr "Vylepšit bloky kódu"
+msgstr "改善程式碼區塊顯示"
 
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:52
 msgid "Fix Kokoro TTS"
-msgstr "Opravit Kokoro TTS"
+msgstr "修復 Kokoro 文本轉語音"
 
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:53
 msgid "Remove emoji from TTS"
-msgstr "Odebrat emotikony z TTS"
+msgstr "從文本轉語音移除表情符號"
 
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:54
 msgid "Set API keys as password fields"
-msgstr "Nastavit API klíče jako pole pro hesla"
+msgstr "設定 API 金鑰為「密碼」型輸入框"
 
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:55
 msgid "Add thinking support for Gemini"
-msgstr "Přidat podporu myšlení pro Gemini"
+msgstr "新增 Gemini 思考支援"
 
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:56
 msgid "Updated translations"
-msgstr "Aktualizované překlady"
+msgstr "更新翻譯"
 
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:63
 msgid "Added new features"
-msgstr "Přidány nové funkce"
+msgstr "新增更多新功能"
 
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:71
 msgid "Website reading and web search with SearXNG, DuckDuckGo, and Tavily"
-msgstr ""
-"Čtení webových stránek a vyhledávání na webu s SearXNG, DuckDuckGo a Tavily"
+msgstr "網站閱讀與支援 SearXNG、DuckDuckGo、與 Tavily 等搜尋引擎"
 
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:72
 msgid "Improved LaTeX rendering and document management"
-msgstr "Vylepšené vykreslování LaTeXu a správa dokumentů"
+msgstr "改良 LaTeX 處理以及文件管理"
 
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:73
 msgid "New Thinking Widget and OpenRouter handler"
-msgstr "Nový widget pro přemýšlení a obsluha OpenRouter"
+msgstr "新增推理模型的「思考過程」以及 OpenRouter 管理"
 
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:74
 msgid "Vision support for Llama4 on Groq"
-msgstr "Podpora zraku pro Llama4 na Groq"
+msgstr "新增 Groq Llama4 圖片辨識支援"
 
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:75
 msgid "New translations (Traditional Chinese, Bengali, Hindi)"
-msgstr "Nové překlady (tradiční čínština, bengálština, hindština)"
+msgstr "新翻譯（繁體中文、孟加拉文、印度文）"
 
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:81
 msgid "Fixed many bugs, added some features!"
-msgstr "Opraveno mnoho chyb, přidány některé funkce!"
+msgstr "新增更多新功能以及修正錯誤"
 
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:86
 msgid "Support for new features and bug fixes"
-msgstr "Podpora nových funkcí a opravy chyb"
+msgstr "新增更多新功能以及修正錯誤"
 
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:91
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:96
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:101
 msgid "Added many new features and bug fixes"
-msgstr "Přidáno mnoho nových funkcí a opraveny chyby"
+msgstr "新增更多新功能以及修正錯誤"
 
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:106
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:111
 msgid "Added new features and bug fixes"
-msgstr "Přidány nové funkce a opraveny chyby"
+msgstr "新增更多新功能以及修正錯誤"
 
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:115
 msgid ""
 "Updated the g4f library with versioning, added user guides, improved "
 "extension browsing, and enhanced model handling."
-msgstr ""
-"Aktualizována knihovna g4f s verzováním, přidány uživatelské příručky, "
-"vylepšeno procházení rozšíření a vylepšena správa modelů."
+msgstr "改良 g4f 資料庫的版本管理、使用者說明、擴充功能瀏覽、以及模型處理。"
 
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:120
 msgid ""
@@ -2788,29 +2710,28 @@ msgid ""
 "extension architecture, added new models, and introduced vision support, "
 "along with more capabilities."
 msgstr ""
-"Byly implementovány opravy chyb a nové funkce. Upravili jsme architekturu "
-"rozšíření, přidali nové modely a zavedli podporu vidění, spolu s dalšími "
-"možnostmi."
+"新增更多新功能以及修正錯誤。我們不但更改了擴充功能架構、新增新模型、以及新增"
+"圖片上傳功能等。"
 
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:150
 msgid "Stable version"
-msgstr "Stabilní verze"
+msgstr "穩定版本"
 
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:155
 msgid "Added extension"
-msgstr "Přidáno rozšíření"
+msgstr "已新增擴充功能"
 
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:160
 msgid "Blacklist of commands"
-msgstr "Černá listina příkazů"
+msgstr "指令黑名單"
 
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:165
 msgid "Localization"
-msgstr "Lokalizace"
+msgstr "翻譯"
 
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:170
 msgid "Redesign"
-msgstr "Přepracování"
+msgstr "重新設計"
 
 #: data/moe.nyarchlinux.assistant.appdata.xml.in:175
 msgid "NyarchLinux"
@@ -2822,16 +2743,16 @@ msgstr ""
 
 #: data/moe.nyarchlinux.assistant.desktop.in:10
 msgid "ai;assistant;chat;chatgpt;gpt;llm;ollama;"
-msgstr "ai;asistent;chat;chatgpt;gpt;llm;ollama;"
+msgstr "ai;assistant;chat;chatgpt;gpt;llm;ollama;"
 
 #~ msgid "Newelle Tips"
-#~ msgstr "Tipy Newelle"
+#~ msgstr "Newelle 小秘訣"
 
 #~ msgid "Newelle"
 #~ msgstr "Newelle"
 
 #~ msgid "Welcome to Newelle"
-#~ msgstr "Vítejte v Newelle"
+#~ msgstr "歡迎來到 Newelle"
 
 #~ msgid ""
 #~ "Newelle can be used to run commands on your system, but pay attention at "
@@ -2840,39 +2761,112 @@ msgstr "ai;asistent;chat;chatgpt;gpt;llm;ollama;"
 #~ "By default, your commands will be <b>virtualized in the Flatpak "
 #~ "environment</b>, but pay attention!"
 #~ msgstr ""
-#~ "Newelle lze použít ke spouštění příkazů ve vašem systému, ale dávejte "
-#~ "pozor na to, co spouštíte! <b>LLM není pod naší kontrolou, takže může "
-#~ "generovat škodlivý kód!</b>\n"
-#~ "Ve výchozím nastavení budou vaše příkazy <b>virtualizovány v prostředí "
-#~ "Flatpak</b>, ale buďte opatrní!"
+#~ "請小心！<b>模型雖然能產生程式碼，但因其不在我們的控制之下，所以可能產生有"
+#~ "問題的程式碼！</b>\n"
+#~ "即使指令大多可能將於<b> Flatpak 沙盒中執行</b>，但請仍小心。"
+
+#~ msgid "Newelle: Your advanced chat bot"
+#~ msgstr "Newelle：您強大的聊天機器人"
 
 #~ msgid ""
 #~ "Train Newelle to do more with custom extensions and new AI modules, "
 #~ "giving your chatbot endless possibilities."
-#~ msgstr ""
-#~ "Trénujte Newelle, aby dělala více s vlastními rozšířeními a novými AI "
-#~ "moduly, čímž získá váš chatbot nekonečné možnosti."
+#~ msgstr "利用擴充功能讓 Newelle 的功能多又更多！"
 
 #~ msgid "AI chatbot"
-#~ msgstr "AI chatbot"
+#~ msgstr "AI 聊天機器人"
 
 #~ msgid "Quick profile selection"
-#~ msgstr "Rychlý výběr profilu"
+#~ msgstr "快速設定檔選取"
 
 #~ msgid "Message Editing"
-#~ msgstr "Úprava zpráv"
+#~ msgstr "訊息編輯"
 
 #~ msgid "More than 10 standard AI providers"
-#~ msgstr "Více než 10 standardních poskytovatelů AI"
+#~ msgstr "多過 10 種 AI 服務"
+
+#~ msgid ""
+#~ "Mini Apps support! Extensions can now show custom mini apps on the sidebar"
+#~ msgstr "迷你應用程式支援！擴充功能將能於側欄顯示迷你應用程式"
+
+#~ msgid ""
+#~ "Added integrated browser Mini App: browse the web directly in Newelle and "
+#~ "attach web pages"
+#~ msgstr "新增內建瀏覽器迷你應用程式：直接地於 Newelle 瀏覽並內嵌網頁"
+
+#~ msgid ""
+#~ "Improved integrated file manager, supporting multiple file operations"
+#~ msgstr "改良內建檔案管理，支援多檔案操作"
+
+#~ msgid ""
+#~ "Integrated file editor: edit files and codeblocks directly in Newelle"
+#~ msgstr "內建檔案編輯器：直接地於 Newelle 編輯檔案與程式碼"
+
+#~ msgid "Integrated Terminal mini app: open the terminal directly in Newelle"
+#~ msgstr "內建終端機迷你應用程式：於 Newelle 直接地開啟終端機"
+
+#~ msgid ""
+#~ "Programmable prompts: add dynamic content to prompts with conditionals "
+#~ "and random strings"
+#~ msgstr "動態提示語"
+
+#~ msgid "Add ability to manually edit chat name"
+#~ msgstr "現在可直接更改聊天室名稱"
+
+#~ msgid "Minor bug fixes"
+#~ msgstr "修正各種小錯誤"
+
+#~ msgid "Added support for multiple languages for Kokoro TTS and Whisper.CPP"
+#~ msgstr "支援 Kokoro TTS 與 Whisper.CPP 的更多語言"
+
+#~ msgid "Run HTML/CSS/JS websites directly in app"
+#~ msgstr "直接地於應用程式內執行 HTML/CSS/JS"
+
+#~ msgid "New animation on chat change"
+#~ msgstr "新增更動聊天室時的小動畫"
 
 #~ msgid "Qwersyk"
 #~ msgstr "Qwersyk"
 
-#~ msgid "Newelle: Your advanced chat bot"
-#~ msgstr "Newelle: Váš pokročilý chat bot"
-
 #~ msgid "max Tokens"
-#~ msgstr "Max tokenů"
+#~ msgstr "Token 限制"
 
 #~ msgid "Max tokens of the generated text"
-#~ msgstr "Maximální počet tokenů generovaného textu"
+#~ msgstr "使用的最多 Token 數量"
+
+#~ msgid "Any free Provider"
+#~ msgstr "其他免費服務"
+
+#~ msgid "chat;ai;gpt;chatgpt;assistant;"
+#~ msgstr "chat;ai;gpt;chatgpt;assistant;"
+
+#~ msgid "_Cancel"
+#~ msgstr "取消"
+
+#~ msgid "_Delete"
+#~ msgstr "刪除"
+
+#, python-brace-format
+#~ msgid "Name of the {provider_name} Model"
+#~ msgstr "模型 {provider_name} 供應者名稱"
+
+#~ msgid "Choose an extension"
+#~ msgstr "從檔案安裝..."
+
+#~ msgid " has been removed"
+#~ msgstr " 已經被移除"
+
+#~ msgid "Extension added. New extensions will run from the next launch"
+#~ msgstr "擴充功能安裝成功。新的擴充功能將在下次重新啟動後套用。"
+
+#~ msgid "The extension is wrong"
+#~ msgstr "錯誤的擴充功能"
+
+#~ msgid "This is not an extension"
+#~ msgstr "此非擴充功能"
+
+#~ msgid "Chat has been stopped"
+#~ msgstr "已停止聊天室"
+
+#~ msgid "The change will take effect after you restart the program."
+#~ msgstr "將在下次重新啟動後套用設定。"
