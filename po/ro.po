@@ -2,7 +2,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: 1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-07-08 18:07+0800\n"
+"POT-Creation-Date: 2025-07-23 20:40+0800\n"
 "PO-Revision-Date: 2025-07-03 09:00+0200\n"
 "Last-Translator: Yehor Hliebov <qsk@gmx.at>\n"
 "Language-Team: Romanian <qsk@gmx.at>\n"
@@ -11,245 +11,2087 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: src/handlers/embeddings/ollama_handler.py:32
-#: src/handlers/embeddings/openai_handler.py:38
-#: src/handlers/llm/ollama_handler.py:150 src/handlers/llm/openai_handler.py:75
-#: src/handlers/stt/openaisr_handler.py:10
-msgid "API Endpoint"
-msgstr "Endpoint API"
+#: src/window.py:129 src/ui/thread_editing.py:6
+msgid "Thread editing"
+msgstr "Editare fir de execuție"
 
-#: src/handlers/embeddings/ollama_handler.py:32
-#: src/handlers/llm/ollama_handler.py:150 src/handlers/llm/openai_handler.py:75
-msgid "API base url, change this to use interference APIs"
+#: src/window.py:130 src/ui/presentation.py:131 src/ui/extension.py:19
+#: src/constants.py:684
+msgid "Extensions"
+msgstr "Extensii"
+
+#: src/window.py:131 src/ui/profile.py:33
+msgid "Settings"
+msgstr "Setări"
+
+#: src/window.py:132
+msgid "Keyboard shorcuts"
+msgstr "Scurtături de la tastatură"
+
+#: src/window.py:133
+msgid "About"
+msgstr "Despre"
+
+#: src/window.py:140 src/window.py:209
+msgid "Chat"
+msgstr "Chat"
+
+#: src/window.py:182
+msgid "History"
+msgstr "Istoric"
+
+#: src/window.py:203
+msgid "Create a chat"
+msgstr "Creează un chat"
+
+#: src/window.py:208
+msgid "Chats"
+msgstr "Chaturi"
+
+#: src/window.py:279
+msgid " Stop"
+msgstr " Oprește"
+
+#: src/window.py:318
+msgid " Clear"
+msgstr " Șterge"
+
+#: src/window.py:333
+msgid " Continue"
+msgstr " Continuă"
+
+#: src/window.py:346
+msgid " Regenerate"
+msgstr " Regenerează"
+
+#: src/window.py:412
+msgid "Send a message..."
+msgstr "Trimite un mesaj..."
+
+#: src/window.py:508
+msgid "Explorer Tab"
+msgstr "Fila Explorer"
+
+#: src/window.py:509
+msgid "Terminal Tab"
+msgstr "Fila Terminal"
+
+#: src/window.py:510
+msgid "Browser Tab"
+msgstr "Fila Browser"
+
+#: src/window.py:630
+msgid "Ask about a website"
+msgstr "Întreabă despre un site web"
+
+#: src/window.py:630
+msgid "Write #https://website.com in chat to ask information about a website"
 msgstr ""
-"URL de bază al API-ului, schimbați-l pentru a utiliza API-urile de "
-"interferență"
+"Scrie #https://website.com în chat pentru a cere informații despre un site "
+"web"
 
-#: src/handlers/embeddings/ollama_handler.py:33
-#: src/handlers/llm/ollama_handler.py:151
-msgid "Automatically Serve"
-msgstr "Servește automat"
+#: src/window.py:631
+msgid "Check out our Extensions!"
+msgstr "Verifică extensiile noastre!"
 
-#: src/handlers/embeddings/ollama_handler.py:33
-#: src/handlers/llm/ollama_handler.py:151
+#: src/window.py:631
+msgid "We have a lot of extensions for different things. Check it out!"
+msgstr "Avem o mulțime de extensii pentru diverse lucruri. Verifică-le!"
+
+#: src/window.py:632
+msgid "Chat with documents!"
+msgstr "Conversează cu documentele!"
+
+#: src/window.py:632
 msgid ""
-"Automatically run ollama serve in background when needed if it's not "
-"running. You can kill it with killall ollama"
+"Add your documents to your documents folder and chat using the information "
+"contained in them!"
 msgstr ""
-"Rulează automat ollama serve în fundal când este necesar, dacă nu rulează. "
-"Puteți opri procesul cu killall ollama"
+"Adăugați documentele în folderul de documente și discutați utilizând "
+"informațiile conținute în ele!"
 
-#: src/handlers/embeddings/ollama_handler.py:34
-#: src/handlers/llm/ollama_handler.py:153
-msgid "Custom Model"
-msgstr "Model Personalizat"
+#: src/window.py:633
+msgid "Surf the web!"
+msgstr "Navighează pe web!"
 
-#: src/handlers/embeddings/ollama_handler.py:34
-#: src/handlers/embeddings/openai_handler.py:41
-#: src/handlers/llm/claude_handler.py:85 src/handlers/llm/ollama_handler.py:153
-#: src/handlers/llm/openai_handler.py:78
-msgid "Use a custom model"
+#: src/window.py:633
+msgid ""
+"Enable web search to allow the LLM to surf the web and provide up to date "
+"answers"
+msgstr ""
+"Activează căutarea web pentru a permite LLM-ului să navigheze pe web și să "
+"ofere răspunsuri actualizate"
+
+#: src/window.py:634
+msgid "Mini Window"
+msgstr "Fereastră Mini"
+
+#: src/window.py:634
+msgid "Ask questions on the fly using the mini window mode"
+msgstr "Pune întrebări din mers folosind modul fereastră mini"
+
+#: src/window.py:635
+msgid "Text to Speech"
+msgstr "Text-to-Speech"
+
+#: src/window.py:635
+msgid "Newelle supports text-to-speech! Enable it in the settings"
+msgstr "Newelle suportă text-to-speech! Activează-l în setări"
+
+#: src/window.py:636
+msgid "Keyboard Shortcuts"
+msgstr "Scurtături de la tastatură"
+
+#: src/window.py:636
+msgid "Control Newelle using Keyboard Shortcuts"
+msgstr "Controlează Newelle folosind scurtături de la tastatură"
+
+#: src/window.py:637
+msgid "Prompt Control"
+msgstr "Control prompt"
+
+#: src/window.py:637
+msgid "Newelle gives you 100% prompt control. Tune your prompts for your use."
+msgstr ""
+"Newelle îți oferă control total asupra prompturilor. Ajustează-le pentru "
+"nevoile tale."
+
+#: src/window.py:638
+msgid "Thread Editing"
+msgstr "Editare fir de execuție"
+
+#: src/window.py:638
+msgid "Check the programs and processes you run from Newelle"
+msgstr "Verifică programele și procesele pe care le rulezi din Newelle"
+
+#: src/window.py:639
+msgid "Programmable Prompts"
+msgstr "Prompturi programabile"
+
+#: src/window.py:639
+msgid ""
+"You can add dynamic prompts to Newelle, with conditions and probabilities"
+msgstr ""
+"Puteți adăuga prompturi dinamice la Newelle, cu condiții și probabilități"
+
+#: src/window.py:640
+#, fuzzy
+msgid "Use any avatar model"
 msgstr "Utilizează un model personalizat"
 
-#: src/handlers/embeddings/ollama_handler.py:40
-#: src/handlers/embeddings/ollama_handler.py:49
-#: src/handlers/llm/ollama_handler.py:159
-#: src/handlers/llm/ollama_handler.py:168
-msgid "Ollama Model"
-msgstr "Model Ollama"
+#: src/window.py:640
+msgid "Use any Live2D or LivePNG model"
+msgstr ""
 
-#: src/handlers/embeddings/ollama_handler.py:41
-#: src/handlers/embeddings/ollama_handler.py:49
-#: src/handlers/llm/ollama_handler.py:160
-#: src/handlers/llm/ollama_handler.py:168
-msgid "Name of the Ollama Model"
-msgstr "Numele modelului Ollama"
+#: src/window.py:647
+msgid "New Chat"
+msgstr "Chat Nou"
 
-#: src/handlers/embeddings/openai_handler.py:35
-#: src/handlers/llm/claude_handler.py:84 src/handlers/llm/openai_handler.py:72
+#: src/window.py:665
+msgid "Provider Errror"
+msgstr "Eroare furnizor"
+
+#: src/window.py:721
+msgid "Local Documents"
+msgstr "Documente locale"
+
+#: src/window.py:722 src/ui/settings.py:120
+msgid "Long Term Memory"
+msgstr "Memorie pe termen lung"
+
+#: src/window.py:723 src/constants.py:649
+msgid "TTS"
+msgstr "TTS"
+
+#: src/window.py:724 src/ui/settings.py:291
+msgid "Command virtualization"
+msgstr "Virtualizare comenzi"
+
+#: src/window.py:725
+msgid "Web search"
+msgstr "Căutare web"
+
+#: src/window.py:979
+msgid "This provider does not have a model list"
+msgstr "Acest furnizor nu are o listă de modele"
+
+#: src/window.py:984
+msgid " Models"
+msgstr " Modele"
+
+#: src/window.py:987
+msgid "Search Models..."
+msgstr "Caută modele..."
+
+#: src/window.py:1254
+msgid "Create new profile"
+msgstr "Creează profil nou"
+
+#: src/window.py:1388
+msgid "Could not recognize your voice"
+msgstr "Nu am putut recunoaște vocea dvs."
+
+#: src/window.py:1425
+msgid "Images"
+msgstr "Imagini"
+
+#: src/window.py:1429
+msgid "LLM Supported Files"
+msgstr "Fișiere suportate de LLM"
+
+#: src/window.py:1437
+msgid "RAG Supported files"
+msgstr "Fișiere suportate RAG"
+
+#: src/window.py:1455
+msgid "Supported Files"
+msgstr "Fișiere suportate"
+
+#: src/window.py:1459
+msgid "All Files"
+msgstr "Toate fișierele"
+
+#: src/window.py:1465
+msgid "Attach file"
+msgstr "Atașează fișier"
+
+#: src/window.py:1725 src/ui/explorer.py:340
+msgid "File not found"
+msgstr "Fișier negăsit"
+
+#: src/window.py:1743
+msgid "The file cannot be sent until the program is finished"
+msgstr "Fișierul nu poate fi trimis până când programul nu este terminat"
+
+#: src/window.py:1765
+msgid "The file is not recognized"
+msgstr "Fișierul nu este recunoscut"
+
+#: src/window.py:1785
+msgid "You can no longer continue the message."
+msgstr "Nu mai puteți continua mesajul."
+
+#: src/window.py:1810
+msgid "You can no longer regenerate the message."
+msgstr "Nu mai puteți regenera mesajul."
+
+#: src/window.py:1998 src/controller.py:159
+msgid "Chat "
+msgstr "Chat "
+
+#: src/window.py:2042
+msgid "Chat is cleared"
+msgstr "Chatul este șters"
+
+#: src/window.py:2067
+msgid "The message was canceled and deleted from history"
+msgstr "Mesajul a fost anulat și șters din istoric"
+
+#: src/window.py:2111
+msgid "The message cannot be sent until the program is finished"
+msgstr "Mesajul nu poate fi trimis până când programul nu este terminat"
+
+#: src/window.py:3112
+msgid "You can't edit a message while the program is running."
+msgstr "Nu poți edita un mesaj în timp ce programul rulează."
+
+#: src/window.py:3237
+msgid "Prompt content"
+msgstr "Conținut prompt"
+
+#: src/window.py:3496
+msgid ""
+"The neural network has access to your computer and any data in this chat and "
+"can run commands, be careful, we are not responsible for the neural network. "
+"Do not share any sensitive information."
+msgstr ""
+"Rețeaua neurală are acces la computerul dvs. și la orice date din acest chat "
+"și poate rula comenzi, fiți atenți, nu suntem responsabili pentru rețeaua "
+"neurală. Nu partajați informații sensibile."
+
+#: src/window.py:3525
+msgid ""
+"The neural network has access to any data in this chat, be careful, we are "
+"not responsible for the neural network. Do not share any sensitive "
+"information."
+msgstr ""
+"Rețeaua neurală are acces la orice date din acest chat, fiți atenți, nu "
+"suntem responsabili pentru rețeaua neurală. Nu partajați informații "
+"sensibile."
+
+#: src/window.py:3574
+msgid "Wrong folder path"
+msgstr "Calea folderului greșită"
+
+#: src/window.py:3607
+msgid "Thread has not been completed, thread number: "
+msgstr "Firul de execuție nu a fost finalizat, numărul firului de execuție: "
+
+#: src/window.py:3619
+msgid "Failed to open the folder"
+msgstr "Nu s-a putut deschide folderul"
+
+#: src/window.py:3798
+msgid "Chat is empty"
+msgstr "Chatul este gol"
+
+#: src/window.py:3859 src/ui/stdout_monitor.py:109 src/ui/stdout_monitor.py:182
+#: src/ui/stdout_monitor.py:191
+msgid "Monitoring: Active"
+msgstr "Monitorizare: Activă"
+
+#: src/smart_prompt.py:95 src/handlers/smart_prompt/smart_prompt.py:95
+#, fuzzy
+msgid "Model Dimension"
+msgstr "Extensie adăugată"
+
+#: src/smart_prompt.py:96 src/handlers/smart_prompt/smart_prompt.py:96
+msgid "Use bigger models for bigger accuracy less than 100MB"
+msgstr ""
+
+#: src/translator.py:67 src/handlers/stt/custom_handler.py:13
+#: src/handlers/translator/customtr_handler.py:17
+#: src/handlers/tts/custom_handler.py:17
+msgid "Command to execute"
+msgstr "Comandă de executat"
+
+#: src/translator.py:68 src/handlers/translator/customtr_handler.py:18
+#, fuzzy, python-brace-format
+msgid "{0} will be replaced with the text to translate"
+msgstr "{0} va fi înlocuit cu calea completă a modelului"
+
+#: src/ui/widgets/tipscarousel.py:41
+msgid "Nyarch Assistant Tips"
+msgstr ""
+
+#: src/ui/stdout_monitor.py:31 src/ui/stdout_monitor.py:41
+#: src/ui/settings.py:323
+msgid "Program Output Monitor"
+msgstr "Monitorizare ieșire program"
+
+#: src/ui/stdout_monitor.py:48
+msgid "Clear output"
+msgstr "Golește ieșirea"
+
+#: src/ui/stdout_monitor.py:61
+msgid "Start/Stop monitoring"
+msgstr "Pornire/Oprire monitorizare"
+
+#: src/ui/stdout_monitor.py:109 src/ui/stdout_monitor.py:208
+msgid "Monitoring: Stopped"
+msgstr "Monitorizare: Oprită"
+
+#: src/ui/stdout_monitor.py:116 src/ui/stdout_monitor.py:252
+#, python-brace-format
+msgid "Lines: {}"
+msgstr "Linii: {}"
+
+#: src/ui/stdout_monitor.py:267
+msgid "Lines: 0"
+msgstr "Linii: 0"
+
+#: src/main.py:209
+msgid "Terminal threads are still running in the background"
+msgstr "Firele de execuție ale terminalului rulează încă în fundal"
+
+#: src/main.py:210
+msgid "When you close the window, they will be automatically terminated"
+msgstr "Când închideți fereastra, acestea vor fi terminate automat"
+
+#: src/main.py:213 src/ui/explorer.py:448 src/ui/explorer.py:501
+#: src/ui/explorer.py:689
+msgid "Cancel"
+msgstr "Anulează"
+
+#: src/main.py:214
+msgid "Close"
+msgstr "Închide"
+
+#: src/main.py:250
+msgid "Chat is rebooted"
+msgstr "Chatul a fost repornit"
+
+#: src/main.py:255
+msgid "Folder is rebooted"
+msgstr "Folderul a fost repornit"
+
+#: src/main.py:260
+msgid "Chat is created"
+msgstr "Chatul este creat"
+
+#: src/ui/settings.py:59 src/constants.py:694
+msgid "General"
+msgstr "General"
+
+#: src/ui/settings.py:60 src/constants.py:644
+msgid "LLM"
+msgstr "LLM"
+
+#: src/ui/settings.py:61 src/constants.py:699
+msgid "Prompts"
+msgstr "Prompturi"
+
+#: src/ui/settings.py:62
+msgid "Knowledge"
+msgstr "Cunoștințe"
+
+#: src/ui/settings.py:63 src/ui/settings.py:182 src/constants.py:659
+msgid "Avatar"
+msgstr ""
+
+#: src/ui/settings.py:67
+msgid "Language Model"
+msgstr "Model de Limbaj"
+
+#: src/ui/settings.py:77 src/ui/settings.py:98
+msgid "Other LLMs"
+msgstr "Alte LLM-uri"
+
+#: src/ui/settings.py:77 src/ui/settings.py:98
+msgid "Other available LLM providers"
+msgstr "Alți furnizori LLM disponibili"
+
+#: src/ui/settings.py:88
+msgid "Advanced LLM Settings"
+msgstr "Setări avansate LLM"
+
+#: src/ui/settings.py:92
+msgid "Secondary Language Model"
+msgstr "Model de limbaj secundar"
+
+#: src/ui/settings.py:92
+#, fuzzy
+msgid ""
+"Model used for secondary tasks, like offers, chat name and memory generation"
+msgstr ""
+"Model utilizat pentru sarcini secundare, cum ar fi ofertă, nume de chat și "
+"generare de memorie"
+
+#: src/ui/settings.py:109
+msgid "Embedding Model"
+msgstr "Model de încorporare"
+
+#: src/ui/settings.py:109
+msgid ""
+"Embedding is used to trasform text into vectors. Used by Long Term Memory "
+"and RAG. Changing it might require you to re-index documents or reset memory."
+msgstr ""
+"Încorporarea este utilizată pentru a transforma textul în vectori. Utilizată "
+"de Memoria pe Termen Lung și RAG. Modificarea acesteia ar putea necesita "
+"reindexarea documentelor sau resetarea memoriei."
+
+#: src/ui/settings.py:120
+msgid "Keep memory of old conversations"
+msgstr "Păstrează memoria conversațiilor vechi"
+
+#: src/ui/settings.py:132 src/constants.py:538
+msgid "Web Search"
+msgstr "Căutare Web"
+
+#: src/ui/settings.py:132
+msgid "Search information on the Web"
+msgstr "Căutați informații pe web"
+
+#: src/ui/settings.py:144 src/handlers/tts/groq_tts_handler.py:33
+#: src/handlers/tts/tts.py:33 src/handlers/tts/custom_openai_tts.py:19
+#: src/handlers/tts/elevenlabs_handler.py:17
+#: src/handlers/tts/openai_tts_handler.py:19
+msgid "Voice"
+msgstr "Voce"
+
+#: src/ui/settings.py:148
+msgid "Text To Speech Program"
+msgstr "Program text-to-speech"
+
+#: src/ui/settings.py:148
+msgid "Choose which text to speech to use"
+msgstr "Alegeți ce program text-to-speech să utilizați"
+
+#: src/ui/settings.py:161
+msgid "Translator program"
+msgstr ""
+
+#: src/ui/settings.py:161
+msgid "Translate the output of the LLM before passing it to the TTS Program"
+msgstr ""
+
+#: src/ui/settings.py:169
+msgid "Speech To Text Engine"
+msgstr "Motor de transformare a vorbirii în text"
+
+#: src/ui/settings.py:169
+msgid "Choose which speech recognition engine you want"
+msgstr "Alegeți motorul de recunoaștere vocală pe care îl doriți"
+
+#: src/ui/settings.py:177
+msgid "Automatic Speech To Text"
+msgstr "Recunoaștere vocală automată"
+
+#: src/ui/settings.py:177
+msgid "Automatically restart speech to text at the end of a text/TTS"
+msgstr "Repornește automat recunoașterea vocală la sfârșitul unui text/TTS"
+
+#: src/ui/settings.py:186
+msgid "Avatar model"
+msgstr ""
+
+#: src/ui/settings.py:186
+#, fuzzy
+msgid "Choose which avatar model to choose"
+msgstr "Alegeți ce program text-to-speech să utilizați"
+
+#: src/ui/settings.py:195
+#, fuzzy
+msgid "Smart Prompt"
+msgstr "Prompt personalizat"
+
+#: src/ui/settings.py:199
+msgid "Smart Prompt selector"
+msgstr ""
+
+#: src/ui/settings.py:199
+msgid "Give extra context on Nyarch Linux based on your prompt"
+msgstr ""
+
+#: src/ui/settings.py:208
+msgid "Prompt control"
+msgstr "Control prompt"
+
+#: src/ui/settings.py:213
+msgid "Interface"
+msgstr "Interfață"
+
+#: src/ui/settings.py:216
+msgid "Interface Size"
+msgstr "Dimensiune Interfață"
+
+#: src/ui/settings.py:216
+msgid "Adjust the size of the interface"
+msgstr "Ajustează dimensiunea interfeței"
+
+#: src/ui/settings.py:228
+msgid "Editor color scheme"
+msgstr "Schema de culori a editorului"
+
+#: src/ui/settings.py:228
+msgid "Change the color scheme of the editor and codeblocks"
+msgstr "Schimbați schema de culori a editorului și a blocurilor de cod"
+
+#: src/ui/settings.py:235
+msgid "Hidden files"
+msgstr "Fișiere ascunse"
+
+#: src/ui/settings.py:235
+msgid "Show hidden files"
+msgstr "Arată fișierele ascunse"
+
+#: src/ui/settings.py:241
+msgid "Send with ENTER"
+msgstr "Trimite cu ENTER"
+
+#: src/ui/settings.py:241
+msgid ""
+"If enabled, messages will be sent with ENTER, to go to a new line use "
+"CTRL+ENTER. If disabled, messages will be sent with SHIFT+ENTER, and newline "
+"with enter"
+msgstr ""
+"Dacă este activat, mesajele vor fi trimise cu ENTER, pentru a merge la o "
+"linie nouă utilizați CTRL+ENTER. Dacă este dezactivat, mesajele vor fi "
+"trimise cu SHIFT+ENTER, iar linia nouă cu ENTER"
+
+#: src/ui/settings.py:247
+msgid "Remove thinking from history"
+msgstr "Elimină gândirea din istoric"
+
+#: src/ui/settings.py:247
+msgid ""
+"Do not send old thinking blocks for reasoning models in order to reduce "
+"token usage"
+msgstr ""
+"Nu trimite blocuri vechi de gândire pentru modelele de raționament, pentru a "
+"reduce utilizarea de token-uri"
+
+#: src/ui/settings.py:253
+msgid "Display LaTeX"
+msgstr "Afișează LaTeX"
+
+#: src/ui/settings.py:253
+msgid "Display LaTeX formulas in chat"
+msgstr "Afișează formulele LaTeX în chat"
+
+#: src/ui/settings.py:259
+msgid "Reverse Chat Order"
+msgstr "Inversează ordinea chatului"
+
+#: src/ui/settings.py:259
+msgid "Show most recent chats on top in chat list (change chat to apply)"
+msgstr ""
+"Afișează cele mai recente chaturi în partea de sus a listei de chaturi "
+"(schimbați chatul pentru a aplica)"
+
+#: src/ui/settings.py:265
+msgid "Automatically Generate Chat Names"
+msgstr "Generează automat nume de chat"
+
+#: src/ui/settings.py:265
+msgid "Generate chat names automatically after the first two messages"
+msgstr "Generează automat nume de chat după primele două mesaje"
+
+#: src/ui/settings.py:271
+msgid "Number of offers"
+msgstr "Număr de oferte"
+
+#: src/ui/settings.py:271
+msgid "Number of message suggestions to send to chat "
+msgstr "Numărul de sugestii de mesaje de trimis în chat "
+
+#: src/ui/settings.py:278
+msgid "Username"
+msgstr "Nume utilizator"
+
+#: src/ui/settings.py:278
+#, python-brace-format
+msgid ""
+"Change the label that appears before your message\n"
+"This information is not sent to the LLM by default\n"
+"You can add it to a prompt using the {USER} variable"
+msgstr ""
+"Schimbați eticheta care apare înainte de mesajul dvs.\n"
+"Această informație nu este trimisă LLM-ului în mod implicit\n"
+"Puteți să o adăugați la un prompt utilizând variabila {USER}"
+
+#: src/ui/settings.py:288
+msgid "Neural Network Control"
+msgstr "Control Rețea Neurală"
+
+#: src/ui/settings.py:291
+msgid "Run commands in a virtual machine"
+msgstr "Execută comenzi într-o mașină virtuală"
+
+#: src/ui/settings.py:304
+msgid "External Terminal"
+msgstr "Terminal Extern"
+
+#: src/ui/settings.py:304
+msgid "Choose the external terminal where to run the console commands"
+msgstr "Alegeți terminalul extern unde să rulați comenzile consolei"
+
+#: src/ui/settings.py:313
+msgid "Program memory"
+msgstr "Memoria programului"
+
+#: src/ui/settings.py:313
+msgid "How long the program remembers the chat "
+msgstr "Cât timp programul își amintește conversația "
+
+#: src/ui/settings.py:320
+msgid "Developer"
+msgstr "Dezvoltator"
+
+#: src/ui/settings.py:323
+msgid ""
+"Monitor the program output in real-time, useful for debugging and seeing "
+"downloads progress"
+msgstr ""
+"Monitorizează ieșirea programului în timp real, util pentru depanare și "
+"pentru a vedea progresul descărcărilor"
+
+#: src/ui/settings.py:324
+msgid "Open"
+msgstr "Deschide"
+
+#: src/ui/settings.py:329
+msgid "Delete pip path"
+msgstr "Șterge calea pip"
+
+#: src/ui/settings.py:329
+msgid "Remove the extra dependencies installed"
+msgstr "Elimină dependențele suplimentare instalate"
+
+#: src/ui/settings.py:330 src/ui/settings.py:402 src/ui/explorer.py:366
+#: src/ui/explorer.py:502
+msgid "Delete"
+msgstr "Șterge"
+
+#: src/ui/settings.py:350
+msgid "Auto-run commands"
+msgstr "Comenzi cu rulare automată"
+
+#: src/ui/settings.py:350
+msgid "Commands that the bot will write will automatically run"
+msgstr "Comenzile pe care botul le va scrie vor rula automat"
+
+#: src/ui/settings.py:353
+msgid "Max number of commands"
+msgstr "Număr maxim de comenzi"
+
+#: src/ui/settings.py:353
+msgid ""
+"Maximum number of commands that the bot will write after a single user "
+"request"
+msgstr ""
+"Numărul maxim de comenzi pe care botul le va scrie după o singură cerere a "
+"utilizatorului"
+
+#: src/ui/settings.py:384
+msgid "Browser"
+msgstr "Browser"
+
+#: src/ui/settings.py:384
+msgid "Settings for the browser"
+msgstr "Setări pentru browser"
+
+#: src/ui/settings.py:389
+msgid "Use external browser"
+msgstr "Utilizează browser extern"
+
+#: src/ui/settings.py:389
+msgid "Use an external browser to open links instead of integrated one"
+msgstr ""
+"Utilizează un browser extern pentru a deschide linkuri în loc de cel integrat"
+
+#: src/ui/settings.py:396
+msgid "Persist browser session"
+msgstr "Păstrează sesiunea browserului"
+
+#: src/ui/settings.py:396
+msgid ""
+"Persist browser session between restarts. Turning this off requires "
+"restarting the program"
+msgstr ""
+"Păstrează sesiunea browserului între reporniri. Dezactivarea acestei opțiuni "
+"necesită repornirea programului"
+
+#: src/ui/settings.py:401
+msgid "Delete browser data"
+msgstr "Șterge datele browserului"
+
+#: src/ui/settings.py:401
+msgid "Delete browser session and data"
+msgstr "Șterge sesiunea și datele browserului"
+
+#: src/ui/settings.py:408
+msgid "Initial browser page"
+msgstr "Pagina inițială a browserului"
+
+#: src/ui/settings.py:408
+msgid "The page where the browser will start"
+msgstr "Pagina de unde va porni browserul"
+
+#: src/ui/settings.py:415
+msgid "Search string"
+msgstr "Șir de căutare"
+
+#: src/ui/settings.py:415
+#, python-format
+msgid "The search string used in the browser, %s is replaced with the query"
+msgstr "Șirul de căutare utilizat în browser, %s este înlocuit cu interogarea"
+
+#: src/ui/settings.py:436
+msgid "Document Sources (RAG)"
+msgstr "Surse documente (RAG)"
+
+#: src/ui/settings.py:436
+msgid "Include content from your documents in the responses"
+msgstr "Includeți conținut din documentele dvs. în răspunsuri"
+
+#: src/ui/settings.py:437
+msgid "Document Analyzer"
+msgstr "Analizor Documente"
+
+#: src/ui/settings.py:437
+msgid ""
+"The document analyzer uses multiple techniques to extract relevant "
+"information about your documents"
+msgstr ""
+"Analizatorul de documente utilizează multiple tehnici pentru a extrage "
+"informații relevante despre documentele dvs."
+
+#: src/ui/settings.py:448
+msgid "Read documents if unsupported"
+msgstr "Citiți documentele dacă nu sunt acceptate"
+
+#: src/ui/settings.py:448
+msgid ""
+"If the LLM does not support reading documents, relevant information about "
+"documents sent in the chat will be given to the LLM using your Document "
+"Analyzer."
+msgstr ""
+"Dacă LLM-ul nu suportă citirea documentelor, informațiile relevante despre "
+"documentele trimise în chat vor fi furnizate LLM-ului utilizând analizorul "
+"dvs. de documente."
+
+#: src/ui/settings.py:452
+msgid "Maximum tokens for RAG"
+msgstr "Token-uri maxime pentru RAG"
+
+#: src/ui/settings.py:452
+msgid ""
+"The maximum amount of tokens to be used for RAG. If the documents do not "
+"exceed this token count,\n"
+"dump all of them in the context"
+msgstr ""
+"Cantitatea maximă de token-uri de utilizat pentru RAG. Dacă documentele nu "
+"depășesc acest număr de token-uri,\n"
+"le aruncă pe toate în context"
+
+#: src/ui/settings.py:469
+msgid "Document Folder"
+msgstr "Folder documente"
+
+#: src/ui/settings.py:469
+msgid ""
+"Put the documents you want to query in your document folder. The document "
+"analyzer will find relevant information in them if this option is enabled"
+msgstr ""
+"Puneți documentele pe care doriți să le interogați în folderul dvs. de "
+"documente. Analizatorul de documente va găsi informații relevante în ele, "
+"dacă această opțiune este activată"
+
+#: src/ui/settings.py:472
+msgid "Put all the documents you want to index in this folder"
+msgstr "Puneți toate documentele pe care doriți să le indexați în acest folder"
+
+#: src/ui/settings.py:508
+msgid "Silence threshold"
+msgstr "Prag de silențiu"
+
+#: src/ui/settings.py:508
+msgid ""
+"Silence threshold in seconds, percentage of the volume to be considered "
+"silence"
+msgstr ""
+"Prag de silențiu în secunde, procent din volum pentru a fi considerat "
+"silențiu"
+
+#: src/ui/settings.py:521
+msgid "Silence time"
+msgstr "Timp de silențiu"
+
+#: src/ui/settings.py:521
+msgid "Silence time in seconds before recording stops automatically"
+msgstr ""
+"Timpul de silențiu în secunde înainte ca înregistrarea să se oprească automat"
+
+#: src/ui/settings.py:1108
+msgid "Not enough permissions"
+msgstr "Nu sunt suficiente permisiuni"
+
+#: src/ui/settings.py:1112
+#, fuzzy
+msgid ""
+"Nyarch Assistant does not have enough permissions to run commands on your "
+"system, please run the following command"
+msgstr ""
+"Newelle nu are suficiente permisiuni pentru a rula comenzi pe sistemul dvs., "
+"vă rugăm să rulați următoarea comandă"
+
+#: src/ui/settings.py:1113 src/ui/settings.py:1126
+msgid "Understood"
+msgstr "Înțeles"
+
+#: src/ui/settings.py:1125
+msgid "Pip path deleted"
+msgstr "Calea pip a fost ștearsă"
+
+#: src/ui/settings.py:1125
+msgid ""
+"The pip path has been deleted, you can now reinstall the dependencies. This "
+"operation requires a restart of the application."
+msgstr ""
+"Calea pip a fost ștearsă, acum puteți reinstala dependențele. Această "
+"operațiune necesită repornirea aplicației."
+
+#: src/ui/mini_window.py:9
+msgid "Nyarch Linux"
+msgstr ""
+
+#: src/ui/mini_window.py:20
+msgid "Chat is opened in mini window"
+msgstr "Chatul este deschis în fereastra mini"
+
+#: src/ui/shortcuts.py:6
+msgid "Help"
+msgstr "Ajutor"
+
+#: src/ui/shortcuts.py:12
+msgid "Shortcuts"
+msgstr "Scurtături"
+
+#: src/ui/shortcuts.py:13
+msgid "Reload chat"
+msgstr "Reîncarcă chatul"
+
+#: src/ui/shortcuts.py:14
+msgid "Reload folder"
+msgstr "Reîncarcă folderul"
+
+#: src/ui/shortcuts.py:15
+msgid "New tab"
+msgstr "Filă nouă"
+
+#: src/ui/shortcuts.py:16
+msgid "Paste Image"
+msgstr "Lipește Imagine"
+
+#: src/ui/shortcuts.py:17
+msgid "Focus message box"
+msgstr "Focusează caseta de mesaj"
+
+#: src/ui/shortcuts.py:18
+msgid "Start/stop recording"
+msgstr "Pornire/oprire înregistrare"
+
+#: src/ui/shortcuts.py:19
+msgid "Save"
+msgstr "Salvează"
+
+#: src/ui/shortcuts.py:20
+msgid "Stop TTS"
+msgstr "Oprește TTS"
+
+#: src/ui/shortcuts.py:21
+msgid "Zoom in"
+msgstr "Mărește"
+
+#: src/ui/shortcuts.py:22
+msgid "Zoom out"
+msgstr "Micșorează"
+
+#: src/ui/presentation.py:93
+msgid "Welcome to Nyarch Assistant!"
+msgstr ""
+
+#: src/ui/presentation.py:94
+#, fuzzy
+msgid "Your ultimate AI Waifu assistant."
+msgstr "Asistentul tău virtual suprem."
+
+#: src/ui/presentation.py:98
+msgid "Github Page"
+msgstr "Pagina Github"
+
+#: src/ui/presentation.py:105
+msgid "Choose your favourite AI Language Model"
+msgstr "Alege modelul tău preferat de limbaj AI"
+
+#: src/ui/presentation.py:106
+#, fuzzy
+msgid ""
+"Nyarch Assistant can be used with mutiple models and providers!\n"
+"<b>Note: It is strongly suggested to read the Guide to LLM page</b>"
+msgstr ""
+"Newelle poate fi utilizat cu mai multe modele și furnizori!\n"
+"<b>Notă: Se recomandă insistent să citiți pagina Ghid pentru LLM</b>"
+
+#: src/ui/presentation.py:110
+msgid "Guide to LLM"
+msgstr "Ghid pentru LLM"
+
+#: src/ui/presentation.py:117
+msgid "Chat with your documents"
+msgstr "Discutați cu documentele dvs."
+
+#: src/ui/presentation.py:118
+#, fuzzy
+msgid ""
+"Nyarch Assistant can retrieve relevant information from documents you send "
+"in the chat or from your own files! Information relevant to your query will "
+"be sent to the LLM."
+msgstr ""
+"Newelle poate extrage informații relevante din documentele pe care le "
+"trimiteți în chat sau din propriile fișiere! Informațiile relevante pentru "
+"interogarea dvs. vor fi trimise către LLM."
+
+#: src/ui/presentation.py:124
+#, fuzzy
+msgid "Choose your favourite Voice configuration"
+msgstr "Alege modelul tău preferat de limbaj AI"
+
+#: src/ui/presentation.py:125
+msgid ""
+"You can speak to Nyarch Assistant! Use any TTS/STT provider in any language, "
+"with translation support!"
+msgstr ""
+
+#: src/ui/presentation.py:132
+#, fuzzy
+msgid ""
+"You can extend Nyarch Assistant's functionalities using extensions! They are "
+"easy to make and to install!"
+msgstr "Puteți extinde funcționalitățile Newelle folosind extensii!"
+
+#: src/ui/presentation.py:136
+msgid "Download extensions"
+msgstr "Descarcă extensii"
+
+#: src/ui/presentation.py:143
+msgid "Pay attention!"
+msgstr ""
+
+#: src/ui/presentation.py:144
+msgid ""
+"Nyarch Assistant can run commands on your system! By enabling command "
+"virtualization, you will only run commands inside the flatpak environment, "
+"avoiding to create damages to your system.\n"
+"\n"
+" <b>Pay attention on what you run! Commands generated might harm your system!"
+"</b>"
+msgstr ""
+
+#: src/ui/presentation.py:152
+msgid "Permission Error"
+msgstr "Eroare permisiune"
+
+#: src/ui/presentation.py:153
+#, fuzzy
+msgid ""
+"nyarchassistant does not have enough permissions to run commands on your "
+"system."
+msgstr ""
+"Newelle nu are suficiente permisiuni pentru a rula comenzi pe sistemul dvs."
+
+#: src/ui/presentation.py:164
+msgid "Begin using the app"
+msgstr "Începeți să utilizați aplicația"
+
+#: src/ui/presentation.py:169
+msgid "Start chatting"
+msgstr "Începe chatul"
+
+#: src/ui/explorer.py:192
+msgid "Folder is Empty"
+msgstr "Folderul este gol"
+
+#: src/ui/explorer.py:355
+msgid "Open in new tab"
+msgstr "Deschide într-o filă nouă"
+
+#: src/ui/explorer.py:357
+msgid "Open in integrated editor"
+msgstr "Deschide în editorul integrat"
+
+#: src/ui/explorer.py:360 src/ui/explorer.py:589
+msgid "Open in file manager"
+msgstr "Deschide în managerul de fișiere"
+
+#: src/ui/explorer.py:363 src/ui/explorer.py:451
+msgid "Rename"
+msgstr "Redenumire"
+
+#: src/ui/explorer.py:369
+msgid "Copy full path"
+msgstr "Copiază calea completă"
+
+#: src/ui/explorer.py:420 src/ui/explorer.py:657
+msgid "Failed to open file manager"
+msgstr "Nu s-a putut deschide managerul de fișiere"
+
+#: src/ui/explorer.py:436
+msgid "New name:"
+msgstr "Nume nou:"
+
+#: src/ui/explorer.py:471
+msgid "Renamed successfully"
+msgstr "Redenumit cu succes"
+
+#: src/ui/explorer.py:476
+#, python-brace-format
+msgid "Failed to rename: {}"
+msgstr "Nu s-a putut redenumi: {}"
+
+#: src/ui/explorer.py:497
+msgid "Delete File?"
+msgstr "Șterge fișierul?"
+
+#: src/ui/explorer.py:499
+#, python-brace-format
+msgid "Are you sure you want to delete \"{}\"?"
+msgstr "Sigur doriți să ștergeți „{}”?"
+
+#: src/ui/explorer.py:520
+msgid "Deleted successfully"
+msgstr "Șters cu succes"
+
+#: src/ui/explorer.py:525
+#, python-brace-format
+msgid "Failed to delete: {}"
+msgstr "Nu s-a putut șterge: {}"
+
+#: src/ui/explorer.py:538
+msgid "Path copied to clipboard"
+msgstr "Calea copiată în clipboard"
+
+#: src/ui/explorer.py:542
+msgid "Failed to copy path"
+msgstr "Nu s-a putut copia calea"
+
+#: src/ui/explorer.py:580
+msgid "Create new folder"
+msgstr "Creează un folder nou"
+
+#: src/ui/explorer.py:583
+msgid "Create new file"
+msgstr "Creează un fișier nou"
+
+#: src/ui/explorer.py:586
+msgid "Open Terminal Here"
+msgstr "Deschide terminalul aici"
+
+#: src/ui/explorer.py:640
+msgid "Create New Folder"
+msgstr "Creează folder nou"
+
+#: src/ui/explorer.py:640
+msgid "Folder name:"
+msgstr "Nume folder:"
+
+#: src/ui/explorer.py:644
+msgid "Create New File"
+msgstr "Creează fișier nou"
+
+#: src/ui/explorer.py:644
+msgid "File name:"
+msgstr "Nume fișier:"
+
+#: src/ui/explorer.py:692 src/ui/profile.py:109
+msgid "Create"
+msgstr "Creează"
+
+#: src/ui/explorer.py:713
+msgid "Folder created successfully"
+msgstr "Folder creat cu succes"
+
+#: src/ui/explorer.py:720
+msgid "File created successfully"
+msgstr "Fișier creat cu succes"
+
+#: src/ui/explorer.py:725
+msgid "A file or folder with that name already exists"
+msgstr "Un fișier sau folder cu acest nume există deja"
+
+#: src/ui/explorer.py:728
+msgid "folder"
+msgstr "folder"
+
+#: src/ui/explorer.py:728
+msgid "file"
+msgstr "fișier"
+
+#: src/ui/explorer.py:730
+#, python-brace-format
+msgid "Failed to create {}: {}"
+msgstr "Nu s-a putut crea {}: {}"
+
+#: src/ui/extension.py:52
+msgid "Installed Extensions"
+msgstr "Extensii instalate"
+
+#: src/ui/extension.py:88
+msgid "User guide to Extensions"
+msgstr "Ghid de utilizare a extensiilor"
+
+#: src/ui/extension.py:91
+msgid "Download new Extensions"
+msgstr "Descarcă extensii noi"
+
+#: src/ui/extension.py:94
+msgid "Install extension from file..."
+msgstr "Instalează extensia din fișier..."
+
+#: src/ui/profile.py:53
+msgid "Profile Name"
+msgstr "Nume Profil"
+
+#: src/ui/profile.py:58
+msgid "Copied Settings"
+msgstr "Setări Copiate"
+
+#: src/ui/profile.py:58
+msgid "Settings that will be copied to the new profile"
+msgstr "Setări care vor fi copiate în noul profil"
+
+#: src/ui/profile.py:70
+msgid "Create Profile"
+msgstr "Creează Profil"
+
+#: src/ui/profile.py:72 src/ui/profile.py:74 src/ui/profile.py:129
+msgid "Import Profile"
+msgstr "Importă Profil"
+
+#: src/ui/profile.py:79 src/ui/widgets/profilerow.py:43
+msgid "Edit Profile"
+msgstr "Editează Profil"
+
+#: src/ui/profile.py:84 src/ui/profile.py:99 src/ui/profile.py:123
+msgid "Export Profile"
+msgstr "Exportă Profil"
+
+#: src/ui/profile.py:87
+msgid "Export Passwords"
+msgstr "Exportă Parole"
+
+#: src/ui/profile.py:87
+msgid "Also export password-like fields"
+msgstr "Exportă și câmpurile de tip parolă"
+
+#: src/ui/profile.py:89
+msgid "Export Propic"
+msgstr "Exportă imaginea de profil"
+
+#: src/ui/profile.py:89
+msgid "Also export the profile picture"
+msgstr "Exportă și imaginea de profil"
+
+#: src/ui/profile.py:109
+msgid "Apply"
+msgstr "Aplică"
+
+#: src/ui/profile.py:116
+msgid "The settings of the current profile will be copied into the new one"
+msgstr "Setările profilului curent vor fi copiate în cel nou"
+
+#: src/ui/profile.py:122 src/ui/profile.py:128
+msgid "Newelle Profiles"
+msgstr "Profiluri Newelle"
+
+#: src/ui/profile.py:123
+msgid "Export"
+msgstr "Exportă"
+
+#: src/ui/profile.py:129
+msgid "Import"
+msgstr "Importă"
+
+#: src/ui/profile.py:197
+msgid "Set profile picture"
+msgstr "Setează imaginea de profil"
+
+#: src/ui/widgets/thinking.py:26
+msgid "Thoughts"
+msgstr "Gânduri"
+
+#: src/ui/widgets/thinking.py:27 src/ui/widgets/thinking.py:134
+msgid "Expand to see details"
+msgstr "Extinde pentru a vedea detalii"
+
+#: src/ui/widgets/thinking.py:122
+msgid "Thinking..."
+msgstr "Gândind..."
+
+#: src/ui/widgets/thinking.py:123
+msgid "The LLM is thinking... Expand to see thought process"
+msgstr "LLM-ul gândește... Extinde pentru a vedea procesul de gândire"
+
+#: src/ui/widgets/thinking.py:136
+msgid "No thought process recorded"
+msgstr "Nu a fost înregistrat niciun proces de gândire"
+
+#: src/constants.py:28
+#, fuzzy
+msgid "Nyarch Demo API"
+msgstr "API demo Newelle"
+
+#: src/constants.py:34
+msgid "GPT4Free"
+msgstr "GPT4Free"
+
+#: src/constants.py:42
+msgid "Local Model"
+msgstr "Model local"
+
+#: src/constants.py:43
+msgid ""
+"NO GPU SUPPORT, USE OLLAMA INSTEAD. Run a LLM model locally, more privacy "
+"but slower"
+msgstr ""
+"NU EXISTĂ SUPORT GPU, UTILIZAȚI OLLAMA ÎN LOC. Rulați un model LLM local, "
+"mai multă confidențialitate, dar mai lent"
+
+#: src/constants.py:48
+msgid "Ollama Instance"
+msgstr "Instanță Ollama"
+
+#: src/constants.py:49
+msgid "Easily run multiple LLM models on your own hardware"
+msgstr "Rulează ușor mai multe modele LLM pe propriul tău hardware"
+
+#: src/constants.py:55
+msgid "Groq"
+msgstr "Groq"
+
+#: src/constants.py:62 src/constants.py:260
+msgid "Google Gemini API"
+msgstr "API Google Gemini"
+
+#: src/constants.py:68 src/constants.py:254 src/constants.py:255
+msgid "OpenAI API"
+msgstr "API OpenAI"
+
+#: src/constants.py:69
+msgid "OpenAI API. Custom endpoints supported. Use this for custom providers"
+msgstr ""
+"API OpenAI. Endpoint-uri personalizate suportate. Folosiți-l pentru "
+"furnizori personalizați"
+
+#: src/constants.py:74
+msgid "Anthropic Claude"
+msgstr "Anthropic Claude"
+
+#: src/constants.py:75
+msgid ""
+"Official APIs for Anthropic Claude's models, with image and file support, "
+"requires an API key"
+msgstr ""
+"API-uri oficiale pentru modelele Anthropic Claude, cu suport pentru imagini "
+"și fișiere, necesită o cheie API"
+
+#: src/constants.py:81
+msgid "Mistral"
+msgstr "Mistral"
+
+#: src/constants.py:82
+msgid "Mistral API"
+msgstr "API Mistral"
+
+#: src/constants.py:89
+msgid "OpenRouter"
+msgstr "OpenRouter"
+
+#: src/constants.py:90
+msgid "Openrouter.ai API, supports lots of models"
+msgstr "API Openrouter.ai, suportă o mulțime de modele"
+
+#: src/constants.py:97
+msgid "Deepseek"
+msgstr "Deepseek"
+
+#: src/constants.py:98
+msgid "Deepseek API, strongest open source models"
+msgstr "API Deepseek, cele mai puternice modele open source"
+
+#: src/constants.py:104 src/constants.py:233
+msgid "Custom Command"
+msgstr "Comandă Personalizată"
+
+#: src/constants.py:105
+msgid "Use the output of a custom command"
+msgstr "Utilizează ieșirea unei comenzi personalizate"
+
+#: src/constants.py:114
+msgid "Whisper C++"
+msgstr "Whisper C++"
+
+#: src/constants.py:115
+msgid "Works offline. Optimized Whisper impelementation written in C++"
+msgstr "Funcționează offline. Implementare Whisper optimizată, scrisă în C++"
+
+#: src/constants.py:121
+msgid "CMU Sphinx"
+msgstr "CMU Sphinx"
+
+#: src/constants.py:122
+msgid "Works offline. Only English supported"
+msgstr "Funcționează offline. Doar engleza este suportată"
+
+#: src/constants.py:128
+msgid "Google Speech Recognition"
+msgstr "Recunoaștere vocală Google"
+
+#: src/constants.py:129 src/constants.py:135
+msgid "Google Speech Recognition online"
+msgstr "Recunoaștere vocală Google online"
+
+#: src/constants.py:134
+msgid "Groq Speech Recognition"
+msgstr "Recunoaștere vocală Groq"
+
+#: src/constants.py:140
+msgid "Wit AI"
+msgstr "Wit AI"
+
+#: src/constants.py:141
+msgid "wit.ai speech recognition free API (language chosen on the website)"
+msgstr "API gratuit wit.ai de recunoaștere vocală (limba aleasă pe site)"
+
+#: src/constants.py:147
+msgid "Vosk API"
+msgstr "API Vosk"
+
+#: src/constants.py:148
+msgid "Works Offline"
+msgstr "Funcționează offline"
+
+#: src/constants.py:154
+msgid "Whisper API"
+msgstr "API Whisper"
+
+#: src/constants.py:155
+msgid "Uses OpenAI Whisper API"
+msgstr "Utilizează API-ul OpenAI Whisper"
+
+#: src/constants.py:161
+msgid "Custom command"
+msgstr "Comandă personalizată"
+
+#: src/constants.py:162
+msgid "Runs a custom command"
+msgstr "Rulează o comandă personalizată"
+
+#: src/constants.py:171
+#, fuzzy
+msgid "Edge TTS"
+msgstr "Google TTS"
+
+#: src/constants.py:172
+msgid "Use Microsoft Edge online TTS without any API Key"
+msgstr ""
+
+#: src/constants.py:177
+msgid "Google TTS"
+msgstr "Google TTS"
+
+#: src/constants.py:178
+msgid "Google's text to speech"
+msgstr "Text-to-speech de la Google"
+
+#: src/constants.py:183
+msgid "Kokoro TTS"
+msgstr "Kokoro TTS"
+
+#: src/constants.py:184
+msgid ""
+"Lightweight and fast open source TTS engine. ~3GB dependencies, 400MB model"
+msgstr "Motor TTS open source ușor și rapid. ~3GB dependențe, model de 400MB"
+
+#: src/constants.py:189
+msgid "ElevenLabs TTS"
+msgstr "ElevenLabs TTS"
+
+#: src/constants.py:190
+msgid "Natural sounding TTS"
+msgstr "TTS cu sunet natural"
+
+#: src/constants.py:195 src/constants.py:196
+msgid "OpenAI TTS"
+msgstr "OpenAI TTS"
+
+#: src/constants.py:201
+msgid "Groq TTS"
+msgstr "Groq TTS"
+
+#: src/constants.py:202
+msgid "Groq TTS API"
+msgstr "API Groq TTS"
+
+#: src/constants.py:207 src/constants.py:208
+msgid "Custom OpenAI TTS"
+msgstr "TTS OpenAI personalizat"
+
+#: src/constants.py:213
+#, fuzzy
+msgid "Voicevox API"
+msgstr "API Vosk"
+
+#: src/constants.py:214
+msgid ""
+"(Selfhostable) JP ONLY. API for voicevox anime-like natural sounding tts"
+msgstr ""
+
+#: src/constants.py:220
+#, fuzzy
+msgid "VITS API"
+msgstr "API Vosk"
+
+#: src/constants.py:221
+msgid "(Selfhostable) VITS simple API. AI based TTS, very good for Japanese"
+msgstr ""
+
+#: src/constants.py:227
+msgid "Espeak TTS"
+msgstr "Espeak TTS"
+
+#: src/constants.py:228
+msgid "Offline TTS"
+msgstr "TTS offline"
+
+#: src/constants.py:234
+#, python-brace-format
+msgid "Use a custom command as TTS, {0} will be replaced with the text"
+msgstr ""
+"Utilizează o comandă personalizată ca TTS, {0} va fi înlocuit cu textul"
+
+#: src/constants.py:242
+msgid "WordLlama"
+msgstr "WordLlama"
+
+#: src/constants.py:243
+msgid ""
+"Light local embedding model based on llama. Works offline, very low "
+"resources usage"
+msgstr ""
+"Model de încorporare local ușor, bazat pe llama. Funcționează offline, "
+"consum foarte redus de resurse"
+
+#: src/constants.py:248
+msgid "Ollama Embedding"
+msgstr "Încorporare Ollama"
+
+#: src/constants.py:249
+msgid ""
+"Use Ollama models for Embedding. Works offline, very low resources usage"
+msgstr ""
+"Utilizează modelele Ollama pentru încorporare. Funcționează offline, consum "
+"foarte redus de resurse"
+
+#: src/constants.py:261
+msgid "Use Google Gemini API to get embeddings"
+msgstr "Utilizează API-ul Google Gemini pentru a obține încorporări"
+
+#: src/constants.py:269
+msgid "User Summary"
+msgstr "Rezumat utilizator"
+
+#: src/constants.py:270
+msgid "Generate a summary of the user's conversation"
+msgstr "Generează un rezumat al conversației utilizatorului"
+
+#: src/constants.py:275
+msgid "Memoripy"
+msgstr "Memoripy"
+
+#: src/constants.py:276
+msgid ""
+"Extract messages from previous conversations using contextual memory "
+"retrivial, memory decay, concept extraction and other advanced techniques. "
+"Does 1 llm call per message."
+msgstr ""
+"Extrage mesaje din conversațiile anterioare utilizând recuperarea memoriei "
+"contextuale, decăderea memoriei, extragerea conceptelor și alte tehnici "
+"avansate. Efectuează 1 apel llm per mesaj."
+
+#: src/constants.py:281
+msgid "User Summary + Memoripy"
+msgstr "Rezumat utilizator + Memoripy"
+
+#: src/constants.py:282
+msgid "Use both technologies for long term memory"
+msgstr "Utilizați ambele tehnologii pentru memorie pe termen lung"
+
+#: src/constants.py:290
+msgid "Document reader"
+msgstr "Cititor de documente"
+
+#: src/constants.py:291
+msgid ""
+"Classic RAG approach - chunk documents and embed them, then compare them to "
+"the query and return the most relevant documents"
+msgstr ""
+"Abordare RAG clasică - fragmentează documentele și le încorporează, apoi le "
+"compară cu interogarea și returnează cele mai relevante documente"
+
+#: src/constants.py:298
+msgid "Live2D"
+msgstr ""
+
+#: src/constants.py:299
+msgid "Cubism Live2D, usually used by VTubers"
+msgstr ""
+
+#: src/constants.py:304
+msgid "LivePNG"
+msgstr ""
+
+#: src/constants.py:305
+msgid "LivePNG model"
+msgstr ""
+
+#: src/constants.py:313
+msgid "Google Translator"
+msgstr ""
+
+#: src/constants.py:314
+msgid "Use Google transate"
+msgstr ""
+
+#: src/constants.py:319
+msgid "Libre Translate"
+msgstr ""
+
+#: src/constants.py:320 src/constants.py:326
+msgid "Open source self hostable translator"
+msgstr ""
+
+#: src/constants.py:325
+msgid "Ligva Translate"
+msgstr ""
+
+#: src/constants.py:331
+#, fuzzy
+msgid "Custom Translator"
+msgstr "Prompt personalizat"
+
+#: src/constants.py:332
+#, fuzzy
+msgid "Use a custom translator"
+msgstr "Utilizează un model personalizat"
+
+#: src/constants.py:340
+msgid "Nyarch Smart Prompt Lite"
+msgstr ""
+
+#: src/constants.py:341
+msgid ""
+"EXPERIMENTAL: Local mini models that helps the llm to provide better "
+"responses"
+msgstr ""
+
+#: src/constants.py:346
+msgid "Nyarch Smart Prompt Medium"
+msgstr ""
+
+#: src/constants.py:347
+msgid ""
+"EXPERIMENTAL: Local medium models that helps the llm to provide better "
+"responses - Medium ~30MB download"
+msgstr ""
+
+#: src/constants.py:355
+msgid "SearXNG"
+msgstr "SearXNG"
+
+#: src/constants.py:356
+msgid "SearXNG - Private and selfhostable search engine"
+msgstr "SearXNG - Motor de căutare privat și auto-găzduit"
+
+#: src/constants.py:361
+msgid "DuckDuckGo"
+msgstr "DuckDuckGo"
+
+#: src/constants.py:362
+msgid "DuckDuckGo search"
+msgstr "Căutare DuckDuckGo"
+
+#: src/constants.py:367
+msgid "Tavily"
+msgstr "Tavily"
+
+#: src/constants.py:368
+msgid "Tavily search"
+msgstr "Căutare Tavily"
+
+#: src/constants.py:512
+msgid "Helpful assistant"
+msgstr "Asistent util"
+
+#: src/constants.py:513
+msgid "General purpose prompt to enhance the LLM answers and give more context"
+msgstr ""
+"Prompt general pentru a îmbunătăți răspunsurile LLM și a oferi mai mult "
+"context"
+
+#: src/constants.py:521
+msgid "Console access"
+msgstr "Acces la consolă"
+
+#: src/constants.py:522
+msgid "Can the program run terminal commands on the computer"
+msgstr "Poate programul rula comenzi terminal pe computer"
+
+#: src/constants.py:529
+msgid "Current directory"
+msgstr "Director curent"
+
+#: src/constants.py:530
+msgid "What is the current directory"
+msgstr "Care este directorul curent"
+
+#: src/constants.py:539
+msgid "Allow the LLM to search on the internet"
+msgstr "Permite LLM-ului să caute pe internet"
+
+#: src/constants.py:547
+msgid "Basic functionality"
+msgstr "Funcționalitate de bază"
+
+#: src/constants.py:548
+msgid "Showing tables and code (*can work without it)"
+msgstr "Afișarea tabelelor și a codului (*poate funcționa și fără)"
+
+#: src/constants.py:556
+msgid "Graphs access"
+msgstr "Acces la grafice"
+
+#: src/constants.py:557
+msgid "Can the program display graphs"
+msgstr "Poate programul afișa grafice"
+
+#: src/constants.py:565
+msgid "Show image"
+msgstr "Arată imaginea"
+
+#: src/constants.py:566
+msgid "Show image in chat"
+msgstr "Arată imaginea în chat"
+
+#: src/constants.py:574
+#, fuzzy
+msgid "Show expressions"
+msgstr "Descarcă extensii"
+
+#: src/constants.py:575
+msgid "Let the avatar show expressions"
+msgstr ""
+
+#: src/constants.py:583
+msgid "Show a personality"
+msgstr ""
+
+#: src/constants.py:584
+#, fuzzy
+msgid "Show a personality in chat"
+msgstr "Arată imaginea în chat"
+
+#: src/constants.py:592
+msgid "Custom Prompt"
+msgstr "Prompt personalizat"
+
+#: src/constants.py:593
+msgid "Add your own custom prompt"
+msgstr "Adăugați propriul prompt personalizat"
+
+#: src/constants.py:646
+msgid "LLM and Secondary LLM settings"
+msgstr "Setări LLM și LLM Secundar"
+
+#: src/constants.py:651
+msgid "Text to Speech settings"
+msgstr "Setări Text-to-Speech"
+
+#: src/constants.py:654
+msgid "STT"
+msgstr "STT"
+
+#: src/constants.py:656
+msgid "Speech to Text settings"
+msgstr "Setări Speech-to-Text"
+
+#: src/constants.py:661
+#, fuzzy
+msgid "Avatar settings"
+msgstr "Setări avansate"
+
+#: src/constants.py:664
+msgid "Embedding"
+msgstr "Încorporare"
+
+#: src/constants.py:666
+msgid "Embedding settings"
+msgstr "Setări de încorporare"
+
+#: src/constants.py:669
+msgid "Memory"
+msgstr "Memorie"
+
+#: src/constants.py:671
+msgid "Memory settings"
+msgstr "Setări memorie"
+
+#: src/constants.py:674
+msgid "Websearch"
+msgstr "Căutare web"
+
+#: src/constants.py:676
+msgid "Websearch settings"
+msgstr "Setări căutare web"
+
+#: src/constants.py:679
+msgid "RAG"
+msgstr "RAG"
+
+#: src/constants.py:681
+msgid "Document analyzer settings"
+msgstr "Setări analizor documente"
+
+#: src/constants.py:686
+msgid "Extensions settings"
+msgstr "Setări extensii"
+
+#: src/constants.py:689
+msgid "Inteface"
+msgstr "Interfață"
+
+#: src/constants.py:691
+msgid "Interface settings, hidden files, reverse order, zoom..."
+msgstr "Setări interfață, fișiere ascunse, ordine inversă, zoom..."
+
+#: src/constants.py:696
+msgid ""
+"General settings, virtualization, offers, memory length, automatically "
+"generate chat name, current folder..."
+msgstr ""
+"Setări generale, virtualizare, oferte, lungime memorie, generare automată "
+"nume chat, folder curent..."
+
+#: src/constants.py:701
+msgid "Prompts settings, custom extra prompt, custom prompts..."
+msgstr ""
+"Setări prompturi, prompt suplimentar personalizat, prompturi personalizate..."
+
 #: src/handlers/stt/googlesr_handler.py:13
-#: src/handlers/stt/groqsr_handler.py:13
 #: src/handlers/stt/openaisr_handler.py:17 src/handlers/stt/witai_handler.py:12
+#: src/handlers/stt/groqsr_handler.py:13 src/handlers/llm/openai_handler.py:75
+#: src/handlers/embeddings/openai_handler.py:35
+#: src/handlers/tts/groq_tts_handler.py:32
+#: src/handlers/llm/claude_handler.py:84
 #: src/handlers/tts/custom_openai_tts.py:18
 #: src/handlers/tts/elevenlabs_handler.py:9
-#: src/handlers/tts/groq_tts_handler.py:32
 #: src/handlers/tts/openai_tts_handler.py:18
 msgid "API Key"
 msgstr "Cheie API"
 
-#: src/handlers/embeddings/openai_handler.py:35
-#: src/handlers/llm/openai_handler.py:72
-msgid "API Key for "
-msgstr "Cheie API pentru "
-
-#: src/handlers/embeddings/openai_handler.py:38
-msgid "API base url, change this to use different APIs"
+#: src/handlers/stt/googlesr_handler.py:14
+msgid "API Key for Google SR, write 'default' to use the default one"
 msgstr ""
-"URL-ul de bază al API-ului, schimbați-l pentru a utiliza API-uri diferite"
+"Cheie API pentru Google SR, scrie 'default' pentru a utiliza cea implicită"
 
-#: src/handlers/embeddings/openai_handler.py:41
-#: src/handlers/llm/openai_handler.py:78
-msgid "Use Custom Model"
-msgstr "Utilizează Model Personalizat"
+#: src/handlers/stt/googlesr_handler.py:21
+#: src/handlers/stt/whispercpp_handler.py:47
+#: src/handlers/stt/openaisr_handler.py:32
+#: src/handlers/stt/groqsr_handler.py:29
+msgid "Language"
+msgstr "Limbă"
 
-#: src/handlers/embeddings/openai_handler.py:44
-#: src/handlers/llm/claude_handler.py:89 src/handlers/llm/claude_handler.py:93
-#: src/handlers/llm/g4f_handler.py:44 src/handlers/llm/gemini_handler.py:97
-#: src/handlers/llm/openai_handler.py:84 src/handlers/stt/whisper_handler.py:15
+#: src/handlers/stt/googlesr_handler.py:22
+msgid "The language of the text to recgnize in IETF"
+msgstr "Limba textului de recunoscut în IETF"
+
+#: src/handlers/stt/custom_handler.py:14
+#, python-brace-format
+msgid "{0} will be replaced with the model fullpath"
+msgstr "{0} va fi înlocuit cu calea completă a modelului"
+
+#: src/ui/widgets/profilerow.py:26
+msgid "Select profile"
+msgstr "Selectează profil"
+
+#: src/ui/widgets/profilerow.py:53
+msgid "Delete Profile"
+msgstr "Șterge Profil"
+
+#: src/ui/thread_editing.py:36
+msgid "No threads are running"
+msgstr "Nu rulează niciun fir de execuție"
+
+#: src/ui/thread_editing.py:42
+msgid "Thread number: "
+msgstr "Numărul firului de execuție: "
+
+#: src/handlers/stt/vosk_handler.py:17
+msgid "Model Path"
+msgstr "Calea modelului"
+
+#: src/handlers/stt/vosk_handler.py:18
+msgid "Absolute path to the VOSK model (unzipped)"
+msgstr "Calea absolută către modelul VOSK (dezarhivat)"
+
 #: src/handlers/stt/whispercpp_handler.py:40
+#: src/handlers/stt/whisper_handler.py:15 src/handlers/llm/openai_handler.py:87
+#: src/handlers/embeddings/openai_handler.py:44
+#: src/handlers/llm/g4f_handler.py:44 src/handlers/tts/groq_tts_handler.py:34
+#: src/handlers/llm/claude_handler.py:89 src/handlers/llm/claude_handler.py:93
 #: src/handlers/tts/custom_openai_tts.py:20
+#: src/handlers/llm/gemini_handler.py:97
 #: src/handlers/tts/elevenlabs_handler.py:24
-#: src/handlers/tts/groq_tts_handler.py:34
 #: src/handlers/tts/openai_tts_handler.py:20
 msgid "Model"
 msgstr "Model"
 
-#: src/handlers/embeddings/openai_handler.py:44
-msgid "Name of the Embedding Model to use"
-msgstr "Numele modelului de încorporare de utilizat"
+#: src/handlers/stt/whispercpp_handler.py:41
+#: src/handlers/stt/whisper_handler.py:16
+msgid "Name of the Whisper model"
+msgstr "Numele modelului Whisper"
 
-#: src/handlers/embeddings/openai_handler.py:51
-#: src/handlers/llm/openai_handler.py:91
-msgid " Model"
+#: src/handlers/stt/whispercpp_handler.py:47
+#, fuzzy
+msgid "Language of the recognition. For example en, it..."
+msgstr "Limba recunoașterii."
+
+#: src/handlers/stt/whispercpp_handler.py:48
+msgid "Model Library"
+msgstr "Bibliotecă de modele"
+
+#: src/handlers/stt/whispercpp_handler.py:48
+msgid "Manage Whisper models"
+msgstr "Gestionează modelele Whisper"
+
+#: src/handlers/stt/whispercpp_handler.py:49
+msgid "Advanced Settings"
+msgstr "Setări avansate"
+
+#: src/handlers/stt/whispercpp_handler.py:49
+msgid "More advanced settings"
+msgstr "Mai multe setări avansate"
+
+#: src/handlers/stt/whispercpp_handler.py:50
+#: src/handlers/llm/openai_handler.py:107
+msgid "Temperature"
+msgstr "Temperatură"
+
+#: src/handlers/stt/whispercpp_handler.py:50
+msgid "Temperature to use"
+msgstr "Temperatura de utilizat"
+
+#: src/handlers/stt/whispercpp_handler.py:51
+msgid "Prompt for the recognition"
+msgstr "Prompt pentru recunoaștere"
+
+#: src/handlers/stt/whispercpp_handler.py:51
+msgid "Prompt to use for the recognition"
+msgstr "Prompt de utilizat pentru recunoaștere"
+
+#: src/handlers/stt/sphinx_handler.py:19
+msgid "Could not understand the audio"
+msgstr "Nu am putut înțelege sunetul"
+
+#: src/handlers/stt/openaisr_handler.py:10
+#: src/handlers/llm/openai_handler.py:78
+#: src/handlers/embeddings/openai_handler.py:38
+#: src/handlers/embeddings/ollama_handler.py:32
+#: src/handlers/llm/ollama_handler.py:150
+msgid "API Endpoint"
+msgstr "Endpoint API"
+
+#: src/handlers/stt/openaisr_handler.py:11
+msgid "Endpoint for OpenAI requests"
+msgstr "Endpoint pentru cererile OpenAI"
+
+#: src/handlers/stt/openaisr_handler.py:18
+msgid "API Key for OpenAI"
+msgstr "Cheie API pentru OpenAI"
+
+#: src/handlers/stt/openaisr_handler.py:25
+msgid "Whisper Model"
+msgstr "Model Whisper"
+
+#: src/handlers/stt/openaisr_handler.py:26
+msgid "Name of the OpenAI model"
+msgstr "Numele modelului OpenAI"
+
+#: src/handlers/stt/openaisr_handler.py:33
+msgid ""
+"Optional: Specify the language for transcription. Use ISO 639-1 language "
+"codes (e.g. \"en\" for English, \"fr\" for French, etc.). "
+msgstr ""
+"Opțional: Specificați limba pentru transcriere. Utilizați codurile de limbă "
+"ISO 639-1 (de exemplu, „en” pentru engleză, „fr” pentru franceză etc.). "
+
+#: src/handlers/stt/witai_handler.py:13
+msgid "Server Access Token for wit.ai"
+msgstr "Token de acces la server pentru wit.ai"
+
+#: src/handlers/stt/groqsr_handler.py:14
+msgid "API Key for Groq SR, write 'default' to use the default one"
+msgstr ""
+"Cheie API pentru Groq SR, scrie 'default' pentru a utiliza cea implicită"
+
+#: src/handlers/stt/groqsr_handler.py:21
+msgid "Groq Model"
+msgstr "Model Groq"
+
+#: src/handlers/stt/groqsr_handler.py:22
+msgid "Name of the Groq Model"
+msgstr "Numele modelului Groq"
+
+#: src/handlers/stt/groqsr_handler.py:30
+msgid ""
+"Specify the language for transcription. Use ISO 639-1 language codes (e.g. "
+"\"en\" for English, \"fr\" for French, etc.). "
+msgstr ""
+"Specificați limba pentru transcriere. Utilizați codurile de limbă ISO 639-1 "
+"(de exemplu, „en” pentru engleză, „fr” pentru franceză etc.). "
+
+#: src/handlers/avatar/livepng_handler.py:23
+#, fuzzy
+msgid "LivePNG Model"
 msgstr " Model"
 
-#: src/handlers/llm/claude_handler.py:84
-#: src/handlers/tts/custom_openai_tts.py:18
-#: src/handlers/tts/groq_tts_handler.py:32
-#: src/handlers/tts/openai_tts_handler.py:18
-msgid "The API key to use"
-msgstr "Cheia API de utilizat"
+#: src/handlers/avatar/livepng_handler.py:24
+#, fuzzy
+msgid "LivePNG Model to use"
+msgstr "Model de utilizat"
 
-#: src/handlers/llm/claude_handler.py:89 src/handlers/llm/claude_handler.py:93
-#: src/handlers/tts/custom_openai_tts.py:20
-#: src/handlers/tts/groq_tts_handler.py:34
-#: src/handlers/tts/openai_tts_handler.py:20
-msgid "The model to use"
-msgstr "Modelul de utilizat"
+#: src/handlers/avatar/livepng_handler.py:34
+#: src/handlers/avatar/live2d_handler.py:70
+msgid "Lipsync Framerate"
+msgstr ""
 
-#: src/handlers/llm/claude_handler.py:96
-msgid "Max Tokens"
-msgstr "Număr maxim de token-uri"
+#: src/handlers/avatar/livepng_handler.py:35
+#: src/handlers/avatar/live2d_handler.py:71
+msgid "Maximum amount of frames to generate for lipsync"
+msgstr ""
 
-#: src/handlers/llm/claude_handler.py:96
-msgid "The maximum number of tokens to generate"
-msgstr "Numărul maxim de token-uri de generat"
+#: src/handlers/avatar/livepng_handler.py:44
+msgid "LivePNG model style"
+msgstr ""
 
-#: src/handlers/llm/custom_handler.py:20
+#: src/handlers/avatar/livepng_handler.py:45
+msgid "Choose the style of the model for the specified one"
+msgstr ""
+
+#: src/handlers/rag/rag_handler.py:104
+msgid "Index your documents"
+msgstr "Indexează-ți documentele"
+
+#: src/handlers/rag/rag_handler.py:105
+msgid ""
+"Index all the documents in your document folder. You have to run this "
+"operation every time you edit/create a document, change document analyzer or "
+"change embedding model"
+msgstr ""
+"Indexează toate documentele din folderul tău de documente. Trebuie să rulezi "
+"această operațiune de fiecare dată când editezi/creezi un document, schimbi "
+"analizatorul de documente sau schimbi modelul de încorporare"
+
+#: src/handlers/avatar/live2d_handler.py:59
+#, fuzzy
+msgid "Live2D Model"
+msgstr " Model"
+
+#: src/handlers/avatar/live2d_handler.py:60
+#, fuzzy
+msgid "Live2D Model to use"
+msgstr "Model de utilizat"
+
+#: src/handlers/avatar/live2d_handler.py:80
+msgid "Background Color"
+msgstr ""
+
+#: src/handlers/avatar/live2d_handler.py:81
+msgid "Background color of the avatar"
+msgstr ""
+
+#: src/handlers/avatar/live2d_handler.py:87
+#, fuzzy
+msgid "Zoom Model"
+msgstr " Model"
+
+#: src/handlers/avatar/live2d_handler.py:88
+#, fuzzy
+msgid "Zoom the Live2D model"
+msgstr "Numele modelului Whisper"
+
+#: src/utility/util.py:136 src/handlers/llm/newelle_handler.py:27
+#: src/handlers/llm/gemini_handler.py:119 src/handlers/llm/custom_handler.py:20
 #: src/handlers/llm/gpt4all_handler.py:153
-#: src/handlers/llm/newelle_handler.py:27
-#: src/handlers/llm/gemini_handler.py:119 src/utility/util.py:136
 msgid "Message Streaming"
 msgstr "Streaming mesaje"
 
-#: src/handlers/llm/custom_handler.py:20
+#: src/utility/util.py:137 src/handlers/llm/newelle_handler.py:28
+#: src/handlers/llm/gemini_handler.py:120 src/handlers/llm/custom_handler.py:20
 #: src/handlers/llm/gpt4all_handler.py:153
-#: src/handlers/llm/newelle_handler.py:28
-#: src/handlers/llm/gemini_handler.py:120 src/utility/util.py:137
 msgid "Gradually stream message output"
 msgstr "Transmite gradual ieșirea mesajelor"
-
-#: src/handlers/llm/custom_handler.py:21
-msgid "Command to execute to get bot output"
-msgstr "Comandă de executat pentru a obține ieșirea botului"
-
-#: src/handlers/llm/custom_handler.py:21
-#, python-brace-format
-msgid ""
-"Command to execute to get bot response, {0} will be replaced with a JSON "
-"file containing the chat, {1} with the system prompt"
-msgstr ""
-"Comanda de executat pentru a obține răspunsul botului, {0} va fi înlocuit cu "
-"un fișier JSON conținând conversația, {1} cu promptul de sistem"
-
-#: src/handlers/llm/custom_handler.py:22
-msgid "Command to execute to get bot's suggestions"
-msgstr "Comandă de executat pentru a obține sugestiile botului"
-
-#: src/handlers/llm/custom_handler.py:22
-#, python-brace-format
-msgid ""
-"Command to execute to get chat suggestions, {0} will be replaced with a JSON "
-"file containing the chat, {1} with the extra prompts, {2} with the numer of "
-"suggestions to generate. Must return a JSON array containing the suggestions "
-"as strings"
-msgstr ""
-"Comandă de executat pentru a obține sugestii de chat, {0} va fi înlocuit cu "
-"un fișier JSON conținând conversația, {1} cu prompturile suplimentare, {2} "
-"cu numărul de sugestii de generat. Trebuie să returneze un array JSON "
-"conținând sugestiile ca șiruri de caractere"
-
-#: src/handlers/llm/gpt4all_handler.py:67
-msgid "RAM Required: "
-msgstr "RAM necesară: "
-
-#: src/handlers/llm/gpt4all_handler.py:68
-msgid "Parameters: "
-msgstr "Parametri: "
-
-#: src/handlers/llm/gpt4all_handler.py:69
-msgid "Size: "
-msgstr "Dimensiune: "
-
-#: src/handlers/llm/gpt4all_handler.py:154 src/handlers/llm/g4f_handler.py:44
-msgid "Model to use"
-msgstr "Model de utilizat"
-
-#: src/handlers/llm/gpt4all_handler.py:154
-#: src/handlers/tts/elevenlabs_handler.py:25
-msgid "Name of the model to use"
-msgstr "Numele modelului de utilizat"
-
-#: src/handlers/llm/gpt4all_handler.py:155
-#: src/handlers/llm/ollama_handler.py:172
-msgid "Model Manager"
-msgstr "Manager de modele"
-
-#: src/handlers/llm/gpt4all_handler.py:155
-#: src/handlers/llm/ollama_handler.py:172
-msgid "List of models available"
-msgstr "Listă de modele disponibile"
-
-#: src/handlers/llm/g4f_handler.py:45
-msgid "Update G4F"
-msgstr "Actualizează G4F"
-
-#: src/handlers/llm/newelle_handler.py:18
-#: src/handlers/llm/gemini_handler.py:131
-#: src/handlers/llm/openai_handler.py:111
-msgid "Privacy Policy"
-msgstr "Politica de confidențialitate"
-
-#: src/handlers/llm/newelle_handler.py:19
-#: src/handlers/llm/gemini_handler.py:132
-#: src/handlers/llm/openai_handler.py:111
-msgid "Open privacy policy website"
-msgstr "Deschide site-ul cu politica de confidențialitate"
-
-#: src/handlers/llm/ollama_handler.py:152
-#: src/handlers/llm/gemini_handler.py:110
-msgid "Enable Thinking"
-msgstr "Activează Gândirea"
-
-#: src/handlers/llm/ollama_handler.py:152
-msgid "Allow thinking in the model, only some models are supported"
-msgstr "Permite gândirea în model, doar unele modele sunt suportate"
-
-#: src/handlers/llm/ollama_handler.py:176
-msgid "Add custom model"
-msgstr "Adaugă model personalizat"
-
-#: src/handlers/llm/ollama_handler.py:177
-msgid ""
-"Add any model to this list by putting name:size\n"
-"Or any gguf from hf with hf.co/username/model"
-msgstr ""
-"Adaugă orice model în această listă, scriind nume:dimensiune\n"
-"Sau orice gguf de la hf cu hf.co/username/model"
-
-#: src/handlers/llm/ollama_handler.py:187
-msgid "Update Ollama"
-msgstr "Actualizează Ollama"
 
 #: src/handlers/llm/openrouter_handler.py:14
 msgid "Provider Sorting"
@@ -291,120 +2133,77 @@ msgstr "Permite reveniri"
 msgid "Allow fallbacks to other providers"
 msgstr "Permite reveniri la alți furnizori"
 
-#: src/handlers/llm/gemini_handler.py:94
-msgid "API Key (required)"
-msgstr "Cheie API (obligatoriu)"
+#: src/handlers/websearch/duckduckgo_handler.py:14
+#: src/handlers/websearch/tavily.py:21
+msgid "Max Results"
+msgstr "Rezultate maxime"
 
-#: src/handlers/llm/gemini_handler.py:94
-msgid "API key got from ai.google.dev"
-msgstr "Cheie API obținută de la ai.google.dev"
+#: src/handlers/websearch/duckduckgo_handler.py:14
+#: src/handlers/websearch/tavily.py:21
+msgid "Number of results to consider"
+msgstr "Număr de rezultate de luat în considerare"
 
-#: src/handlers/llm/gemini_handler.py:98
-msgid "AI Model to use"
-msgstr "Model AI de utilizat"
+#: src/handlers/websearch/duckduckgo_handler.py:15
+msgid "Region"
+msgstr "Regiune"
 
-#: src/handlers/llm/gemini_handler.py:103
-msgid "Enable System Prompt"
-msgstr "Activează promptul de sistem"
+#: src/handlers/websearch/duckduckgo_handler.py:15
+msgid "Region for the search results"
+msgstr "Regiune pentru rezultatele căutării"
 
-#: src/handlers/llm/gemini_handler.py:103
-msgid ""
-"Some models don't support system prompt (or developers instructions), "
-"disable it if you get errors about it"
+#: src/handlers/llm/openai_handler.py:75
+#: src/handlers/embeddings/openai_handler.py:35
+msgid "API Key for "
+msgstr "Cheie API pentru "
+
+#: src/handlers/llm/openai_handler.py:78
+#: src/handlers/embeddings/ollama_handler.py:32
+#: src/handlers/llm/ollama_handler.py:150
+msgid "API base url, change this to use interference APIs"
 msgstr ""
-"Unele modele nu suportă promptul de sistem (sau instrucțiunile "
-"dezvoltatorilor), dezactivați-l dacă primiți erori legate de acesta"
+"URL de bază al API-ului, schimbați-l pentru a utiliza API-urile de "
+"interferență"
 
-#: src/handlers/llm/gemini_handler.py:107
-msgid "Inject system prompt"
-msgstr "Injectează promptul de sistem"
+#: src/handlers/llm/openai_handler.py:81
+#: src/handlers/embeddings/openai_handler.py:41
+msgid "Use Custom Model"
+msgstr "Utilizează Model Personalizat"
 
-#: src/handlers/llm/gemini_handler.py:107
-msgid ""
-"Even if the model doesn't support system prompts, put the prompts on top of "
-"the user message"
-msgstr ""
-"Chiar dacă modelul nu suportă prompturile de sistem, plasează prompturile "
-"înaintea mesajului utilizatorului"
+#: src/handlers/llm/openai_handler.py:81
+#: src/handlers/embeddings/openai_handler.py:41
+#: src/handlers/embeddings/ollama_handler.py:34
+#: src/handlers/llm/claude_handler.py:85 src/handlers/llm/ollama_handler.py:153
+msgid "Use a custom model"
+msgstr "Utilizează un model personalizat"
 
-#: src/handlers/llm/gemini_handler.py:109
-msgid "Thinking Settings"
-msgstr "Setări de Gândire"
-
-#: src/handlers/llm/gemini_handler.py:109
-msgid "Settings about thinking models"
-msgstr "Setări despre modelele de gândire"
-
-#: src/handlers/llm/gemini_handler.py:110
-msgid "Show thinking, disable it if your model does not support it"
-msgstr "Arată gândirea, dezactivează dacă modelul tău nu o suportă"
-
-#: src/handlers/llm/gemini_handler.py:111
-msgid "Enable Thinking Budget"
-msgstr "Activează bugetul de gândire"
-
-#: src/handlers/llm/gemini_handler.py:111
-msgid "If to enable thinking budget"
-msgstr "Dacă să activezi bugetul de gândire"
-
-#: src/handlers/llm/gemini_handler.py:112
-msgid "Thinking Budget"
-msgstr "Buget de Gândire"
-
-#: src/handlers/llm/gemini_handler.py:112
-msgid "How much time to spend thinking"
-msgstr "Cât timp să petreci gândind"
-
-#: src/handlers/llm/gemini_handler.py:116
-msgid "Image Output"
-msgstr "Ieșire Imagine"
-
-#: src/handlers/llm/gemini_handler.py:116
-msgid "Enable image output, only supported by gemini-2.0-flash-exp"
-msgstr "Activează ieșirea de imagine, suportată doar de gemini-2.0-flash-exp"
-
-#: src/handlers/llm/gemini_handler.py:125
-msgid "Enable safety settings"
-msgstr "Activează setările de siguranță"
-
-#: src/handlers/llm/gemini_handler.py:126
-msgid "Enable google safety settings to avoid generating harmful content"
-msgstr ""
-"Activează setările de siguranță Google pentru a evita generarea de conținut "
-"dăunător"
-
-#: src/handlers/llm/gemini_handler.py:135 src/handlers/llm/openai_handler.py:81
+#: src/handlers/llm/openai_handler.py:84 src/handlers/llm/gemini_handler.py:135
 msgid "Advanced Parameters"
 msgstr "Parametri avansați"
 
-#: src/handlers/llm/gemini_handler.py:135
-msgid "Enable advanced parameters"
-msgstr "Activează parametrii avansați"
-
-#: src/handlers/llm/openai_handler.py:81
+#: src/handlers/llm/openai_handler.py:84
 #, fuzzy
 msgid "Include parameters like Top-P, Temperature, etc."
 msgstr "Includeți parametri precum Max Tokens, Top-P, Temperatură, etc."
 
-#: src/handlers/llm/openai_handler.py:84
+#: src/handlers/llm/openai_handler.py:87
 msgid "Name of the LLM Model to use"
 msgstr "Numele modelului LLM de utilizat"
 
-#: src/handlers/llm/openai_handler.py:103
+#: src/handlers/llm/openai_handler.py:94
+#: src/handlers/embeddings/openai_handler.py:51
+msgid " Model"
+msgstr " Model"
+
+#: src/handlers/llm/openai_handler.py:106
 msgid "Top-P"
 msgstr "Top-P"
 
-#: src/handlers/llm/openai_handler.py:103
+#: src/handlers/llm/openai_handler.py:106
 msgid "An alternative to sampling with temperature, called nucleus sampling"
 msgstr ""
 "O alternativă la eșantionarea cu temperatură, numită eșantionare nucleu"
 
-#: src/handlers/llm/openai_handler.py:104
-#: src/handlers/stt/whispercpp_handler.py:50
-msgid "Temperature"
-msgstr "Temperatură"
-
-#: src/handlers/llm/openai_handler.py:104
+#: src/handlers/llm/openai_handler.py:107
 msgid ""
 "What sampling temperature to use. Higher values will make the output more "
 "random"
@@ -412,11 +2211,11 @@ msgstr ""
 "Ce temperatură de eșantionare să se utilizeze. Valori mai mari vor face "
 "ieșirea mai aleatorie"
 
-#: src/handlers/llm/openai_handler.py:105
+#: src/handlers/llm/openai_handler.py:108
 msgid "Frequency Penalty"
 msgstr "Penalizare Frecvență"
 
-#: src/handlers/llm/openai_handler.py:105
+#: src/handlers/llm/openai_handler.py:108
 msgid ""
 "Number between -2.0 and 2.0. Positive values decrease the model's likelihood "
 "to repeat the same line verbatim"
@@ -424,11 +2223,11 @@ msgstr ""
 "Număr între -2.0 și 2.0. Valorile pozitive scad probabilitatea ca modelul să "
 "repete aceeași linie cuvânt cu cuvânt"
 
-#: src/handlers/llm/openai_handler.py:106
+#: src/handlers/llm/openai_handler.py:109
 msgid "Presence Penalty"
 msgstr "Penalizare Prezență"
 
-#: src/handlers/llm/openai_handler.py:106
+#: src/handlers/llm/openai_handler.py:109
 msgid ""
 "Number between -2.0 and 2.0. Positive values decrease the model's likelihood "
 "to talk about new topics"
@@ -436,220 +2235,17 @@ msgstr ""
 "Număr între -2.0 și 2.0. Valorile pozitive scad probabilitatea ca modelul să "
 "discute despre subiecte noi"
 
-#: src/handlers/rag/rag_handler.py:104
-msgid "Index your documents"
-msgstr "Indexează-ți documentele"
+#: src/handlers/llm/openai_handler.py:114
+#: src/handlers/llm/newelle_handler.py:18
+#: src/handlers/llm/gemini_handler.py:131
+msgid "Privacy Policy"
+msgstr "Politica de confidențialitate"
 
-#: src/handlers/rag/rag_handler.py:105
-msgid ""
-"Index all the documents in your document folder. You have to run this "
-"operation every time you edit/create a document, change document analyzer or "
-"change embedding model"
-msgstr ""
-"Indexează toate documentele din folderul tău de documente. Trebuie să rulezi "
-"această operațiune de fiecare dată când editezi/creezi un document, schimbi "
-"analizatorul de documente sau schimbi modelul de încorporare"
-
-#: src/handlers/stt/custom_handler.py:13 src/handlers/tts/custom_handler.py:17
-msgid "Command to execute"
-msgstr "Comandă de executat"
-
-#: src/handlers/stt/custom_handler.py:14
-#, python-brace-format
-msgid "{0} will be replaced with the model fullpath"
-msgstr "{0} va fi înlocuit cu calea completă a modelului"
-
-#: src/handlers/stt/googlesr_handler.py:14
-msgid "API Key for Google SR, write 'default' to use the default one"
-msgstr ""
-"Cheie API pentru Google SR, scrie 'default' pentru a utiliza cea implicită"
-
-#: src/handlers/stt/googlesr_handler.py:21
-#: src/handlers/stt/groqsr_handler.py:29
-#: src/handlers/stt/openaisr_handler.py:32
-#: src/handlers/stt/whispercpp_handler.py:47
-msgid "Language"
-msgstr "Limbă"
-
-#: src/handlers/stt/googlesr_handler.py:22
-msgid "The language of the text to recgnize in IETF"
-msgstr "Limba textului de recunoscut în IETF"
-
-#: src/handlers/stt/groqsr_handler.py:14
-msgid "API Key for Groq SR, write 'default' to use the default one"
-msgstr ""
-"Cheie API pentru Groq SR, scrie 'default' pentru a utiliza cea implicită"
-
-#: src/handlers/stt/groqsr_handler.py:21
-msgid "Groq Model"
-msgstr "Model Groq"
-
-#: src/handlers/stt/groqsr_handler.py:22
-msgid "Name of the Groq Model"
-msgstr "Numele modelului Groq"
-
-#: src/handlers/stt/groqsr_handler.py:30
-msgid ""
-"Specify the language for transcription. Use ISO 639-1 language codes (e.g. "
-"\"en\" for English, \"fr\" for French, etc.). "
-msgstr ""
-"Specificați limba pentru transcriere. Utilizați codurile de limbă ISO 639-1 "
-"(de exemplu, „en” pentru engleză, „fr” pentru franceză etc.). "
-
-#: src/handlers/stt/openaisr_handler.py:11
-msgid "Endpoint for OpenAI requests"
-msgstr "Endpoint pentru cererile OpenAI"
-
-#: src/handlers/stt/openaisr_handler.py:18
-msgid "API Key for OpenAI"
-msgstr "Cheie API pentru OpenAI"
-
-#: src/handlers/stt/openaisr_handler.py:25
-msgid "Whisper Model"
-msgstr "Model Whisper"
-
-#: src/handlers/stt/openaisr_handler.py:26
-msgid "Name of the OpenAI model"
-msgstr "Numele modelului OpenAI"
-
-#: src/handlers/stt/openaisr_handler.py:33
-msgid ""
-"Optional: Specify the language for transcription. Use ISO 639-1 language "
-"codes (e.g. \"en\" for English, \"fr\" for French, etc.). "
-msgstr ""
-"Opțional: Specificați limba pentru transcriere. Utilizați codurile de limbă "
-"ISO 639-1 (de exemplu, „en” pentru engleză, „fr” pentru franceză etc.). "
-
-#: src/handlers/stt/vosk_handler.py:17
-msgid "Model Path"
-msgstr "Calea modelului"
-
-#: src/handlers/stt/vosk_handler.py:18
-msgid "Absolute path to the VOSK model (unzipped)"
-msgstr "Calea absolută către modelul VOSK (dezarhivat)"
-
-#: src/handlers/stt/whisper_handler.py:16
-#: src/handlers/stt/whispercpp_handler.py:41
-msgid "Name of the Whisper model"
-msgstr "Numele modelului Whisper"
-
-#: src/handlers/stt/witai_handler.py:13
-msgid "Server Access Token for wit.ai"
-msgstr "Token de acces la server pentru wit.ai"
-
-#: src/handlers/stt/sphinx_handler.py:19
-msgid "Could not understand the audio"
-msgstr "Nu am putut înțelege sunetul"
-
-#: src/handlers/stt/whispercpp_handler.py:47
-#, fuzzy
-msgid "Language of the recognition. For example en, it..."
-msgstr "Limba recunoașterii."
-
-#: src/handlers/stt/whispercpp_handler.py:48
-msgid "Model Library"
-msgstr "Bibliotecă de modele"
-
-#: src/handlers/stt/whispercpp_handler.py:48
-msgid "Manage Whisper models"
-msgstr "Gestionează modelele Whisper"
-
-#: src/handlers/stt/whispercpp_handler.py:49
-msgid "Advanced Settings"
-msgstr "Setări avansate"
-
-#: src/handlers/stt/whispercpp_handler.py:49
-msgid "More advanced settings"
-msgstr "Mai multe setări avansate"
-
-#: src/handlers/stt/whispercpp_handler.py:50
-msgid "Temperature to use"
-msgstr "Temperatura de utilizat"
-
-#: src/handlers/stt/whispercpp_handler.py:51
-msgid "Prompt for the recognition"
-msgstr "Prompt pentru recunoaștere"
-
-#: src/handlers/stt/whispercpp_handler.py:51
-msgid "Prompt to use for the recognition"
-msgstr "Prompt de utilizat pentru recunoaștere"
-
-#: src/handlers/tts/custom_openai_tts.py:17
-msgid "Endpoint"
-msgstr "Endpoint"
-
-#: src/handlers/tts/custom_openai_tts.py:17
-msgid "Custom endpoint of the service to use"
-msgstr "Endpoint personalizat al serviciului de utilizat"
-
-#: src/handlers/tts/custom_openai_tts.py:19
-#: src/handlers/tts/elevenlabs_handler.py:17
-#: src/handlers/tts/groq_tts_handler.py:33
-#: src/handlers/tts/openai_tts_handler.py:19 src/handlers/tts/tts.py:33
-#: src/ui/settings.py:128
-msgid "Voice"
-msgstr "Voce"
-
-#: src/handlers/tts/custom_openai_tts.py:19
-#: src/handlers/tts/groq_tts_handler.py:33
-#: src/handlers/tts/openai_tts_handler.py:19
-msgid "The voice to use"
-msgstr "Vocea de utilizat"
-
-#: src/handlers/tts/custom_openai_tts.py:21
-#: src/handlers/tts/openai_tts_handler.py:21
-msgid "Instructions"
-msgstr "Instrucțiuni"
-
-#: src/handlers/tts/custom_openai_tts.py:21
-#: src/handlers/tts/openai_tts_handler.py:21
-msgid ""
-"Instructions for the voice generation. Leave it blank to avoid this field"
-msgstr ""
-"Instrucțiuni pentru generarea vocii. Lăsați-l gol pentru a evita acest câmp"
-
-#: src/handlers/tts/elevenlabs_handler.py:10
-msgid "API Key for ElevenLabs"
-msgstr "Cheie API pentru ElevenLabs"
-
-#: src/handlers/tts/elevenlabs_handler.py:18
-msgid "Voice ID to use"
-msgstr "ID voce de utilizat"
-
-#: src/handlers/tts/elevenlabs_handler.py:32
-msgid "Stability"
-msgstr "Stabilitate"
-
-#: src/handlers/tts/elevenlabs_handler.py:33
-msgid "stability of the voice"
-msgstr "Stabilitatea vocii"
-
-#: src/handlers/tts/elevenlabs_handler.py:42
-msgid "Similarity boost"
-msgstr "Amplificare similaritate"
-
-#: src/handlers/tts/elevenlabs_handler.py:43
-msgid "Boosts overall voice clarity and speaker similarity"
-msgstr "Amplifică claritatea generală a vocii și similaritatea vorbitorului"
-
-#: src/handlers/tts/elevenlabs_handler.py:52
-msgid "Style exaggeration"
-msgstr "Exagerare stil"
-
-#: src/handlers/tts/elevenlabs_handler.py:53
-msgid ""
-"High values are reccomended if the style of the speech must be exaggerated"
-msgstr ""
-"Valori ridicate sunt recomandate dacă stilul vorbirii trebuie să fie exagerat"
-
-#: src/handlers/tts/custom_handler.py:17
-#, python-brace-format
-msgid "{0} will be replaced with the file fullpath, {1} with the text"
-msgstr "{0} va fi înlocuit cu calea completă a fișierului, {1} cu textul"
-
-#: src/handlers/tts/tts.py:34
-msgid "Choose the preferred voice"
-msgstr "Alegeți vocea preferată"
+#: src/handlers/llm/openai_handler.py:114
+#: src/handlers/llm/newelle_handler.py:19
+#: src/handlers/llm/gemini_handler.py:132
+msgid "Open privacy policy website"
+msgstr "Deschide site-ul cu politica de confidențialitate"
 
 #: src/handlers/websearch/tavily.py:20
 msgid "Token"
@@ -658,16 +2254,6 @@ msgstr "Token"
 #: src/handlers/websearch/tavily.py:20
 msgid "Tavily API key"
 msgstr "Cheia API Tavily"
-
-#: src/handlers/websearch/tavily.py:21
-#: src/handlers/websearch/duckduckgo_handler.py:14
-msgid "Max Results"
-msgstr "Rezultate maxime"
-
-#: src/handlers/websearch/tavily.py:21
-#: src/handlers/websearch/duckduckgo_handler.py:14
-msgid "Number of results to consider"
-msgstr "Număr de rezultate de luat în considerare"
 
 #: src/handlers/websearch/tavily.py:22
 msgid "The depth of the search"
@@ -781,1761 +2367,442 @@ msgstr "Exclude domenii"
 msgid "A list of domains to specifically exclude from the search results."
 msgstr "O listă de domenii de exclus în mod specific din rezultatele căutării."
 
-#: src/handlers/websearch/duckduckgo_handler.py:15
-msgid "Region"
-msgstr "Regiune"
-
-#: src/handlers/websearch/duckduckgo_handler.py:15
-msgid "Region for the search results"
-msgstr "Regiune pentru rezultatele căutării"
-
-#: src/ui/profile.py:33 src/window.py:119
-msgid "Settings"
-msgstr "Setări"
-
-#: src/ui/profile.py:53
-msgid "Profile Name"
-msgstr "Nume Profil"
-
-#: src/ui/profile.py:58
-msgid "Copied Settings"
-msgstr "Setări Copiate"
-
-#: src/ui/profile.py:58
-msgid "Settings that will be copied to the new profile"
-msgstr "Setări care vor fi copiate în noul profil"
-
-#: src/ui/profile.py:70
-msgid "Create Profile"
-msgstr "Creează Profil"
-
-#: src/ui/profile.py:72 src/ui/profile.py:74 src/ui/profile.py:129
-msgid "Import Profile"
-msgstr "Importă Profil"
-
-#: src/ui/profile.py:79 src/ui/widgets/profilerow.py:43
-msgid "Edit Profile"
-msgstr "Editează Profil"
-
-#: src/ui/profile.py:84 src/ui/profile.py:99 src/ui/profile.py:123
-msgid "Export Profile"
-msgstr "Exportă Profil"
-
-#: src/ui/profile.py:87
-msgid "Export Passwords"
-msgstr "Exportă Parole"
-
-#: src/ui/profile.py:87
-msgid "Also export password-like fields"
-msgstr "Exportă și câmpurile de tip parolă"
-
-#: src/ui/profile.py:89
-msgid "Export Propic"
-msgstr "Exportă imaginea de profil"
-
-#: src/ui/profile.py:89
-msgid "Also export the profile picture"
-msgstr "Exportă și imaginea de profil"
-
-#: src/ui/profile.py:109 src/ui/explorer.py:692
-msgid "Create"
-msgstr "Creează"
-
-#: src/ui/profile.py:109
-msgid "Apply"
-msgstr "Aplică"
-
-#: src/ui/profile.py:116
-msgid "The settings of the current profile will be copied into the new one"
-msgstr "Setările profilului curent vor fi copiate în cel nou"
-
-#: src/ui/profile.py:122 src/ui/profile.py:128
-msgid "Newelle Profiles"
-msgstr "Profiluri Newelle"
-
-#: src/ui/profile.py:123
-msgid "Export"
-msgstr "Exportă"
-
-#: src/ui/profile.py:129
-msgid "Import"
-msgstr "Importă"
-
-#: src/ui/profile.py:197
-msgid "Set profile picture"
-msgstr "Setează imaginea de profil"
-
-#: src/ui/thread_editing.py:6 src/window.py:117
-msgid "Thread editing"
-msgstr "Editare fir de execuție"
-
-#: src/ui/thread_editing.py:36
-msgid "No threads are running"
-msgstr "Nu rulează niciun fir de execuție"
-
-#: src/ui/thread_editing.py:42
-msgid "Thread number: "
-msgstr "Numărul firului de execuție: "
-
-#: src/ui/widgets/profilerow.py:26
-msgid "Select profile"
-msgstr "Selectează profil"
-
-#: src/ui/widgets/profilerow.py:53
-msgid "Delete Profile"
-msgstr "Șterge Profil"
-
-#: src/ui/widgets/tipscarousel.py:41
-msgid "Newelle Tips"
-msgstr "Sfaturi Newelle"
-
-#: src/ui/widgets/thinking.py:26
-msgid "Thoughts"
-msgstr "Gânduri"
-
-#: src/ui/widgets/thinking.py:27 src/ui/widgets/thinking.py:134
-msgid "Expand to see details"
-msgstr "Extinde pentru a vedea detalii"
-
-#: src/ui/widgets/thinking.py:122
-msgid "Thinking..."
-msgstr "Gândind..."
-
-#: src/ui/widgets/thinking.py:123
-msgid "The LLM is thinking... Expand to see thought process"
-msgstr "LLM-ul gândește... Extinde pentru a vedea procesul de gândire"
-
-#: src/ui/widgets/thinking.py:136
-msgid "No thought process recorded"
-msgstr "Nu a fost înregistrat niciun proces de gândire"
-
-#: src/ui/explorer.py:192
-msgid "Folder is Empty"
-msgstr "Folderul este gol"
-
-#: src/ui/explorer.py:340 src/window.py:1576
-msgid "File not found"
-msgstr "Fișier negăsit"
-
-#: src/ui/explorer.py:355
-msgid "Open in new tab"
-msgstr "Deschide într-o filă nouă"
-
-#: src/ui/explorer.py:357
-msgid "Open in integrated editor"
-msgstr "Deschide în editorul integrat"
-
-#: src/ui/explorer.py:360 src/ui/explorer.py:589
-msgid "Open in file manager"
-msgstr "Deschide în managerul de fișiere"
-
-#: src/ui/explorer.py:363 src/ui/explorer.py:451
-msgid "Rename"
-msgstr "Redenumire"
-
-#: src/ui/explorer.py:366 src/ui/explorer.py:502 src/ui/settings.py:275
-#: src/ui/settings.py:346
-msgid "Delete"
-msgstr "Șterge"
-
-#: src/ui/explorer.py:369
-msgid "Copy full path"
-msgstr "Copiază calea completă"
-
-#: src/ui/explorer.py:420 src/ui/explorer.py:657
-msgid "Failed to open file manager"
-msgstr "Nu s-a putut deschide managerul de fișiere"
-
-#: src/ui/explorer.py:436
-msgid "New name:"
-msgstr "Nume nou:"
-
-#: src/ui/explorer.py:448 src/ui/explorer.py:501 src/ui/explorer.py:689
-#: src/main.py:209
-msgid "Cancel"
-msgstr "Anulează"
-
-#: src/ui/explorer.py:471
-msgid "Renamed successfully"
-msgstr "Redenumit cu succes"
-
-#: src/ui/explorer.py:476
-msgid "Failed to rename: {}"
-msgstr "Nu s-a putut redenumi: {}"
-
-#: src/ui/explorer.py:497
-msgid "Delete File?"
-msgstr "Șterge fișierul?"
-
-#: src/ui/explorer.py:499
-msgid "Are you sure you want to delete \"{}\"?"
-msgstr "Sigur doriți să ștergeți „{}”?"
-
-#: src/ui/explorer.py:520
-msgid "Deleted successfully"
-msgstr "Șters cu succes"
-
-#: src/ui/explorer.py:525
-msgid "Failed to delete: {}"
-msgstr "Nu s-a putut șterge: {}"
-
-#: src/ui/explorer.py:538
-msgid "Path copied to clipboard"
-msgstr "Calea copiată în clipboard"
-
-#: src/ui/explorer.py:542
-msgid "Failed to copy path"
-msgstr "Nu s-a putut copia calea"
-
-#: src/ui/explorer.py:580
-msgid "Create new folder"
-msgstr "Creează un folder nou"
-
-#: src/ui/explorer.py:583
-msgid "Create new file"
-msgstr "Creează un fișier nou"
-
-#: src/ui/explorer.py:586
-msgid "Open Terminal Here"
-msgstr "Deschide terminalul aici"
-
-#: src/ui/explorer.py:640
-msgid "Create New Folder"
-msgstr "Creează folder nou"
-
-#: src/ui/explorer.py:640
-msgid "Folder name:"
-msgstr "Nume folder:"
-
-#: src/ui/explorer.py:644
-msgid "Create New File"
-msgstr "Creează fișier nou"
-
-#: src/ui/explorer.py:644
-msgid "File name:"
-msgstr "Nume fișier:"
-
-#: src/ui/explorer.py:713
-msgid "Folder created successfully"
-msgstr "Folder creat cu succes"
-
-#: src/ui/explorer.py:720
-msgid "File created successfully"
-msgstr "Fișier creat cu succes"
-
-#: src/ui/explorer.py:725
-msgid "A file or folder with that name already exists"
-msgstr "Un fișier sau folder cu acest nume există deja"
-
-#: src/ui/explorer.py:728
-msgid "folder"
-msgstr "folder"
-
-#: src/ui/explorer.py:728
-msgid "file"
-msgstr "fișier"
-
-#: src/ui/explorer.py:730
-msgid "Failed to create {}: {}"
-msgstr "Nu s-a putut crea {}: {}"
-
-#: src/ui/shortcuts.py:6
-msgid "Help"
-msgstr "Ajutor"
-
-#: src/ui/shortcuts.py:12
-msgid "Shortcuts"
-msgstr "Scurtături"
-
-#: src/ui/shortcuts.py:13
-msgid "Reload chat"
-msgstr "Reîncarcă chatul"
-
-#: src/ui/shortcuts.py:14
-msgid "Reload folder"
-msgstr "Reîncarcă folderul"
-
-#: src/ui/shortcuts.py:15
-msgid "New tab"
-msgstr "Filă nouă"
-
-#: src/ui/shortcuts.py:16
-msgid "Paste Image"
-msgstr "Lipește Imagine"
-
-#: src/ui/shortcuts.py:17
-msgid "Focus message box"
-msgstr "Focusează caseta de mesaj"
-
-#: src/ui/shortcuts.py:18
-msgid "Start/stop recording"
-msgstr "Pornire/oprire înregistrare"
-
-#: src/ui/shortcuts.py:19
-msgid "Save"
-msgstr "Salvează"
-
-#: src/ui/shortcuts.py:20
-msgid "Stop TTS"
-msgstr "Oprește TTS"
-
-#: src/ui/shortcuts.py:21
-msgid "Zoom in"
-msgstr "Mărește"
-
-#: src/ui/shortcuts.py:22
-msgid "Zoom out"
-msgstr "Micșorează"
-
-#: src/ui/extension.py:17 src/ui/presentation.py:131 src/constants.py:513
-#: src/window.py:118
-msgid "Extensions"
-msgstr "Extensii"
-
-#: src/ui/extension.py:50
-msgid "Installed Extensions"
-msgstr "Extensii instalate"
-
-#: src/ui/extension.py:85
-msgid "User guide to Extensions"
-msgstr "Ghid de utilizare a extensiilor"
-
-#: src/ui/extension.py:88
-msgid "Download new Extensions"
-msgstr "Descarcă extensii noi"
-
-#: src/ui/extension.py:91
-msgid "Install extension from file..."
-msgstr "Instalează extensia din fișier..."
-
-#: src/ui/mini_window.py:9 data/io.github.qwersyk.Newelle.appdata.xml.in:7
-#: data/io.github.qwersyk.Newelle.desktop.in:2
-msgid "Newelle"
-msgstr "Newelle"
-
-#: src/ui/mini_window.py:20
-msgid "Chat is opened in mini window"
-msgstr "Chatul este deschis în fereastra mini"
-
-#: src/ui/presentation.py:93
-msgid "Welcome to Newelle"
-msgstr "Bun venit la Newelle"
-
-#: src/ui/presentation.py:94
-msgid "Your ultimate virtual assistant."
-msgstr "Asistentul tău virtual suprem."
-
-#: src/ui/presentation.py:98
-msgid "Github Page"
-msgstr "Pagina Github"
-
-#: src/ui/presentation.py:105
-msgid "Choose your favourite AI Language Model"
-msgstr "Alege modelul tău preferat de limbaj AI"
-
-#: src/ui/presentation.py:106
+#: src/handlers/embeddings/openai_handler.py:38
+msgid "API base url, change this to use different APIs"
+msgstr ""
+"URL-ul de bază al API-ului, schimbați-l pentru a utiliza API-uri diferite"
+
+#: src/handlers/embeddings/openai_handler.py:44
+msgid "Name of the Embedding Model to use"
+msgstr "Numele modelului de încorporare de utilizat"
+
+#: src/handlers/embeddings/ollama_handler.py:33
+#: src/handlers/llm/ollama_handler.py:151
+msgid "Automatically Serve"
+msgstr "Servește automat"
+
+#: src/handlers/embeddings/ollama_handler.py:33
+#: src/handlers/llm/ollama_handler.py:151
 msgid ""
-"Newelle can be used with mutiple models and providers!\n"
-"<b>Note: It is strongly suggested to read the Guide to LLM page</b>"
+"Automatically run ollama serve in background when needed if it's not "
+"running. You can kill it with killall ollama"
 msgstr ""
-"Newelle poate fi utilizat cu mai multe modele și furnizori!\n"
-"<b>Notă: Se recomandă insistent să citiți pagina Ghid pentru LLM</b>"
+"Rulează automat ollama serve în fundal când este necesar, dacă nu rulează. "
+"Puteți opri procesul cu killall ollama"
 
-#: src/ui/presentation.py:110
-msgid "Guide to LLM"
-msgstr "Ghid pentru LLM"
+#: src/handlers/embeddings/ollama_handler.py:34
+#: src/handlers/llm/ollama_handler.py:153
+msgid "Custom Model"
+msgstr "Model Personalizat"
 
-#: src/ui/presentation.py:117
-msgid "Chat with your documents"
-msgstr "Discutați cu documentele dvs."
+#: src/handlers/embeddings/ollama_handler.py:40
+#: src/handlers/embeddings/ollama_handler.py:49
+#: src/handlers/llm/ollama_handler.py:159
+#: src/handlers/llm/ollama_handler.py:168
+msgid "Ollama Model"
+msgstr "Model Ollama"
 
-#: src/ui/presentation.py:118
+#: src/handlers/embeddings/ollama_handler.py:41
+#: src/handlers/embeddings/ollama_handler.py:49
+#: src/handlers/llm/ollama_handler.py:160
+#: src/handlers/llm/ollama_handler.py:168
+msgid "Name of the Ollama Model"
+msgstr "Numele modelului Ollama"
+
+#: src/handlers/llm/g4f_handler.py:44 src/handlers/llm/gpt4all_handler.py:154
+msgid "Model to use"
+msgstr "Model de utilizat"
+
+#: src/handlers/llm/g4f_handler.py:45
+msgid "Update G4F"
+msgstr "Actualizează G4F"
+
+#: src/handlers/tts/groq_tts_handler.py:32
+#: src/handlers/llm/claude_handler.py:84
+#: src/handlers/tts/custom_openai_tts.py:18
+#: src/handlers/tts/openai_tts_handler.py:18
+msgid "The API key to use"
+msgstr "Cheia API de utilizat"
+
+#: src/handlers/tts/groq_tts_handler.py:33
+#: src/handlers/tts/custom_openai_tts.py:19
+#: src/handlers/tts/openai_tts_handler.py:19
+msgid "The voice to use"
+msgstr "Vocea de utilizat"
+
+#: src/handlers/tts/groq_tts_handler.py:34
+#: src/handlers/llm/claude_handler.py:89 src/handlers/llm/claude_handler.py:93
+#: src/handlers/tts/custom_openai_tts.py:20
+#: src/handlers/tts/openai_tts_handler.py:20
+msgid "The model to use"
+msgstr "Modelul de utilizat"
+
+#: src/handlers/tts/tts.py:34
+msgid "Choose the preferred voice"
+msgstr "Alegeți vocea preferată"
+
+#: src/handlers/llm/claude_handler.py:96
+msgid "Max Tokens"
+msgstr "Număr maxim de token-uri"
+
+#: src/handlers/llm/claude_handler.py:96
+msgid "The maximum number of tokens to generate"
+msgstr "Numărul maxim de token-uri de generat"
+
+#: src/handlers/llm/ollama_handler.py:152
+#: src/handlers/llm/gemini_handler.py:110
+msgid "Enable Thinking"
+msgstr "Activează Gândirea"
+
+#: src/handlers/llm/ollama_handler.py:152
+msgid "Allow thinking in the model, only some models are supported"
+msgstr "Permite gândirea în model, doar unele modele sunt suportate"
+
+#: src/handlers/llm/ollama_handler.py:172
+#: src/handlers/llm/gpt4all_handler.py:155
+msgid "Model Manager"
+msgstr "Manager de modele"
+
+#: src/handlers/llm/ollama_handler.py:172
+#: src/handlers/llm/gpt4all_handler.py:155
+msgid "List of models available"
+msgstr "Listă de modele disponibile"
+
+#: src/handlers/llm/ollama_handler.py:176
+msgid "Add custom model"
+msgstr "Adaugă model personalizat"
+
+#: src/handlers/llm/ollama_handler.py:177
 msgid ""
-"Newelle can retrieve relevant information from documents you send in the "
-"chat or from your own files! Information relevant to your query will be sent "
-"to the LLM."
+"Add any model to this list by putting name:size\n"
+"Or any gguf from hf with hf.co/username/model"
 msgstr ""
-"Newelle poate extrage informații relevante din documentele pe care le "
-"trimiteți în chat sau din propriile fișiere! Informațiile relevante pentru "
-"interogarea dvs. vor fi trimise către LLM."
+"Adaugă orice model în această listă, scriind nume:dimensiune\n"
+"Sau orice gguf de la hf cu hf.co/username/model"
 
-#: src/ui/presentation.py:124 src/ui/settings.py:236 src/window.py:649
-msgid "Command virtualization"
-msgstr "Virtualizare comenzi"
+#: src/handlers/llm/ollama_handler.py:187
+msgid "Update Ollama"
+msgstr "Actualizează Ollama"
 
-#: src/ui/presentation.py:125
+#: src/handlers/tts/custom_openai_tts.py:17
+msgid "Endpoint"
+msgstr "Endpoint"
+
+#: src/handlers/tts/custom_openai_tts.py:17
+msgid "Custom endpoint of the service to use"
+msgstr "Endpoint personalizat al serviciului de utilizat"
+
+#: src/handlers/tts/custom_openai_tts.py:21
+#: src/handlers/tts/openai_tts_handler.py:21
+msgid "Instructions"
+msgstr "Instrucțiuni"
+
+#: src/handlers/tts/custom_openai_tts.py:21
+#: src/handlers/tts/openai_tts_handler.py:21
 msgid ""
-"Newelle can be used to run commands on your system, but pay attention at "
-"what you run! <b>The LLM is not under our control, so it might generate "
-"malicious code!</b>\n"
-"By default, your commands will be <b>virtualized in the Flatpak environment</"
-"b>, but pay attention!"
+"Instructions for the voice generation. Leave it blank to avoid this field"
 msgstr ""
-"Newelle poate fi folosit pentru a rula comenzi pe sistemul dvs., dar "
-"acordați atenție la ce rulați! <b>LLM-ul nu este sub controlul nostru, deci "
-"ar putea genera cod malițios!</b>\n"
-"În mod implicit, comenzile dvs. vor fi <b>virtualizate în mediul Flatpak</"
-"b>, dar fiți atenți!"
+"Instrucțiuni pentru generarea vocii. Lăsați-l gol pentru a evita acest câmp"
 
-#: src/ui/presentation.py:132
-msgid "You can extend Newelle's functionalities using extensions!"
-msgstr "Puteți extinde funcționalitățile Newelle folosind extensii!"
+#: src/handlers/llm/gemini_handler.py:94
+msgid "API Key (required)"
+msgstr "Cheie API (obligatoriu)"
 
-#: src/ui/presentation.py:136
-msgid "Download extensions"
-msgstr "Descarcă extensii"
+#: src/handlers/llm/gemini_handler.py:94
+msgid "API key got from ai.google.dev"
+msgstr "Cheie API obținută de la ai.google.dev"
 
-#: src/ui/presentation.py:146
-msgid "Permission Error"
-msgstr "Eroare permisiune"
+#: src/handlers/llm/gemini_handler.py:98
+msgid "AI Model to use"
+msgstr "Model AI de utilizat"
 
-#: src/ui/presentation.py:147
+#: src/handlers/llm/gemini_handler.py:103
+msgid "Enable System Prompt"
+msgstr "Activează promptul de sistem"
+
+#: src/handlers/llm/gemini_handler.py:103
 msgid ""
-"Newelle does not have enough permissions to run commands on your system."
+"Some models don't support system prompt (or developers instructions), "
+"disable it if you get errors about it"
 msgstr ""
-"Newelle nu are suficiente permisiuni pentru a rula comenzi pe sistemul dvs."
+"Unele modele nu suportă promptul de sistem (sau instrucțiunile "
+"dezvoltatorilor), dezactivați-l dacă primiți erori legate de acesta"
 
-#: src/ui/presentation.py:158
-msgid "Begin using the app"
-msgstr "Începeți să utilizați aplicația"
+#: src/handlers/llm/gemini_handler.py:107
+msgid "Inject system prompt"
+msgstr "Injectează promptul de sistem"
 
-#: src/ui/presentation.py:163
-msgid "Start chatting"
-msgstr "Începe chatul"
-
-#: src/ui/settings.py:46 src/constants.py:523
-msgid "General"
-msgstr "General"
-
-#: src/ui/settings.py:47 src/constants.py:478
-msgid "LLM"
-msgstr "LLM"
-
-#: src/ui/settings.py:48 src/constants.py:528
-msgid "Prompts"
-msgstr "Prompturi"
-
-#: src/ui/settings.py:49
-msgid "Knowledge"
-msgstr "Cunoștințe"
-
-#: src/ui/settings.py:53
-msgid "Language Model"
-msgstr "Model de Limbaj"
-
-#: src/ui/settings.py:62 src/ui/settings.py:82
-msgid "Other LLMs"
-msgstr "Alte LLM-uri"
-
-#: src/ui/settings.py:62 src/ui/settings.py:82
-msgid "Other available LLM providers"
-msgstr "Alți furnizori LLM disponibili"
-
-#: src/ui/settings.py:72
-msgid "Advanced LLM Settings"
-msgstr "Setări avansate LLM"
-
-#: src/ui/settings.py:76
-msgid "Secondary Language Model"
-msgstr "Model de limbaj secundar"
-
-#: src/ui/settings.py:76
+#: src/handlers/llm/gemini_handler.py:107
 msgid ""
-"Model used for secondary tasks, like offer, chat name and memory generation"
+"Even if the model doesn't support system prompts, put the prompts on top of "
+"the user message"
 msgstr ""
-"Model utilizat pentru sarcini secundare, cum ar fi ofertă, nume de chat și "
-"generare de memorie"
+"Chiar dacă modelul nu suportă prompturile de sistem, plasează prompturile "
+"înaintea mesajului utilizatorului"
 
-#: src/ui/settings.py:93
-msgid "Embedding Model"
-msgstr "Model de încorporare"
+#: src/handlers/llm/gemini_handler.py:109
+msgid "Thinking Settings"
+msgstr "Setări de Gândire"
 
-#: src/ui/settings.py:93
-msgid ""
-"Embedding is used to trasform text into vectors. Used by Long Term Memory "
-"and RAG. Changing it might require you to re-index documents or reset memory."
+#: src/handlers/llm/gemini_handler.py:109
+msgid "Settings about thinking models"
+msgstr "Setări despre modelele de gândire"
+
+#: src/handlers/llm/gemini_handler.py:110
+msgid "Show thinking, disable it if your model does not support it"
+msgstr "Arată gândirea, dezactivează dacă modelul tău nu o suportă"
+
+#: src/handlers/llm/gemini_handler.py:111
+msgid "Enable Thinking Budget"
+msgstr "Activează bugetul de gândire"
+
+#: src/handlers/llm/gemini_handler.py:111
+msgid "If to enable thinking budget"
+msgstr "Dacă să activezi bugetul de gândire"
+
+#: src/handlers/llm/gemini_handler.py:112
+msgid "Thinking Budget"
+msgstr "Buget de Gândire"
+
+#: src/handlers/llm/gemini_handler.py:112
+msgid "How much time to spend thinking"
+msgstr "Cât timp să petreci gândind"
+
+#: src/handlers/llm/gemini_handler.py:116
+msgid "Image Output"
+msgstr "Ieșire Imagine"
+
+#: src/handlers/llm/gemini_handler.py:116
+msgid "Enable image output, only supported by gemini-2.0-flash-exp"
+msgstr "Activează ieșirea de imagine, suportată doar de gemini-2.0-flash-exp"
+
+#: src/handlers/llm/gemini_handler.py:125
+msgid "Enable safety settings"
+msgstr "Activează setările de siguranță"
+
+#: src/handlers/llm/gemini_handler.py:126
+msgid "Enable google safety settings to avoid generating harmful content"
 msgstr ""
-"Încorporarea este utilizată pentru a transforma textul în vectori. Utilizată "
-"de Memoria pe Termen Lung și RAG. Modificarea acesteia ar putea necesita "
-"reindexarea documentelor sau resetarea memoriei."
+"Activează setările de siguranță Google pentru a evita generarea de conținut "
+"dăunător"
 
-#: src/ui/settings.py:104 src/window.py:647
-msgid "Long Term Memory"
-msgstr "Memorie pe termen lung"
+#: src/handlers/llm/gemini_handler.py:135
+msgid "Enable advanced parameters"
+msgstr "Activează parametrii avansați"
 
-#: src/ui/settings.py:104
-msgid "Keep memory of old conversations"
-msgstr "Păstrează memoria conversațiilor vechi"
+#: src/handlers/tts/custom_handler.py:17
+#, python-brace-format
+msgid "{0} will be replaced with the file fullpath, {1} with the text"
+msgstr "{0} va fi înlocuit cu calea completă a fișierului, {1} cu textul"
 
-#: src/ui/settings.py:116 src/constants.py:401
-msgid "Web Search"
-msgstr "Căutare Web"
+#: src/handlers/llm/custom_handler.py:21
+msgid "Command to execute to get bot output"
+msgstr "Comandă de executat pentru a obține ieșirea botului"
 
-#: src/ui/settings.py:116
-msgid "Search information on the Web"
-msgstr "Căutați informații pe web"
-
-#: src/ui/settings.py:132
-msgid "Text To Speech Program"
-msgstr "Program text-to-speech"
-
-#: src/ui/settings.py:132
-msgid "Choose which text to speech to use"
-msgstr "Alegeți ce program text-to-speech să utilizați"
-
-#: src/ui/settings.py:141
-msgid "Speech To Text Engine"
-msgstr "Motor de transformare a vorbirii în text"
-
-#: src/ui/settings.py:141
-msgid "Choose which speech recognition engine you want"
-msgstr "Alegeți motorul de recunoaștere vocală pe care îl doriți"
-
-#: src/ui/settings.py:149
-msgid "Automatic Speech To Text"
-msgstr "Recunoaștere vocală automată"
-
-#: src/ui/settings.py:149
-msgid "Automatically restart speech to text at the end of a text/TTS"
-msgstr "Repornește automat recunoașterea vocală la sfârșitul unui text/TTS"
-
-#: src/ui/settings.py:153
-msgid "Prompt control"
-msgstr "Control prompt"
-
-#: src/ui/settings.py:158
-msgid "Interface"
-msgstr "Interfață"
-
-#: src/ui/settings.py:161
-msgid "Interface Size"
-msgstr "Dimensiune Interfață"
-
-#: src/ui/settings.py:161
-msgid "Adjust the size of the interface"
-msgstr "Ajustează dimensiunea interfeței"
-
-#: src/ui/settings.py:173
-msgid "Editor color scheme"
-msgstr "Schema de culori a editorului"
-
-#: src/ui/settings.py:173
-msgid "Change the color scheme of the editor and codeblocks"
-msgstr "Schimbați schema de culori a editorului și a blocurilor de cod"
-
-#: src/ui/settings.py:180
-msgid "Hidden files"
-msgstr "Fișiere ascunse"
-
-#: src/ui/settings.py:180
-msgid "Show hidden files"
-msgstr "Arată fișierele ascunse"
-
-#: src/ui/settings.py:186
-msgid "Send with ENTER"
-msgstr "Trimite cu ENTER"
-
-#: src/ui/settings.py:186
-msgid ""
-"If enabled, messages will be sent with ENTER, to go to a new line use "
-"CTRL+ENTER. If disabled, messages will be sent with SHIFT+ENTER, and newline "
-"with enter"
-msgstr ""
-"Dacă este activat, mesajele vor fi trimise cu ENTER, pentru a merge la o "
-"linie nouă utilizați CTRL+ENTER. Dacă este dezactivat, mesajele vor fi "
-"trimise cu SHIFT+ENTER, iar linia nouă cu ENTER"
-
-#: src/ui/settings.py:192
-msgid "Remove thinking from history"
-msgstr "Elimină gândirea din istoric"
-
-#: src/ui/settings.py:192
-msgid ""
-"Do not send old thinking blocks for reasoning models in order to reduce "
-"token usage"
-msgstr ""
-"Nu trimite blocuri vechi de gândire pentru modelele de raționament, pentru a "
-"reduce utilizarea de token-uri"
-
-#: src/ui/settings.py:198
-msgid "Display LaTeX"
-msgstr "Afișează LaTeX"
-
-#: src/ui/settings.py:198
-msgid "Display LaTeX formulas in chat"
-msgstr "Afișează formulele LaTeX în chat"
-
-#: src/ui/settings.py:204
-msgid "Reverse Chat Order"
-msgstr "Inversează ordinea chatului"
-
-#: src/ui/settings.py:204
-msgid "Show most recent chats on top in chat list (change chat to apply)"
-msgstr ""
-"Afișează cele mai recente chaturi în partea de sus a listei de chaturi "
-"(schimbați chatul pentru a aplica)"
-
-#: src/ui/settings.py:210
-msgid "Automatically Generate Chat Names"
-msgstr "Generează automat nume de chat"
-
-#: src/ui/settings.py:210
-msgid "Generate chat names automatically after the first two messages"
-msgstr "Generează automat nume de chat după primele două mesaje"
-
-#: src/ui/settings.py:216
-msgid "Number of offers"
-msgstr "Număr de oferte"
-
-#: src/ui/settings.py:216
-msgid "Number of message suggestions to send to chat "
-msgstr "Numărul de sugestii de mesaje de trimis în chat "
-
-#: src/ui/settings.py:223
-msgid "Username"
-msgstr "Nume utilizator"
-
-#: src/ui/settings.py:223
+#: src/handlers/llm/custom_handler.py:21
 #, python-brace-format
 msgid ""
-"Change the label that appears before your message\n"
-"This information is not sent to the LLM by default\n"
-"You can add it to a prompt using the {USER} variable"
+"Command to execute to get bot response, {0} will be replaced with a JSON "
+"file containing the chat, {1} with the system prompt"
 msgstr ""
-"Schimbați eticheta care apare înainte de mesajul dvs.\n"
-"Această informație nu este trimisă LLM-ului în mod implicit\n"
-"Puteți să o adăugați la un prompt utilizând variabila {USER}"
+"Comanda de executat pentru a obține răspunsul botului, {0} va fi înlocuit cu "
+"un fișier JSON conținând conversația, {1} cu promptul de sistem"
 
-#: src/ui/settings.py:233
-msgid "Neural Network Control"
-msgstr "Control Rețea Neurală"
+#: src/handlers/llm/custom_handler.py:22
+msgid "Command to execute to get bot's suggestions"
+msgstr "Comandă de executat pentru a obține sugestiile botului"
 
-#: src/ui/settings.py:236
-msgid "Run commands in a virtual machine"
-msgstr "Execută comenzi într-o mașină virtuală"
-
-#: src/ui/settings.py:249
-msgid "External Terminal"
-msgstr "Terminal Extern"
-
-#: src/ui/settings.py:249
-msgid "Choose the external terminal where to run the console commands"
-msgstr "Alegeți terminalul extern unde să rulați comenzile consolei"
-
-#: src/ui/settings.py:258
-msgid "Program memory"
-msgstr "Memoria programului"
-
-#: src/ui/settings.py:258
-msgid "How long the program remembers the chat "
-msgstr "Cât timp programul își amintește conversația "
-
-#: src/ui/settings.py:265
-msgid "Developer"
-msgstr "Dezvoltator"
-
-#: src/ui/settings.py:268 src/ui/stdout_monitor.py:31
-#: src/ui/stdout_monitor.py:41
-msgid "Program Output Monitor"
-msgstr "Monitorizare ieșire program"
-
-#: src/ui/settings.py:268
-msgid ""
-"Monitor the program output in real-time, useful for debugging and seeing "
-"downloads progress"
-msgstr ""
-"Monitorizează ieșirea programului în timp real, util pentru depanare și "
-"pentru a vedea progresul descărcărilor"
-
-#: src/ui/settings.py:269
-msgid "Open"
-msgstr "Deschide"
-
-#: src/ui/settings.py:274
-msgid "Delete pip path"
-msgstr "Șterge calea pip"
-
-#: src/ui/settings.py:274
-msgid "Remove the extra dependencies installed"
-msgstr "Elimină dependențele suplimentare instalate"
-
-#: src/ui/settings.py:294
-msgid "Auto-run commands"
-msgstr "Comenzi cu rulare automată"
-
-#: src/ui/settings.py:294
-msgid "Commands that the bot will write will automatically run"
-msgstr "Comenzile pe care botul le va scrie vor rula automat"
-
-#: src/ui/settings.py:297
-msgid "Max number of commands"
-msgstr "Număr maxim de comenzi"
-
-#: src/ui/settings.py:297
-msgid ""
-"Maximum number of commands that the bot will write after a single user "
-"request"
-msgstr ""
-"Numărul maxim de comenzi pe care botul le va scrie după o singură cerere a "
-"utilizatorului"
-
-#: src/ui/settings.py:328
-msgid "Browser"
-msgstr "Browser"
-
-#: src/ui/settings.py:328
-msgid "Settings for the browser"
-msgstr "Setări pentru browser"
-
-#: src/ui/settings.py:333
-msgid "Use external browser"
-msgstr "Utilizează browser extern"
-
-#: src/ui/settings.py:333
-msgid "Use an external browser to open links instead of integrated one"
-msgstr ""
-"Utilizează un browser extern pentru a deschide linkuri în loc de cel integrat"
-
-#: src/ui/settings.py:340
-msgid "Persist browser session"
-msgstr "Păstrează sesiunea browserului"
-
-#: src/ui/settings.py:340
-msgid ""
-"Persist browser session between restarts. Turning this off requires "
-"restarting the program"
-msgstr ""
-"Păstrează sesiunea browserului între reporniri. Dezactivarea acestei opțiuni "
-"necesită repornirea programului"
-
-#: src/ui/settings.py:345
-msgid "Delete browser data"
-msgstr "Șterge datele browserului"
-
-#: src/ui/settings.py:345
-msgid "Delete browser session and data"
-msgstr "Șterge sesiunea și datele browserului"
-
-#: src/ui/settings.py:352
-msgid "Initial browser page"
-msgstr "Pagina inițială a browserului"
-
-#: src/ui/settings.py:352
-msgid "The page where the browser will start"
-msgstr "Pagina de unde va porni browserul"
-
-#: src/ui/settings.py:359
-msgid "Search string"
-msgstr "Șir de căutare"
-
-#: src/ui/settings.py:359
-#, python-format
-msgid "The search string used in the browser, %s is replaced with the query"
-msgstr "Șirul de căutare utilizat în browser, %s este înlocuit cu interogarea"
-
-#: src/ui/settings.py:380
-msgid "Document Sources (RAG)"
-msgstr "Surse documente (RAG)"
-
-#: src/ui/settings.py:380
-msgid "Include content from your documents in the responses"
-msgstr "Includeți conținut din documentele dvs. în răspunsuri"
-
-#: src/ui/settings.py:381
-msgid "Document Analyzer"
-msgstr "Analizor Documente"
-
-#: src/ui/settings.py:381
-msgid ""
-"The document analyzer uses multiple techniques to extract relevant "
-"information about your documents"
-msgstr ""
-"Analizatorul de documente utilizează multiple tehnici pentru a extrage "
-"informații relevante despre documentele dvs."
-
-#: src/ui/settings.py:392
-msgid "Read documents if unsupported"
-msgstr "Citiți documentele dacă nu sunt acceptate"
-
-#: src/ui/settings.py:392
-msgid ""
-"If the LLM does not support reading documents, relevant information about "
-"documents sent in the chat will be given to the LLM using your Document "
-"Analyzer."
-msgstr ""
-"Dacă LLM-ul nu suportă citirea documentelor, informațiile relevante despre "
-"documentele trimise în chat vor fi furnizate LLM-ului utilizând analizorul "
-"dvs. de documente."
-
-#: src/ui/settings.py:396
-msgid "Maximum tokens for RAG"
-msgstr "Token-uri maxime pentru RAG"
-
-#: src/ui/settings.py:396
-msgid ""
-"The maximum amount of tokens to be used for RAG. If the documents do not "
-"exceed this token count,\n"
-"dump all of them in the context"
-msgstr ""
-"Cantitatea maximă de token-uri de utilizat pentru RAG. Dacă documentele nu "
-"depășesc acest număr de token-uri,\n"
-"le aruncă pe toate în context"
-
-#: src/ui/settings.py:413
-msgid "Document Folder"
-msgstr "Folder documente"
-
-#: src/ui/settings.py:413
-msgid ""
-"Put the documents you want to query in your document folder. The document "
-"analyzer will find relevant information in them if this option is enabled"
-msgstr ""
-"Puneți documentele pe care doriți să le interogați în folderul dvs. de "
-"documente. Analizatorul de documente va găsi informații relevante în ele, "
-"dacă această opțiune este activată"
-
-#: src/ui/settings.py:416
-msgid "Put all the documents you want to index in this folder"
-msgstr "Puneți toate documentele pe care doriți să le indexați în acest folder"
-
-#: src/ui/settings.py:452
-msgid "Silence threshold"
-msgstr "Prag de silențiu"
-
-#: src/ui/settings.py:452
-msgid ""
-"Silence threshold in seconds, percentage of the volume to be considered "
-"silence"
-msgstr ""
-"Prag de silențiu în secunde, procent din volum pentru a fi considerat "
-"silențiu"
-
-#: src/ui/settings.py:465
-msgid "Silence time"
-msgstr "Timp de silențiu"
-
-#: src/ui/settings.py:465
-msgid "Silence time in seconds before recording stops automatically"
-msgstr ""
-"Timpul de silențiu în secunde înainte ca înregistrarea să se oprească automat"
-
-#: src/ui/settings.py:1044
-msgid "Not enough permissions"
-msgstr "Nu sunt suficiente permisiuni"
-
-#: src/ui/settings.py:1048
-msgid ""
-"Newelle does not have enough permissions to run commands on your system, "
-"please run the following command"
-msgstr ""
-"Newelle nu are suficiente permisiuni pentru a rula comenzi pe sistemul dvs., "
-"vă rugăm să rulați următoarea comandă"
-
-#: src/ui/settings.py:1049 src/ui/settings.py:1062
-msgid "Understood"
-msgstr "Înțeles"
-
-#: src/ui/settings.py:1061
-msgid "Pip path deleted"
-msgstr "Calea pip a fost ștearsă"
-
-#: src/ui/settings.py:1061
-msgid ""
-"The pip path has been deleted, you can now reinstall the dependencies. This "
-"operation requires a restart of the application."
-msgstr ""
-"Calea pip a fost ștearsă, acum puteți reinstala dependențele. Această "
-"operațiune necesită repornirea aplicației."
-
-#: src/ui/stdout_monitor.py:48
-msgid "Clear output"
-msgstr "Golește ieșirea"
-
-#: src/ui/stdout_monitor.py:61
-msgid "Start/Stop monitoring"
-msgstr "Pornire/Oprire monitorizare"
-
-#: src/ui/stdout_monitor.py:109 src/ui/stdout_monitor.py:182
-#: src/ui/stdout_monitor.py:191 src/window.py:3686
-msgid "Monitoring: Active"
-msgstr "Monitorizare: Activă"
-
-#: src/ui/stdout_monitor.py:109 src/ui/stdout_monitor.py:208
-msgid "Monitoring: Stopped"
-msgstr "Monitorizare: Oprită"
-
-#: src/ui/stdout_monitor.py:116 src/ui/stdout_monitor.py:252
-msgid "Lines: {}"
-msgstr "Linii: {}"
-
-#: src/ui/stdout_monitor.py:267
-msgid "Lines: 0"
-msgstr "Linii: 0"
-
-#: src/constants.py:20
-msgid "Newelle Demo API"
-msgstr "API demo Newelle"
-
-#: src/constants.py:26
-msgid "GPT4Free"
-msgstr "GPT4Free"
-
-#: src/constants.py:34
-msgid "Local Model"
-msgstr "Model local"
-
-#: src/constants.py:35
-msgid ""
-"NO GPU SUPPORT, USE OLLAMA INSTEAD. Run a LLM model locally, more privacy "
-"but slower"
-msgstr ""
-"NU EXISTĂ SUPORT GPU, UTILIZAȚI OLLAMA ÎN LOC. Rulați un model LLM local, "
-"mai multă confidențialitate, dar mai lent"
-
-#: src/constants.py:40
-msgid "Ollama Instance"
-msgstr "Instanță Ollama"
-
-#: src/constants.py:41
-msgid "Easily run multiple LLM models on your own hardware"
-msgstr "Rulează ușor mai multe modele LLM pe propriul tău hardware"
-
-#: src/constants.py:47
-msgid "Groq"
-msgstr "Groq"
-
-#: src/constants.py:54 src/constants.py:230
-msgid "Google Gemini API"
-msgstr "API Google Gemini"
-
-#: src/constants.py:60 src/constants.py:224 src/constants.py:225
-msgid "OpenAI API"
-msgstr "API OpenAI"
-
-#: src/constants.py:61
-msgid "OpenAI API. Custom endpoints supported. Use this for custom providers"
-msgstr ""
-"API OpenAI. Endpoint-uri personalizate suportate. Folosiți-l pentru "
-"furnizori personalizați"
-
-#: src/constants.py:66
-msgid "Anthropic Claude"
-msgstr "Anthropic Claude"
-
-#: src/constants.py:67
-msgid ""
-"Official APIs for Anthropic Claude's models, with image and file support, "
-"requires an API key"
-msgstr ""
-"API-uri oficiale pentru modelele Anthropic Claude, cu suport pentru imagini "
-"și fișiere, necesită o cheie API"
-
-#: src/constants.py:73
-msgid "Mistral"
-msgstr "Mistral"
-
-#: src/constants.py:74
-msgid "Mistral API"
-msgstr "API Mistral"
-
-#: src/constants.py:80
-msgid "OpenRouter"
-msgstr "OpenRouter"
-
-#: src/constants.py:81
-msgid "Openrouter.ai API, supports lots of models"
-msgstr "API Openrouter.ai, suportă o mulțime de modele"
-
-#: src/constants.py:87
-msgid "Deepseek"
-msgstr "Deepseek"
-
-#: src/constants.py:88
-msgid "Deepseek API, strongest open source models"
-msgstr "API Deepseek, cele mai puternice modele open source"
-
-#: src/constants.py:94 src/constants.py:203
-msgid "Custom Command"
-msgstr "Comandă Personalizată"
-
-#: src/constants.py:95
-msgid "Use the output of a custom command"
-msgstr "Utilizează ieșirea unei comenzi personalizate"
-
-#: src/constants.py:104
-msgid "Whisper C++"
-msgstr "Whisper C++"
-
-#: src/constants.py:105
-msgid "Works offline. Optimized Whisper impelementation written in C++"
-msgstr "Funcționează offline. Implementare Whisper optimizată, scrisă în C++"
-
-#: src/constants.py:111
-msgid "CMU Sphinx"
-msgstr "CMU Sphinx"
-
-#: src/constants.py:112
-msgid "Works offline. Only English supported"
-msgstr "Funcționează offline. Doar engleza este suportată"
-
-#: src/constants.py:118
-msgid "Google Speech Recognition"
-msgstr "Recunoaștere vocală Google"
-
-#: src/constants.py:119 src/constants.py:125
-msgid "Google Speech Recognition online"
-msgstr "Recunoaștere vocală Google online"
-
-#: src/constants.py:124
-msgid "Groq Speech Recognition"
-msgstr "Recunoaștere vocală Groq"
-
-#: src/constants.py:130
-msgid "Wit AI"
-msgstr "Wit AI"
-
-#: src/constants.py:131
-msgid "wit.ai speech recognition free API (language chosen on the website)"
-msgstr "API gratuit wit.ai de recunoaștere vocală (limba aleasă pe site)"
-
-#: src/constants.py:137
-msgid "Vosk API"
-msgstr "API Vosk"
-
-#: src/constants.py:138
-msgid "Works Offline"
-msgstr "Funcționează offline"
-
-#: src/constants.py:144
-msgid "Whisper API"
-msgstr "API Whisper"
-
-#: src/constants.py:145
-msgid "Uses OpenAI Whisper API"
-msgstr "Utilizează API-ul OpenAI Whisper"
-
-#: src/constants.py:151
-msgid "Custom command"
-msgstr "Comandă personalizată"
-
-#: src/constants.py:152
-msgid "Runs a custom command"
-msgstr "Rulează o comandă personalizată"
-
-#: src/constants.py:161
-msgid "Google TTS"
-msgstr "Google TTS"
-
-#: src/constants.py:162
-msgid "Google's text to speech"
-msgstr "Text-to-speech de la Google"
-
-#: src/constants.py:167
-msgid "Kokoro TTS"
-msgstr "Kokoro TTS"
-
-#: src/constants.py:168
-msgid ""
-"Lightweight and fast open source TTS engine. ~3GB dependencies, 400MB model"
-msgstr "Motor TTS open source ușor și rapid. ~3GB dependențe, model de 400MB"
-
-#: src/constants.py:173
-msgid "ElevenLabs TTS"
-msgstr "ElevenLabs TTS"
-
-#: src/constants.py:174
-msgid "Natural sounding TTS"
-msgstr "TTS cu sunet natural"
-
-#: src/constants.py:179 src/constants.py:180
-msgid "OpenAI TTS"
-msgstr "OpenAI TTS"
-
-#: src/constants.py:185
-msgid "Groq TTS"
-msgstr "Groq TTS"
-
-#: src/constants.py:186
-msgid "Groq TTS API"
-msgstr "API Groq TTS"
-
-#: src/constants.py:191 src/constants.py:192
-msgid "Custom OpenAI TTS"
-msgstr "TTS OpenAI personalizat"
-
-#: src/constants.py:197
-msgid "Espeak TTS"
-msgstr "Espeak TTS"
-
-#: src/constants.py:198
-msgid "Offline TTS"
-msgstr "TTS offline"
-
-#: src/constants.py:204
+#: src/handlers/llm/custom_handler.py:22
 #, python-brace-format
-msgid "Use a custom command as TTS, {0} will be replaced with the text"
-msgstr ""
-"Utilizează o comandă personalizată ca TTS, {0} va fi înlocuit cu textul"
-
-#: src/constants.py:212
-msgid "WordLlama"
-msgstr "WordLlama"
-
-#: src/constants.py:213
 msgid ""
-"Light local embedding model based on llama. Works offline, very low "
-"resources usage"
+"Command to execute to get chat suggestions, {0} will be replaced with a JSON "
+"file containing the chat, {1} with the extra prompts, {2} with the numer of "
+"suggestions to generate. Must return a JSON array containing the suggestions "
+"as strings"
 msgstr ""
-"Model de încorporare local ușor, bazat pe llama. Funcționează offline, "
-"consum foarte redus de resurse"
+"Comandă de executat pentru a obține sugestii de chat, {0} va fi înlocuit cu "
+"un fișier JSON conținând conversația, {1} cu prompturile suplimentare, {2} "
+"cu numărul de sugestii de generat. Trebuie să returneze un array JSON "
+"conținând sugestiile ca șiruri de caractere"
 
-#: src/constants.py:218
-msgid "Ollama Embedding"
-msgstr "Încorporare Ollama"
+#: src/handlers/tts/elevenlabs_handler.py:10
+msgid "API Key for ElevenLabs"
+msgstr "Cheie API pentru ElevenLabs"
 
-#: src/constants.py:219
+#: src/handlers/tts/elevenlabs_handler.py:18
+msgid "Voice ID to use"
+msgstr "ID voce de utilizat"
+
+#: src/handlers/tts/elevenlabs_handler.py:25
+#: src/handlers/llm/gpt4all_handler.py:154
+msgid "Name of the model to use"
+msgstr "Numele modelului de utilizat"
+
+#: src/handlers/tts/elevenlabs_handler.py:32
+msgid "Stability"
+msgstr "Stabilitate"
+
+#: src/handlers/tts/elevenlabs_handler.py:33
+msgid "stability of the voice"
+msgstr "Stabilitatea vocii"
+
+#: src/handlers/tts/elevenlabs_handler.py:42
+msgid "Similarity boost"
+msgstr "Amplificare similaritate"
+
+#: src/handlers/tts/elevenlabs_handler.py:43
+msgid "Boosts overall voice clarity and speaker similarity"
+msgstr "Amplifică claritatea generală a vocii și similaritatea vorbitorului"
+
+#: src/handlers/tts/elevenlabs_handler.py:52
+msgid "Style exaggeration"
+msgstr "Exagerare stil"
+
+#: src/handlers/tts/elevenlabs_handler.py:53
 msgid ""
-"Use Ollama models for Embedding. Works offline, very low resources usage"
+"High values are reccomended if the style of the speech must be exaggerated"
 msgstr ""
-"Utilizează modelele Ollama pentru încorporare. Funcționează offline, consum "
-"foarte redus de resurse"
+"Valori ridicate sunt recomandate dacă stilul vorbirii trebuie să fie exagerat"
 
-#: src/constants.py:231
-msgid "Use Google Gemini API to get embeddings"
-msgstr "Utilizează API-ul Google Gemini pentru a obține încorporări"
+#: src/handlers/llm/gpt4all_handler.py:67
+msgid "RAM Required: "
+msgstr "RAM necesară: "
 
-#: src/constants.py:239
-msgid "User Summary"
-msgstr "Rezumat utilizator"
+#: src/handlers/llm/gpt4all_handler.py:68
+msgid "Parameters: "
+msgstr "Parametri: "
 
-#: src/constants.py:240
-msgid "Generate a summary of the user's conversation"
-msgstr "Generează un rezumat al conversației utilizatorului"
+#: src/handlers/llm/gpt4all_handler.py:69
+msgid "Size: "
+msgstr "Dimensiune: "
 
-#: src/constants.py:245
-msgid "Memoripy"
-msgstr "Memoripy"
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:7
+#: data/moe.nyarchlinux.assistant.desktop.in:2
+msgid "Nyarch Assistant"
+msgstr ""
 
-#: src/constants.py:246
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:9
 msgid ""
-"Extract messages from previous conversations using contextual memory "
-"retrivial, memory decay, concept extraction and other advanced techniques. "
-"Does 1 llm call per message."
+"Your personal waifu always at your service to help you with your system!"
 msgstr ""
-"Extrage mesaje din conversațiile anterioare utilizând recuperarea memoriei "
-"contextuale, decăderea memoriei, extragerea conceptelor și alte tehnici "
-"avansate. Efectuează 1 apel llm per mesaj."
 
-#: src/constants.py:251
-msgid "User Summary + Memoripy"
-msgstr "Rezumat utilizator + Memoripy"
-
-#: src/constants.py:252
-msgid "Use both technologies for long term memory"
-msgstr "Utilizați ambele tehnologii pentru memorie pe termen lung"
-
-#: src/constants.py:260
-msgid "Document reader"
-msgstr "Cititor de documente"
-
-#: src/constants.py:261
-msgid ""
-"Classic RAG approach - chunk documents and embed them, then compare them to "
-"the query and return the most relevant documents"
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:11
+msgid "Your AI-Powered System Assistant"
 msgstr ""
-"Abordare RAG clasică - fragmentează documentele și le încorporează, apoi le "
-"compară cu interogarea și returnează cele mai relevante documente"
 
-#: src/constants.py:269
-msgid "SearXNG"
-msgstr "SearXNG"
-
-#: src/constants.py:270
-msgid "SearXNG - Private and selfhostable search engine"
-msgstr "SearXNG - Motor de căutare privat și auto-găzduit"
-
-#: src/constants.py:275
-msgid "DuckDuckGo"
-msgstr "DuckDuckGo"
-
-#: src/constants.py:276
-msgid "DuckDuckGo search"
-msgstr "Căutare DuckDuckGo"
-
-#: src/constants.py:281
-msgid "Tavily"
-msgstr "Tavily"
-
-#: src/constants.py:282
-msgid "Tavily search"
-msgstr "Căutare Tavily"
-
-#: src/constants.py:375
-msgid "Helpful assistant"
-msgstr "Asistent util"
-
-#: src/constants.py:376
-msgid "General purpose prompt to enhance the LLM answers and give more context"
-msgstr ""
-"Prompt general pentru a îmbunătăți răspunsurile LLM și a oferi mai mult "
-"context"
-
-#: src/constants.py:384
-msgid "Console access"
-msgstr "Acces la consolă"
-
-#: src/constants.py:385
-msgid "Can the program run terminal commands on the computer"
-msgstr "Poate programul rula comenzi terminal pe computer"
-
-#: src/constants.py:392
-msgid "Current directory"
-msgstr "Director curent"
-
-#: src/constants.py:393
-msgid "What is the current directory"
-msgstr "Care este directorul curent"
-
-#: src/constants.py:402
-msgid "Allow the LLM to search on the internet"
-msgstr "Permite LLM-ului să caute pe internet"
-
-#: src/constants.py:410
-msgid "Basic functionality"
-msgstr "Funcționalitate de bază"
-
-#: src/constants.py:411
-msgid "Showing tables and code (*can work without it)"
-msgstr "Afișarea tabelelor și a codului (*poate funcționa și fără)"
-
-#: src/constants.py:419
-msgid "Graphs access"
-msgstr "Acces la grafice"
-
-#: src/constants.py:420
-msgid "Can the program display graphs"
-msgstr "Poate programul afișa grafice"
-
-#: src/constants.py:428
-msgid "Show image"
-msgstr "Arată imaginea"
-
-#: src/constants.py:429
-msgid "Show image in chat"
-msgstr "Arată imaginea în chat"
-
-#: src/constants.py:437
-msgid "Custom Prompt"
-msgstr "Prompt personalizat"
-
-#: src/constants.py:438
-msgid "Add your own custom prompt"
-msgstr "Adăugați propriul prompt personalizat"
-
-#: src/constants.py:480
-msgid "LLM and Secondary LLM settings"
-msgstr "Setări LLM și LLM Secundar"
-
-#: src/constants.py:483 src/window.py:648
-msgid "TTS"
-msgstr "TTS"
-
-#: src/constants.py:485
-msgid "Text to Speech settings"
-msgstr "Setări Text-to-Speech"
-
-#: src/constants.py:488
-msgid "STT"
-msgstr "STT"
-
-#: src/constants.py:490
-msgid "Speech to Text settings"
-msgstr "Setări Speech-to-Text"
-
-#: src/constants.py:493
-msgid "Embedding"
-msgstr "Încorporare"
-
-#: src/constants.py:495
-msgid "Embedding settings"
-msgstr "Setări de încorporare"
-
-#: src/constants.py:498
-msgid "Memory"
-msgstr "Memorie"
-
-#: src/constants.py:500
-msgid "Memory settings"
-msgstr "Setări memorie"
-
-#: src/constants.py:503
-msgid "Websearch"
-msgstr "Căutare web"
-
-#: src/constants.py:505
-msgid "Websearch settings"
-msgstr "Setări căutare web"
-
-#: src/constants.py:508
-msgid "RAG"
-msgstr "RAG"
-
-#: src/constants.py:510
-msgid "Document analyzer settings"
-msgstr "Setări analizor documente"
-
-#: src/constants.py:515
-msgid "Extensions settings"
-msgstr "Setări extensii"
-
-#: src/constants.py:518
-msgid "Inteface"
-msgstr "Interfață"
-
-#: src/constants.py:520
-msgid "Interface settings, hidden files, reverse order, zoom..."
-msgstr "Setări interfață, fișiere ascunse, ordine inversă, zoom..."
-
-#: src/constants.py:525
-msgid ""
-"General settings, virtualization, offers, memory length, automatically "
-"generate chat name, current folder..."
-msgstr ""
-"Setări generale, virtualizare, oferte, lungime memorie, generare automată "
-"nume chat, folder curent..."
-
-#: src/constants.py:530
-msgid "Prompts settings, custom extra prompt, custom prompts..."
-msgstr ""
-"Setări prompturi, prompt suplimentar personalizat, prompturi personalizate..."
-
-#: src/main.py:205
-msgid "Terminal threads are still running in the background"
-msgstr "Firele de execuție ale terminalului rulează încă în fundal"
-
-#: src/main.py:206
-msgid "When you close the window, they will be automatically terminated"
-msgstr "Când închideți fereastra, acestea vor fi terminate automat"
-
-#: src/main.py:210
-msgid "Close"
-msgstr "Închide"
-
-#: src/main.py:244
-msgid "Chat is rebooted"
-msgstr "Chatul a fost repornit"
-
-#: src/main.py:249
-msgid "Folder is rebooted"
-msgstr "Folderul a fost repornit"
-
-#: src/main.py:254
-msgid "Chat is created"
-msgstr "Chatul este creat"
-
-#: src/controller.py:135 src/window.py:1848
-msgid "Chat "
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:15
+#, fuzzy
+msgid "Chat page 1"
 msgstr "Chat "
 
-#: src/window.py:120
-msgid "Keyboard shorcuts"
-msgstr "Scurtături de la tastatură"
-
-#: src/window.py:121
-msgid "About"
-msgstr "Despre"
-
-#: src/window.py:128 src/window.py:197
-msgid "Chat"
-msgstr "Chat"
-
-#: src/window.py:170
-msgid "History"
-msgstr "Istoric"
-
-#: src/window.py:191
-msgid "Create a chat"
-msgstr "Creează un chat"
-
-#: src/window.py:196
-msgid "Chats"
-msgstr "Chaturi"
-
-#: src/window.py:267
-msgid " Stop"
-msgstr " Oprește"
-
-#: src/window.py:282
-msgid " Clear"
-msgstr " Șterge"
-
-#: src/window.py:297
-msgid " Continue"
-msgstr " Continuă"
-
-#: src/window.py:310
-msgid " Regenerate"
-msgstr " Regenerează"
-
-#: src/window.py:376
-msgid "Send a message..."
-msgstr "Trimite un mesaj..."
-
-#: src/window.py:467
-msgid "Explorer Tab"
-msgstr "Fila Explorer"
-
-#: src/window.py:468
-msgid "Terminal Tab"
-msgstr "Fila Terminal"
-
-#: src/window.py:469
-msgid "Browser Tab"
-msgstr "Fila Browser"
-
-#: src/window.py:589
-msgid "Ask about a website"
-msgstr "Întreabă despre un site web"
-
-#: src/window.py:589
-msgid "Write #https://website.com in chat to ask information about a website"
-msgstr ""
-"Scrie #https://website.com în chat pentru a cere informații despre un site "
-"web"
-
-#: src/window.py:590
-msgid "Check out our Extensions!"
-msgstr "Verifică extensiile noastre!"
-
-#: src/window.py:590
-msgid "We have a lot of extensions for different things. Check it out!"
-msgstr "Avem o mulțime de extensii pentru diverse lucruri. Verifică-le!"
-
-#: src/window.py:591
-msgid "Chat with documents!"
-msgstr "Conversează cu documentele!"
-
-#: src/window.py:591
-msgid ""
-"Add your documents to your documents folder and chat using the information "
-"contained in them!"
-msgstr ""
-"Adăugați documentele în folderul de documente și discutați utilizând "
-"informațiile conținute în ele!"
-
-#: src/window.py:592
-msgid "Surf the web!"
-msgstr "Navighează pe web!"
-
-#: src/window.py:592
-msgid ""
-"Enable web search to allow the LLM to surf the web and provide up to date "
-"answers"
-msgstr ""
-"Activează căutarea web pentru a permite LLM-ului să navigheze pe web și să "
-"ofere răspunsuri actualizate"
-
-#: src/window.py:593
-msgid "Mini Window"
-msgstr "Fereastră Mini"
-
-#: src/window.py:593
-msgid "Ask questions on the fly using the mini window mode"
-msgstr "Pune întrebări din mers folosind modul fereastră mini"
-
-#: src/window.py:594
-msgid "Text to Speech"
-msgstr "Text-to-Speech"
-
-#: src/window.py:594
-msgid "Newelle supports text-to-speech! Enable it in the settings"
-msgstr "Newelle suportă text-to-speech! Activează-l în setări"
-
-#: src/window.py:595
-msgid "Keyboard Shortcuts"
-msgstr "Scurtături de la tastatură"
-
-#: src/window.py:595
-msgid "Control Newelle using Keyboard Shortcuts"
-msgstr "Controlează Newelle folosind scurtături de la tastatură"
-
-#: src/window.py:596
-msgid "Prompt Control"
-msgstr "Control prompt"
-
-#: src/window.py:596
-msgid "Newelle gives you 100% prompt control. Tune your prompts for your use."
-msgstr ""
-"Newelle îți oferă control total asupra prompturilor. Ajustează-le pentru "
-"nevoile tale."
-
-#: src/window.py:597
-msgid "Thread Editing"
-msgstr "Editare fir de execuție"
-
-#: src/window.py:597
-msgid "Check the programs and processes you run from Newelle"
-msgstr "Verifică programele și procesele pe care le rulezi din Newelle"
-
-#: src/window.py:598
-msgid "Programmable Prompts"
-msgstr "Prompturi programabile"
-
-#: src/window.py:598
-msgid ""
-"You can add dynamic prompts to Newelle, with conditions and probabilities"
-msgstr ""
-"Puteți adăuga prompturi dinamice la Newelle, cu condiții și probabilități"
-
-#: src/window.py:605
-msgid "New Chat"
-msgstr "Chat Nou"
-
-#: src/window.py:623
-msgid "Provider Errror"
-msgstr "Eroare furnizor"
-
-#: src/window.py:646
-msgid "Local Documents"
-msgstr "Documente locale"
-
-#: src/window.py:650
-msgid "Web search"
-msgstr "Căutare web"
-
-#: src/window.py:892
-msgid "This provider does not have a model list"
-msgstr "Acest furnizor nu are o listă de modele"
-
-#: src/window.py:897
-msgid " Models"
-msgstr " Modele"
-
-#: src/window.py:900
-msgid "Search Models..."
-msgstr "Caută modele..."
-
-#: src/window.py:1128
-msgid "Create new profile"
-msgstr "Creează profil nou"
-
-#: src/window.py:1262
-msgid "Could not recognize your voice"
-msgstr "Nu am putut recunoaște vocea dvs."
-
-#: src/window.py:1299
-msgid "Images"
-msgstr "Imagini"
-
-#: src/window.py:1303
-msgid "LLM Supported Files"
-msgstr "Fișiere suportate de LLM"
-
-#: src/window.py:1311
-msgid "RAG Supported files"
-msgstr "Fișiere suportate RAG"
-
-#: src/window.py:1329
-msgid "Supported Files"
-msgstr "Fișiere suportate"
-
-#: src/window.py:1333
-msgid "All Files"
-msgstr "Toate fișierele"
-
-#: src/window.py:1339
-msgid "Attach file"
-msgstr "Atașează fișier"
-
-#: src/window.py:1594
-msgid "The file cannot be sent until the program is finished"
-msgstr "Fișierul nu poate fi trimis până când programul nu este terminat"
-
-#: src/window.py:1616
-msgid "The file is not recognized"
-msgstr "Fișierul nu este recunoscut"
-
-#: src/window.py:1635
-msgid "You can no longer continue the message."
-msgstr "Nu mai puteți continua mesajul."
-
-#: src/window.py:1660
-msgid "You can no longer regenerate the message."
-msgstr "Nu mai puteți regenera mesajul."
-
-#: src/window.py:1892
-msgid "Chat is cleared"
-msgstr "Chatul este șters"
-
-#: src/window.py:1917
-msgid "The message was canceled and deleted from history"
-msgstr "Mesajul a fost anulat și șters din istoric"
-
-#: src/window.py:1961
-msgid "The message cannot be sent until the program is finished"
-msgstr "Mesajul nu poate fi trimis până când programul nu este terminat"
-
-#: src/window.py:2939
-msgid "You can't edit a message while the program is running."
-msgstr "Nu poți edita un mesaj în timp ce programul rulează."
-
-#: src/window.py:3064
-msgid "Prompt content"
-msgstr "Conținut prompt"
-
-#: src/window.py:3323
-msgid ""
-"The neural network has access to your computer and any data in this chat and "
-"can run commands, be careful, we are not responsible for the neural network. "
-"Do not share any sensitive information."
-msgstr ""
-"Rețeaua neurală are acces la computerul dvs. și la orice date din acest chat "
-"și poate rula comenzi, fiți atenți, nu suntem responsabili pentru rețeaua "
-"neurală. Nu partajați informații sensibile."
-
-#: src/window.py:3352
-msgid ""
-"The neural network has access to any data in this chat, be careful, we are "
-"not responsible for the neural network. Do not share any sensitive "
-"information."
-msgstr ""
-"Rețeaua neurală are acces la orice date din acest chat, fiți atenți, nu "
-"suntem responsabili pentru rețeaua neurală. Nu partajați informații "
-"sensibile."
-
-#: src/window.py:3401
-msgid "Wrong folder path"
-msgstr "Calea folderului greșită"
-
-#: src/window.py:3434
-msgid "Thread has not been completed, thread number: "
-msgstr "Firul de execuție nu a fost finalizat, numărul firului de execuție: "
-
-#: src/window.py:3446
-msgid "Failed to open the folder"
-msgstr "Nu s-a putut deschide folderul"
-
-#: src/window.py:3625
-msgid "Chat is empty"
-msgstr "Chatul este gol"
-
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:9
-msgid ""
-"Train Newelle to do more with custom extensions and new AI modules, giving "
-"your chatbot endless possibilities."
-msgstr ""
-"Antrenează Newelle să facă mai multe cu extensii personalizate și noi module "
-"AI, oferind chatbot-ului tău posibilități nelimitate."
-
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:11
-msgid "AI chatbot"
-msgstr "Chatbot AI"
-
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:15
-msgid "Quick profile selection"
-msgstr "Selecție rapidă a profilului"
-
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:19
-msgid "Message Editing"
-msgstr "Editare mesaj"
-
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:23
-msgid "More than 10 standard AI providers"
-msgstr "Peste 10 furnizori AI standard"
-
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:38
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:61
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:123
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:128
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:133
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:138
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:143
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:19
+#, fuzzy
+msgid "Chat page 2"
+msgstr "Chat "
+
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:23
+#, fuzzy
+msgid "Chat page 3"
+msgstr "Chat "
+
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:27
+#, fuzzy
+msgid "Chat page 4"
+msgstr "Chat "
+
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:41
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:64
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:125
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:130
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:135
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:140
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:145
 msgid "Bug fixes"
 msgstr "Corectarea erorilor"
 
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:39
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:42
 msgid "Small improvements"
 msgstr "Îmbunătățiri mici"
 
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:46
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:49
 msgid "Improve local documents reading and loading performances"
 msgstr ""
 "Îmbunătățiți performanțele de citire și încărcare a documentelor locale"
 
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:47
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:50
 msgid "Add option to send with CTRL+Enter"
 msgstr "Adăugați opțiunea de a trimite cu CTRL+Enter"
 
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:48
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:51
 msgid "Improve codeblocks"
 msgstr "Îmbunătățiți blocurile de cod"
 
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:49
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:52
 msgid "Fix Kokoro TTS"
 msgstr "Rezolvă eroarea Kokoro TTS"
 
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:50
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:53
 msgid "Remove emoji from TTS"
 msgstr "Elimină emoji din TTS"
 
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:51
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:54
 msgid "Set API keys as password fields"
 msgstr "Setați cheile API ca câmpuri de parolă"
 
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:52
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:55
 msgid "Add thinking support for Gemini"
 msgstr "Adăugați suport pentru gândire pentru Gemini"
 
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:53
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:56
 msgid "Updated translations"
 msgstr "Traduceri actualizate"
 
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:60
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:63
 msgid "Added new features"
 msgstr "Funcționalități noi adăugate"
 
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:68
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:71
 msgid "Website reading and web search with SearXNG, DuckDuckGo, and Tavily"
 msgstr ""
 "Citirea site-urilor web și căutarea pe web cu SearXNG, DuckDuckGo și Tavily"
 
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:69
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:72
 msgid "Improved LaTeX rendering and document management"
 msgstr "Redare îmbunătățită LaTeX și gestionare documente"
 
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:70
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:73
 msgid "New Thinking Widget and OpenRouter handler"
 msgstr "Widget de gândire nou și handler OpenRouter"
 
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:71
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:74
 msgid "Vision support for Llama4 on Groq"
 msgstr "Suport pentru viziune pentru Llama4 pe Groq"
 
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:72
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:75
 msgid "New translations (Traditional Chinese, Bengali, Hindi)"
 msgstr "Traduceri noi (chineză tradițională, bengaleză, hindi)"
 
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:78
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:81
 msgid "Fixed many bugs, added some features!"
 msgstr ""
 "Multe erori au fost remediate, au fost adăugate câteva funcționalități!"
 
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:83
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:86
 msgid "Support for new features and bug fixes"
 msgstr "Suport pentru funcționalități noi și corectarea erorilor"
 
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:88
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:93
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:98
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:91
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:96
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:101
 msgid "Added many new features and bug fixes"
 msgstr "Au fost adăugate multe funcționalități noi și corecturi de erori"
 
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:103
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:108
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:106
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:111
 msgid "Added new features and bug fixes"
 msgstr "Funcționalități noi și corecturi de erori adăugate"
 
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:113
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:115
 msgid ""
 "Updated the g4f library with versioning, added user guides, improved "
 "extension browsing, and enhanced model handling."
@@ -2544,7 +2811,7 @@ msgstr ""
 "utilizare, navigarea extensiilor a fost îmbunătățită, iar gestionarea "
 "modelelor a fost optimizată."
 
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:118
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:120
 msgid ""
 "Bug fixes and new features have been implemented. We've modified the "
 "extension architecture, added new models, and introduced vision support, "
@@ -2554,37 +2821,84 @@ msgstr ""
 "arhitectura extensiei, am adăugat modele noi și am introdus suport pentru "
 "viziune, alături de mai multe capabilități."
 
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:148
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:150
 msgid "Stable version"
 msgstr "Versiune stabilă"
 
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:153
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:155
 msgid "Added extension"
 msgstr "Extensie adăugată"
 
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:158
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:160
 msgid "Blacklist of commands"
 msgstr "Listă neagră de comenzi"
 
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:163
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:165
 msgid "Localization"
 msgstr "Localizare"
 
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:168
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:170
 msgid "Redesign"
 msgstr "Redesign"
 
-#: data/io.github.qwersyk.Newelle.appdata.xml.in:172
-msgid "Qwersyk"
-msgstr "Qwersyk"
+#: data/moe.nyarchlinux.assistant.appdata.xml.in:175
+msgid "NyarchLinux"
+msgstr ""
 
-#: data/io.github.qwersyk.Newelle.desktop.in:3
-msgid "Newelle: Your advanced chat bot"
-msgstr "Newelle: Chatbot-ul tău avansat"
+#: data/moe.nyarchlinux.assistant.desktop.in:3
+msgid "Advanced AI waifu to help you"
+msgstr ""
 
-#: data/io.github.qwersyk.Newelle.desktop.in:10
+#: data/moe.nyarchlinux.assistant.desktop.in:10
 msgid "ai;assistant;chat;chatgpt;gpt;llm;ollama;"
 msgstr "ai;asistent;chat;chatgpt;gpt;llm;ollama;"
+
+#~ msgid "Newelle Tips"
+#~ msgstr "Sfaturi Newelle"
+
+#~ msgid "Newelle"
+#~ msgstr "Newelle"
+
+#~ msgid "Welcome to Newelle"
+#~ msgstr "Bun venit la Newelle"
+
+#~ msgid ""
+#~ "Newelle can be used to run commands on your system, but pay attention at "
+#~ "what you run! <b>The LLM is not under our control, so it might generate "
+#~ "malicious code!</b>\n"
+#~ "By default, your commands will be <b>virtualized in the Flatpak "
+#~ "environment</b>, but pay attention!"
+#~ msgstr ""
+#~ "Newelle poate fi folosit pentru a rula comenzi pe sistemul dvs., dar "
+#~ "acordați atenție la ce rulați! <b>LLM-ul nu este sub controlul nostru, "
+#~ "deci ar putea genera cod malițios!</b>\n"
+#~ "În mod implicit, comenzile dvs. vor fi <b>virtualizate în mediul Flatpak</"
+#~ "b>, dar fiți atenți!"
+
+#~ msgid ""
+#~ "Train Newelle to do more with custom extensions and new AI modules, "
+#~ "giving your chatbot endless possibilities."
+#~ msgstr ""
+#~ "Antrenează Newelle să facă mai multe cu extensii personalizate și noi "
+#~ "module AI, oferind chatbot-ului tău posibilități nelimitate."
+
+#~ msgid "AI chatbot"
+#~ msgstr "Chatbot AI"
+
+#~ msgid "Quick profile selection"
+#~ msgstr "Selecție rapidă a profilului"
+
+#~ msgid "Message Editing"
+#~ msgstr "Editare mesaj"
+
+#~ msgid "More than 10 standard AI providers"
+#~ msgstr "Peste 10 furnizori AI standard"
+
+#~ msgid "Qwersyk"
+#~ msgstr "Qwersyk"
+
+#~ msgid "Newelle: Your advanced chat bot"
+#~ msgstr "Newelle: Chatbot-ul tău avansat"
 
 #~ msgid "max Tokens"
 #~ msgstr "Număr maxim de token-uri"
