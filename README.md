@@ -16,19 +16,7 @@
 ![screenshot](https://raw.githubusercontent.com/NyarchLinux/NyarchAssistant/refs/heads/master/screenshots/1w.png#gh-light-mode-only)
 ![screenshot](https://raw.githubusercontent.com/NyarchLinux/NyarchAssistant/refs/heads/master/screenshots/1b.png#gh-dark-mode-only)
 
-<div align="center">
-  <br>
-  <a href="https://www.youtube.com/watch?v=XCOnu_M_4HU">
-    <picture>
-      <source srcset="https://newelle.qsk.me/static/thumbnails/github-promo.png" media="(prefers-color-scheme: light)">
-      <source srcset="https://newelle.qsk.me/static/thumbnails/github-promo-dark.png" media="(prefers-color-scheme: dark)">
-      <img src="https://newelle.qsk.me/static/thumbnails/github-promo.png" alt="▶️ Watch Newelle Demo Video" width="600">
-    </picture>
-  </a>
-  <br>
-  <sub><strong>🎬 Watch Newelle in Action</strong> • See how easy it is to get started</sub>
-  <br><br>
-</div>
+https://github.com/user-attachments/assets/909edf0e-5a79-40c2-a3ef-cb5b2b18abfc
 
 # Features
 - <img src="https://nyarchlinux.moe/waifu.webp" width="20px"/> **Your waifu at your command**: Chat with your waifu using a Live2D or LivePNG model with expression and motion support

@@ -2156,6 +2156,7 @@ class MainWindow(Adw.ApplicationWindow):
         text = button.get_child().get_label()
         self.chat.append({"User": "User", "Message": text})
         self.show_message(text, id_message=len(self.chat) - 1, is_user=True)
+        
         threading.Thread(target=self.send_message).start()
 
     def generate_suggestions(self):
@@ -2207,6 +2208,7 @@ class MainWindow(Adw.ApplicationWindow):
         history = []
         count = self.controller.newelle_settings.memory
         msgs = chat[:-1] if not include_last_message else chat
+        msgs.reverse()
         for msg in msgs:
             if count == 0:
                 break
@@ -2217,7 +2219,7 @@ class MainWindow(Adw.ApplicationWindow):
             if msg["User"] == "File" or msg["User"] == "Folder":
                 msg["Message"] = f"```{msg['User'].lower()}\n{msg['Message'].strip()}\n```"
                 msg["User"] = "User"
-            history.append(msg)
+            history.insert(0,msg)
             count -= 1
         return history
 
@@ -2500,6 +2502,7 @@ class MainWindow(Adw.ApplicationWindow):
         # Create the message label
         self.streaming_message_box.append(scrolled_window)
         self.streaming_box = self.add_message("Assistant", self.streaming_message_box)
+        self.messages_box.pop()
         self.streaming_box.set_overflow(Gtk.Overflow.VISIBLE)
 
     def update_message(self, message, stream_number_variable):
@@ -2572,8 +2575,8 @@ class MainWindow(Adw.ApplicationWindow):
     # Show messages in chat
     def show_chat(self, animate=False):
         """Show a chat"""
-        self.messages_box = []
         self.last_error_box = None
+        self.messages_box = [] 
         if not self.check_streams["chat"]:
             self.check_streams["chat"] = True
             try:
@@ -3152,6 +3155,7 @@ class MainWindow(Adw.ApplicationWindow):
         message_box = self.messages_box[message_id + 1]  # +1 to fix message warning
         old_label = message_box.get_last_child()
         if old_label is not None:
+
             message_box.remove(old_label)
             message_box.append(
                 self.show_message(
