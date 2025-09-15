@@ -1,11 +1,16 @@
 requests
-expandvars
-curl_cffi
 pillow
-gtts
+requests-toolbelt
+gtts #optional
+expandvars
 pyaudio
 speechrecognition
 openai
+voicevox-client
+livepng
+wordllama
+edge-tts
+scikit-learn
 pygame
 tiktoken
 newspaper3k

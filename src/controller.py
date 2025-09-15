@@ -18,6 +18,7 @@ from .utility.system import is_flatpak
 from .utility.pip import install_module
 from .utility.profile_settings import get_settings_dict_by_groups
 from .constants import AVAILABLE_INTEGRATIONS, AVAILABLE_WEBSEARCH, DIR_NAME, SCHEMA_ID, PROMPTS, AVAILABLE_STT, AVAILABLE_TTS, AVAILABLE_LLMS, AVAILABLE_RAGS, AVAILABLE_PROMPTS, AVAILABLE_MEMORIES, AVAILABLE_EMBEDDINGS, SETTINGS_GROUPS, restore_handlers
+from .constants import AVAILABLE_SMART_PROMPTS, AVAILABLE_AVATARS, AVAILABLE_TRANSLATORS
 import threading
 import pickle
 import json
@@ -26,6 +27,17 @@ from .utility import override_prompts
 from enum import Enum 
 from .handlers import Handler
 from .ui_controller import UIController
+
+# Nyarch Specific 
+
+from .handlers.translator import TranslatorHandler
+from .handlers.avatar import AvatarHandler
+from .handlers.smart_prompt import SmartPromptHandler
+
+if is_flatpak():
+    BASE_PATH = "/app/data"
+else:
+    BASE_PATH = "/usr/share/nyarchassistant/data"
 """
 Manage Newelle Application, create handlers, check integrity, manage settings...
 """
@@ -44,8 +56,7 @@ class ReloadType(Enum):
         MEMORIES: Reload MEMORIES 
         EMBEDDINGS: Reload EMBEDDINGS 
 EXTENSIONS: Reload EXTENSIONS 
-        SECONDARY_LLM: Reload SECONDARY_LLM
-        RELOAD_CHAT: Reload RELOAD_CHAT
+        SECONDARY_LLM: Reload SECONDARY_LLM RELOAD_CHAT: Reload RELOAD_CHAT
     """
     NONE = 0
     LLM = 1
@@ -61,6 +72,10 @@ EXTENSIONS: Reload EXTENSIONS
     RELOAD_CHAT_LIST = 11
     WEBSEARCH = 12
     OFFERS = 13
+    # Nyarch Vars
+    AVATAR = 40
+    SMART_PROMPTS = 41
+    TRANSLATORS = 42
 
 class NewelleController:
     """Main controller, manages the application
@@ -99,6 +114,7 @@ class NewelleController:
         self.handlers = HandlersManager(self.settings, self.extensionloader, self.models_dir, self.integrationsloader, self.installing_handlers)
         self.handlers.select_handlers(self.newelle_settings)
         threading.Thread(target=self.handlers.cache_handlers).start()
+        threading.Thread(target=self.remove_cache_audio).start()
 
     def init_paths(self) -> None:
         """Define paths for the application"""
@@ -125,6 +141,14 @@ class NewelleController:
             self.extensionloader.set_ui_controller(ui_controller)
             self.integrationsloader.set_ui_controller(ui_controller)
 
+    def remove_cache_audio(self):
+        """Remove audio cache"""
+        audio_cache = self.models_dir
+        for filename in os.listdir(audio_cache):
+            if filename.endswith(".wav") or filename.endswith(".mp3"):
+                file_path = os.path.join(audio_cache, filename)
+                os.remove(file_path)
+
     def load_chats(self, chat_id):
         """Load chats"""
         self.filename = "chats.pkl"
@@ -144,13 +168,15 @@ class NewelleController:
         """Create missing directories"""
         # Create directories
         if not os.path.exists(self.data_dir):
-            os.makedirs(self.data_dir)
+            os.makedirs(self.data_dir, exist_ok=True)
         if not os.path.exists(self.extension_path):
-            os.makedirs(self.extension_path)
+            os.makedirs(self.extension_path, exist_ok=True)
         if not os.path.exists(self.extensions_cache):
-            os.makedirs(self.extensions_cache)
+            os.makedirs(self.extensions_cache, exist_ok=True)
         if not os.path.exists(self.models_dir):
-            os.makedirs(self.models_dir)
+            os.makedirs(self.models_dir, exist_ok=True)
+        if not os.path.exists(os.path.join(self.config_dir, "avatars")):
+            os.makedirs(os.path.join(self.config_dir, "avatars"), exist_ok=True)
         if not os.path.exists(self.newelle_dir):
             os.makedirs(self.newelle_dir, exist_ok=True)
         # Fix Pip environment
@@ -186,8 +212,8 @@ class NewelleController:
                                                    extension_cache=self.extensions_cache, settings=self.settings)
             self.extensionloader.load_extensions()
             restore_handlers()
-            self.extensionloader.add_handlers(AVAILABLE_LLMS, AVAILABLE_TTS, AVAILABLE_STT, AVAILABLE_MEMORIES, AVAILABLE_EMBEDDINGS, AVAILABLE_RAGS, AVAILABLE_WEBSEARCH)
             self.extensionloader.add_prompts(PROMPTS, AVAILABLE_PROMPTS)
+            self.extensionloader.add_handlers(AVAILABLE_LLMS, AVAILABLE_TTS, AVAILABLE_STT, AVAILABLE_MEMORIES, AVAILABLE_EMBEDDINGS, AVAILABLE_RAGS, AVAILABLE_WEBSEARCH,AVAILABLE_AVATARS, AVAILABLE_TRANSLATORS, AVAILABLE_SMART_PROMPTS)
             self.newelle_settings.load_prompts()
             self.handlers.extensionloader = self.extensionloader
             self.handlers.select_handlers(self.newelle_settings)
@@ -201,6 +227,8 @@ class NewelleController:
             if self.newelle_settings.use_secondary_language_model:
                 threading.Thread(target=self.handlers.secondary_llm.load_model, args=(None,)).start()
         elif reload_type in [ReloadType.TTS, ReloadType.STT, ReloadType.MEMORIES]:
+            self.handlers.select_handlers(self.newelle_settings)
+        elif reload_type in [ReloadType.AVATAR, ReloadType.SMART_PROMPTS, ReloadType.TRANSLATORS]:
             self.handlers.select_handlers(self.newelle_settings)
         elif reload_type == ReloadType.RAG:
             self.handlers.select_handlers(self.newelle_settings)
@@ -216,7 +244,6 @@ class NewelleController:
             self.newelle_settings.save_prompts()
             self.newelle_settings.load_prompts()
             
-
     def set_extensionsloader(self, extensionloader):
         """Change extension loader
 
@@ -236,7 +263,7 @@ class NewelleController:
         self.extensionloader = ExtensionLoader(self.extension_path, pip_path=self.pip_path,
                                                extension_cache=self.extensions_cache, settings=self.settings)
         self.extensionloader.load_extensions()
-        self.extensionloader.add_handlers(AVAILABLE_LLMS, AVAILABLE_TTS, AVAILABLE_STT, AVAILABLE_MEMORIES, AVAILABLE_EMBEDDINGS, AVAILABLE_RAGS, AVAILABLE_WEBSEARCH)
+        self.extensionloader.add_handlers(AVAILABLE_LLMS, AVAILABLE_TTS, AVAILABLE_STT, AVAILABLE_MEMORIES, AVAILABLE_EMBEDDINGS, AVAILABLE_RAGS, AVAILABLE_WEBSEARCH,AVAILABLE_AVATARS, AVAILABLE_TRANSLATORS, AVAILABLE_SMART_PROMPTS)
         self.extensionloader.add_prompts(PROMPTS, AVAILABLE_PROMPTS)
         self.set_ui_controller(self.ui_controller)
 
@@ -331,7 +358,7 @@ class NewelleSettings:
         self.profile_settings = json.loads(self.settings.get_string("profiles"))
         self.current_profile = self.settings.get_string("current-profile")
         if len(self.profile_settings) == 0 or self.current_profile not in self.profile_settings:
-            self.profile_settings[self.current_profile] = {"settings": {}, "picture": None, "settings_groups": []}
+            self.profile_settings[self.current_profile] = {"settings": {}, "picture": os.path.join(BASE_PATH, 'live2d/web/arch-chan.png'), "settings_groups": []}
 
         # Init variables
         self.automatic_stt_status = False
@@ -390,6 +417,15 @@ class NewelleSettings:
         self.browser_session_persist = settings.get_boolean("browser-session-persist")
         self.editor_color_scheme = settings.get_string("editor-color-scheme")
         self.load_prompts()
+        # Nyarch Settings
+        self.avatar_enabled = settings.get_boolean("avatar-on")
+        self.avatar_settings = settings.get_string("avatars")
+        self.avatar = settings.get_string("avatar-model")
+        self.translator = settings.get_string("translator")  
+        self.translation_enabled = settings.get_boolean("translator-on")
+        self.translation_handler = settings.get_string("translator")
+        self.smart_prompt_enabled = settings.get_boolean("smart-prompt-on")
+        self.smart_prompt = settings.get_string("smart-prompt")
         # Adjust paths
         if os.path.exists(os.path.expanduser(self.main_path)):
             os.chdir(os.path.expanduser(self.main_path))
@@ -448,6 +484,13 @@ class NewelleSettings:
 
         if self.websearch_on != new_settings.websearch_on or self.websearch_model != new_settings.websearch_model or self.websearch_settings != new_settings.websearch_settings:
             reloads.append(ReloadType.WEBSEARCH)
+        if self.avatar_enabled != new_settings.avatar_enabled or self.avatar_settings != new_settings.avatar_settings or self.avatar != new_settings.avatar:
+            reloads.append(ReloadType.AVATAR)
+        if self.translator != new_settings.translator or self.translation_enabled != new_settings.translation_enabled or self.translation_handler != new_settings.translation_handler:
+            reloads.append(ReloadType.TRANSLATORS)
+
+        if self.smart_prompt_enabled != new_settings.smart_prompt_enabled or self.smart_prompt != new_settings.smart_prompt:
+            reloads.append(ReloadType.SMART_PROMPTS)
         # Check prompts
         if len(self.prompts) != len(new_settings.prompts):
             reloads.append(ReloadType.PROMPTS)
@@ -507,10 +550,16 @@ class HandlersManager:
             newelle_settings.stt_engine = list(AVAILABLE_STT.keys())[0]
         if newelle_settings.websearch_model not in AVAILABLE_WEBSEARCH:
             newelle_settings.websearch_model = list(AVAILABLE_WEBSEARCH.keys())[0]
-      
+        if newelle_settings.avatar not in AVAILABLE_AVATARS:
+            newelle_settings.avatar = list(AVAILABLE_AVATARS.keys())[0]
+        if newelle_settings.translator not in AVAILABLE_TRANSLATORS:
+            newelle_settings.translator = list(AVAILABLE_TRANSLATORS.keys())[0]
+        if newelle_settings.smart_prompt not in AVAILABLE_SMART_PROMPTS:
+            newelle_settings.smart_prompt = list(AVAILABLE_SMART_PROMPTS.keys())[0]
+    
     def set_ui_controller(self, ui_controller):
         self.ui_controller = ui_controller
-
+    
     def select_handlers(self, newelle_settings: NewelleSettings):
         """Assign the selected handlers
 
@@ -531,6 +580,9 @@ class HandlersManager:
         self.memory.set_memory_size(newelle_settings.memory)
         self.rag : RAGHandler = self.get_object(AVAILABLE_RAGS, newelle_settings.rag_model)
         self.websearch : WebSearchHandler = self.get_object(AVAILABLE_WEBSEARCH, newelle_settings.websearch_model)
+        self.avatar : AvatarHandler = self.get_object(AVAILABLE_AVATARS, newelle_settings.avatar)
+        self.translator : TranslatorHandler = self.get_object(AVAILABLE_TRANSLATORS, newelle_settings.translator)
+        self.smart_prompt : SmartPromptHandler = self.get_object(AVAILABLE_SMART_PROMPTS, newelle_settings.smart_prompt)
         # Assign handlers 
         self.integrationsloader.set_handlers(self.llm, self.stt, self.tts, self.secondary_llm, self.embedding, self.rag, self.memory, self.websearch)
         self.extensionloader.set_handlers(self.llm, self.stt, self.tts, self.secondary_llm, self.embedding, self.rag, self.memory, self.websearch)
@@ -554,7 +606,7 @@ class HandlersManager:
             self.secondary_llm.load_model(None)
         self.embedding.load_model()
         if self.settings.get_boolean("rag-on"):
-            self.rag.load()
+            GLib.timeout_add(2000, lambda : threading.Thread(target=self.rag.load).start())
 
     def install_missing_handlers(self):
         """Install selected handlers that are not installed. Assumes that select_handlers has been called""" 
@@ -590,6 +642,13 @@ class HandlersManager:
             self.handlers[(key, self.convert_constants(AVAILABLE_EMBEDDINGS), False)] = self.get_object(AVAILABLE_EMBEDDINGS, key)
         for key in AVAILABLE_WEBSEARCH:
             self.handlers[(key, self.convert_constants(AVAILABLE_WEBSEARCH), False)] = self.get_object(AVAILABLE_WEBSEARCH, key)
+        # Nyarch Hanlders
+        for key in AVAILABLE_AVATARS:
+            self.handlers[(key, self.convert_constants(AVAILABLE_AVATARS))] = self.get_object(AVAILABLE_AVATARS, key)
+        for key in AVAILABLE_TRANSLATORS:
+            self.handlers[(key, self.convert_constants(AVAILABLE_TRANSLATORS))] = self.get_object(AVAILABLE_TRANSLATORS, key)
+        for key in AVAILABLE_SMART_PROMPTS:
+            self.handlers[(key, self.convert_constants(AVAILABLE_SMART_PROMPTS))] = self.get_object(AVAILABLE_SMART_PROMPTS, key)
         self.handlers_cached.release()
     
     def convert_constants(self, constants: str | dict[str, Any]) -> (str | dict):
@@ -623,6 +682,12 @@ class HandlersManager:
                     return AVAILABLE_WEBSEARCH
                 case "extension":
                     return self.extensionloader.extensionsmap
+                case "avatar":
+                    return AVAILABLE_AVATARS
+                case "translator":
+                    return AVAILABLE_TRANSLATORS
+                case "smart-prompt":
+                    return AVAILABLE_SMART_PROMPTS
                 case _:
                     raise Exception("Unknown constants")
         else:
@@ -642,6 +707,12 @@ class HandlersManager:
                 return "websearch"
             elif constants == self.extensionloader.extensionsmap:
                 return "extension"
+            elif constants == AVAILABLE_AVATARS:
+                return "avatar"
+            elif constants == AVAILABLE_TRANSLATORS:
+                return "translator"
+            elif constants == AVAILABLE_SMART_PROMPTS:
+                return "smart-prompt"
             else:
                 raise Exception("Unknown constants")
 
@@ -675,6 +746,12 @@ class HandlersManager:
         elif constants == AVAILABLE_RAGS:
             model = constants[key]["class"](self.settings, self.directory)
         elif constants == AVAILABLE_WEBSEARCH:
+            model = constants[key]["class"](self.settings, self.directory)
+        elif constants == AVAILABLE_AVATARS:
+            model = constants[key]["class"](self.settings, os.path.dirname(self.directory))
+        elif constants == AVAILABLE_TRANSLATORS:
+            model = constants[key]["class"](self.settings, self.directory)
+        elif constants == AVAILABLE_SMART_PROMPTS:
             model = constants[key]["class"](self.settings, self.directory)
         elif constants == self.extensionloader.extensionsmap:
             model = self.extensionloader.extensionsmap[key]
@@ -711,6 +788,12 @@ class HandlersManager:
             return AVAILABLE_RAGS
         elif issubclass(type(handler), WebSearchHandler):
             return AVAILABLE_WEBSEARCH
+        elif issubclass(type(handler), AvatarHandler):
+            return AVAILABLE_AVATARS
+        elif issubclass(type(handler), TranslatorHandler):
+            return AVAILABLE_TRANSLATORS
+        elif issubclass(type(handler), SmartPromptHandler):
+            return AVAILABLE_SMART_PROMPTS
         else:
             raise Exception("Unknown handler")
     

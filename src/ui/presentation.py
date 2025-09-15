@@ -90,20 +90,20 @@ class PresentationWindow(Adw.Window):
         settings = Settings(self.app, self.controller, headless=True)
         pages = [
             {
-                "title": _("Welcome to Newelle"),
-                "description": _("Your ultimate virtual assistant."),
-                "picture": "/io/github/qwersyk/Newelle/images/illustration.svg",
+                "title": _("Welcome to Nyarch Assistant!"),
+                "description": _("Your ultimate AI Waifu assistant."),
+                "picture": "/moe/nyarchlinux/assistant/images/logo.svg",
                 "actions": [
                     {
                         "label": _("Github Page"),
                         "classes": [],
-                        "callback": lambda x: subprocess.Popen(["xdg-open", "https://github.com/qwersyk/Newelle"]), 
+                        "callback": lambda x: subprocess.Popen(["xdg-open", "https://github.com/NyarchLinux/NyarchAssistant"]), 
                     }
                 ]
             },
             {
                 "title": _("Choose your favourite AI Language Model"),
-                "description": _("Newelle can be used with mutiple models and providers!\n<b>Note: It is strongly suggested to read the Guide to LLM page</b>"),
+                "description": _("Nyarch Assistant can be used with mutiple models and providers!\n<b>Note: It is strongly suggested to read the Guide to LLM page</b>"),
                 "widget": self.__steal_from_settings(settings.LLM),
                 "actions": [
                     {
@@ -115,22 +115,22 @@ class PresentationWindow(Adw.Window):
             },
             {
                 "title": _("Chat with your documents"),
-                "description": _("Newelle can retrieve relevant information from documents you send in the chat or from your own files! Information relevant to your query will be sent to the LLM."),
+                "description": _("Nyarch Assistant can retrieve relevant information from documents you send in the chat or from your own files! Information relevant to your query will be sent to the LLM."),
                 "widget": self.__steal_from_settings(settings.RAG),
                 "actions": [
                 ] 
             },
             {
-                "title": _("Command virtualization"),
-                "description": _("Newelle can be used to run commands on your system, but pay attention at what you run! <b>The LLM is not under our control, so it might generate malicious code!</b>\nBy default, your commands will be <b>virtualized in the Flatpak environment</b>, but pay attention!"),
-                "widget": self.__steal_from_settings(settings.neural_network),
-                "actions": [
-                ] 
+                "title": _("Choose your favourite Voice configuration"),
+                "description": _("You can speak to Nyarch Assistant! Use any TTS/STT provider in any language, with translation support!"),
+                "widget": self.__steal_from_settings(settings.Voicegroup),
+                "actions": [ 
+                ]
             },
             {
                 "title": _("Extensions"),
-                "description": _("You can extend Newelle's functionalities using extensions!"),
-                "picture": "/io/github/qwersyk/Newelle/images/extension.svg",
+                "description": _("You can extend Nyarch Assistant's functionalities using extensions! They are easy to make and to install!"),
+                "picture": "/moe/nyarchlinux/assistant/images/extension.svg",
                 "actions": [
                     {
                         "label": _("Download extensions"),
@@ -138,19 +138,25 @@ class PresentationWindow(Adw.Window):
                         "callback": lambda x: subprocess.Popen(["xdg-open", "https://github.com/topics/newelle-extension"]),
                     }
                 ]
+            },
+            {
+                "title": _("Pay attention!"),
+                "description": _("Nyarch Assistant can run commands on your system! By enabling command virtualization, you will only run commands inside the flatpak environment, avoiding to create damages to your system.\n\n <b>Pay attention on what you run! Commands generated might harm your system!</b>"),
+                "widget": self.__steal_from_settings(settings.neural_network),
+                "actions": []
             }
         ]
         # Show the warning only if there are not enough permissions
         if not can_escape_sandbox():
             pages.append({
                 "title": _("Permission Error"),
-                "description": _("Newelle does not have enough permissions to run commands on your system."),
-                "picture": "/io/github/qwersyk/Newelle/images/error.svg",
+                "description": _("nyarchassistant does not have enough permissions to run commands on your system."),
+                "picture": "/moe/nyarchlinux/assistant/images/error.svg",
                 "actions": [
                     {
                         "label": "Learn more",
                         "classes": ["suggested-action"],
-                        "callback": lambda x: subprocess.Popen(["xdg-open", "https://github.com/qwersyk/Newelle?tab=readme-ov-file#permission"]),
+                        "callback": lambda x: subprocess.Popen(["xdg-open", "https://github.com/nyarchlinux/nyarchassistant?tab=readme-ov-file#permission"]),
                     }
                 ]
             })
@@ -205,7 +211,7 @@ class PresentationWindow(Adw.Window):
             
         """
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=20, hexpand=False)
-        copy = CopyBox("flatpak --user override --talk-name=org.freedesktop.Flatpak --filesystem=home io.github.qwersyk.Newelle", "bash", parent=box)
+        copy = CopyBox("flatpak --user override --talk-name=org.freedesktop.Flatpak --filesystem=home moe.nyarchlinux.nyarchassistant", "bash", parent=box)
         copy.set_hexpand(False)
         copy.set_vexpand(True)
         img = Gtk.Image.new_from_icon_name("warning-outline-symbolic")

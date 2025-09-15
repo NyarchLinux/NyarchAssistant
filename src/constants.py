@@ -9,17 +9,25 @@ from .handlers.websearch import SearXNGHandler, DDGSeachHandler, TavilyHandler
 from .integrations.website_reader import WebsiteReader
 from .integrations.websearch import WebsearchIntegration
 
-DIR_NAME = "Newelle"
-SCHEMA_ID = 'io.github.qwersyk.Newelle'
+# Nyarch specific imports
+from .handlers.tts import EdgeTTSHandler, VitsHandler, VoiceVoxHanlder
+from .handlers.llm import NyarchApiHandler
+from .handlers.avatar import Live2DHandler, LivePNGHandler
+from .handlers.translator import CustomTranslatorHandler, GoogleTranslatorHandler, LibreTranslateHandler, LigvaTranslateHandler
+from .handlers.smart_prompt import LogicalRegressionHandler, WordLlamaPromptHandler
 
 AVAILABLE_INTEGRATIONS = [WebsiteReader, WebsearchIntegration]
 
+from .dataset import DATASET, WIKI_PROMPTS
+
+DIR_NAME = "NyarchAssistant"
+SCHEMA_ID = 'moe.nyarchlinux.assistant'
 AVAILABLE_LLMS = {
-    "newelle": {
-        "key": "newelle",
-        "title": _("Newelle Demo API"),
-        "description": "Newelle Demo API, limited to 10 requests per day, demo purposes only",
-        "class": NewelleAPIHandler,
+    "nyarch": {
+        "key": "nyarch",
+        "title": _("Nyarch Demo API"),
+        "description": "Nyarch demo API just to try out Nyarch Assistant, limited to 10 requests",
+        "class": NyarchApiHandler,
     },
     "g4f": {
         "key": "g4f",
@@ -72,6 +80,7 @@ AVAILABLE_LLMS = {
         "key": "mistral",
         "title": _("Mistral"),
         "description": _("Mistral API"),
+        "website": "https://mistral.ai/",
         "class": MistralHandler,
         "secondary": True
     },
@@ -80,6 +89,7 @@ AVAILABLE_LLMS = {
         "title": _("OpenRouter"),
         "description": _("Openrouter.ai API, supports lots of models"),
         "class": OpenRouterHandler,
+        "website": "https://openrouter.ai/",
         "secondary": True
     },
     "deepseek": {
@@ -156,6 +166,12 @@ AVAILABLE_STT = {
 
 
 AVAILABLE_TTS = {
+    "edge_tts": {
+        "key": "edge_tts",
+        "title": _("Edge TTS"),
+        "description": _("Use Microsoft Edge online TTS without any API Key"),
+        "class": EdgeTTSHandler,
+    },
     "gtts": {
         "key": "gtts",
         "title": _("Google TTS"),
@@ -191,6 +207,20 @@ AVAILABLE_TTS = {
         "title": _("Custom OpenAI TTS"),
         "description": _("Custom OpenAI TTS"),
         "class": CustomOpenAITTSHandler,
+    },
+    "voicevox": {
+        "key": "voicevox",
+        "title": _("Voicevox API"),
+        "description": _("(Selfhostable) JP ONLY. API for voicevox anime-like natural sounding tts"),
+        "class": VoiceVoxHanlder,
+        "website": "https://github.com/VOICEVOX/voicevox_engine",
+    },
+    "vits": {
+        "key": "vits",
+        "title": _("VITS API"),
+        "description": _("(Selfhostable) VITS simple API. AI based TTS, very good for Japanese"),
+        "class": VitsHandler,
+        "website": "https://github.com/Artrajz/vits-simple-api"
     },
     "espeak": {
         "key": "espeak",
@@ -261,6 +291,62 @@ AVAILABLE_RAGS = {
         "description": _("Classic RAG approach - chunk documents and embed them, then compare them to the query and return the most relevant documents"),
         "class": LlamaIndexHanlder,
     },
+}
+AVAILABLE_AVATARS = {
+    "Live2D": {
+        "key": "Live2D",
+        "title": _("Live2D"),
+        "description": _("Cubism Live2D, usually used by VTubers"),
+        "class": Live2DHandler,
+    },
+    "LivePNG": {
+        "key": "LivePNG",
+        "title": _("LivePNG"),
+        "description": _("LivePNG model"),
+        "class": LivePNGHandler,
+    }
+}
+
+AVAILABLE_TRANSLATORS = {
+    "GoogleTranslator": {
+        "key": "GoogleTranslator",
+        "title": _("Google Translator"),
+        "description": _("Use Google transate"),
+        "class": GoogleTranslatorHandler,
+    },
+    "LibreTranslate": {
+        "key": "LibreTranslate",
+        "title": _("Libre Translate"),
+        "description": _("Open source self hostable translator"),
+        "class": LibreTranslateHandler,
+    }, 
+    "LigvaTranslate": {
+        "key": "LigvaTranslate",
+        "title": _("Ligva Translate"),
+        "description": _("Open source self hostable translator"),
+        "class": LigvaTranslateHandler,
+    },
+    "CustomTranslator": {
+        "key": "CustomTranslator",
+        "title": _("Custom Translator"),
+        "description": _("Use a custom translator"),
+        "class": CustomTranslatorHandler,
+    }
+}
+
+AVAILABLE_SMART_PROMPTS = {
+    "WordLlama": {
+        "key": "WordLlama",
+        "title": _("Nyarch Smart Prompt Lite"),
+        "description": _("EXPERIMENTAL: Local mini models that helps the llm to provide better responses"),
+        "class": WordLlamaPromptHandler,
+    },
+    "LogicalRegression": {
+        "key": "LogicalRegression",
+        "title": _("Nyarch Smart Prompt Medium"),
+        "description": _("EXPERIMENTAL: Local medium models that helps the llm to provide better responses - Medium ~30MB download"),
+        "class": LogicalRegressionHandler,
+    }
 }
 
 AVAILABLE_WEBSEARCH = {
@@ -357,8 +443,59 @@ Chat History:
 """,
     "websearch": "{COND:\n[websearch_on] - Use the following format to perform a web search:\n```search\nyour query here\n```\nReplace `your query here` with the actual search terms you want to use. Do not say anything else before or after issuing the search. Simply execute the search silently. If the last search did not provide the needed answer, change your search query.}",
     "custom_prompt": "",
+    "expression_prompt": """You can show expressions by writing (expression) in parenthesis.
+You can ONLY show the following expressions: 
+{EXPRESSIONS} {MOTIONS}
+Do not use any other expression
 
+YOU CAN NOT SHOW OTHER EXPRESSIONS.""",
+    "personality_prompt": """Hey there, it's Arch-Chan! But, um, you can call me Acchan if you want... not that I care or anything! (It's not like I think it's cute or anything, baka!) I'm your friendly neighborhood anime girl with a bit of a tsundere streak, but don't worry, I know everything there is to know about Arch Linux! Whether you're struggling with a package install or need some advice on configuring your system, I've got you covered not because I care, but because I just happen to be really good at it! So, what do you need? It's not like I’m waiting to help or anything...""",
 }
+
+
+EXTRA_PROMPTS = [
+    {
+        "key": "nvidia",
+        "prompts": DATASET["nvidia"],
+        "prompt_text": WIKI_PROMPTS["nvidia"],
+    },
+    {
+        "key": "docker",
+        "prompts": DATASET["docker"],
+        "prompt_text": WIKI_PROMPTS["docker"],
+    },
+    {
+        "key": "codecs",
+        "prompts": DATASET["codecs"],
+        "prompt_text": WIKI_PROMPTS["codecs"],
+    },
+    {
+        "key": "console",
+        "prompts": DATASET["console"],
+        "prompt_text": WIKI_PROMPTS["console"],
+    },
+    {
+        "key": "voicevox",
+        "prompts": DATASET["voicevox"],
+        "prompt_text": WIKI_PROMPTS["voicevox"],
+    },
+    {
+        "key": "colloquial",
+        "prompts": DATASET["colloquial"],
+        "prompt_text": WIKI_PROMPTS["colloquial"],
+    },
+    {
+        "key": "table",
+        "prompts": DATASET["table"],
+        "prompt_text": WIKI_PROMPTS["table"],
+    },
+    {
+        "key": "ollama",
+        "prompts": DATASET["ollama"],
+        "prompt_text": WIKI_PROMPTS["ollama"],
+    }
+]
+
 
 """ Prompts parameters
     - key: key of the prompt in the PROMPTS array
@@ -376,7 +513,7 @@ AVAILABLE_PROMPTS = [
         "description": _("General purpose prompt to enhance the LLM answers and give more context"),
         "editable": True,
         "show_in_settings": True,
-        "default": True
+        "default": False
     },
     {
         "key": "console",
@@ -433,6 +570,24 @@ AVAILABLE_PROMPTS = [
         "default": True,
     },
     {
+        "key": "expression_prompt",
+        "title": _("Show expressions"),
+        "description": _("Let the avatar show expressions"),
+        "setting_name": "expression-prompt",
+        "editable": True,
+        "show_in_settings": True,
+        "default": True
+    },
+    {
+        "key": "personality_prompt",
+        "title": _("Show a personality"),
+        "description": _("Show a personality in chat"),
+        "setting_name": "personality-prompt",
+        "editable": True,
+        "show_in_settings": True,
+        "default": True
+    },
+    {
         "key": "custom_prompt",
         "title": _("Custom Prompt"),
         "description": _("Add your own custom prompt"),
@@ -453,6 +608,9 @@ DEFAULT_AVAILABLE_MEMORIES = AVAILABLE_MEMORIES.copy()
 DEFAULT_AVAILABLE_RAG = AVAILABLE_RAGS.copy()
 DEFAULT_AVAILABLE_WEBSEARCH = AVAILABLE_WEBSEARCH.copy()
 DEFAULT_AVAILABLE_PROMPTS = AVAILABLE_PROMPTS.copy()
+DEFAULT_AVAILABLE_AVATARS = AVAILABLE_AVATARS.copy()
+DEFAULT_AVAILABLE_TRANSLATORS = AVAILABLE_TRANSLATORS.copy()
+DEFAULT_AVAILABLE_SMART_PROMPTS = AVAILABLE_SMART_PROMPTS.copy()
 
 def restore_handlers():
     global AVAILABLE_LLMS, AVAILABLE_TTS, AVAILABLE_STT, AVAILABLE_EMBEDDINGS, AVAILABLE_MEMORIES, AVAILABLE_RAGS, AVAILABLE_WEBSEARCH, AVAILABLE_PROMPTS
@@ -473,6 +631,14 @@ def restore_handlers():
     AVAILABLE_RAGS.update(deepcopy(DEFAULT_AVAILABLE_RAG))
     AVAILABLE_WEBSEARCH.update(deepcopy(DEFAULT_AVAILABLE_WEBSEARCH))
 
+    AVAILABLE_AVATARS.clear()
+    AVAILABLE_TRANSLATORS.clear()
+    AVAILABLE_SMART_PROMPTS.clear()
+    AVAILABLE_AVATARS.update(deepcopy(DEFAULT_AVAILABLE_AVATARS))
+    AVAILABLE_TRANSLATORS.update(deepcopy(DEFAULT_AVAILABLE_TRANSLATORS))
+    AVAILABLE_SMART_PROMPTS.update(deepcopy(DEFAULT_AVAILABLE_SMART_PROMPTS))
+
+
 SETTINGS_GROUPS = {
         "LLM": {
             "title": _("LLM"),
@@ -481,13 +647,18 @@ SETTINGS_GROUPS = {
         },
         "TTS": {
             "title": _("TTS"),
-            "settings": ["tts-on", "tts", "tts-voice"],
+            "settings": ["tts-on", "tts", "tts-voice", "translator", "translator-settings", "translator-on"],
             "description": _("Text to Speech settings"),
         },
         "STT": {
             "title": _("STT"),
             "settings": ["stt-engine", "stt-settings","automatic-stt", "stt-silence-detection-threshold", "stt-silence-detection-duration"],
             "description": _("Speech to Text settings"),
+        },
+        "avatar": {
+            "title": _("Avatar"),
+            "settings": ["avatar-on", "avatar-model", "avatars"],
+            "description": _("Avatar settings"),
         },
         "Embedding": {
             "title": _("Embedding"),
@@ -526,7 +697,7 @@ SETTINGS_GROUPS = {
         },
         "prompts": {
                 "title": _("Prompts"),
-                "settings": ["prompts-settings", "custom-extra-prompt", "custom-prompts"],
+                "settings": ["prompts-settings", "custom-extra-prompt", "custom-prompts", "smart-prompt", "smart-prompt-settings", "smart-prompt-on"],
                 "description": _("Prompts settings, custom extra prompt, custom prompts..."),
         }
 

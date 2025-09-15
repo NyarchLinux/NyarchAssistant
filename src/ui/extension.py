@@ -7,6 +7,8 @@ from ..controller import NewelleController
 from ..utility.system import get_spawn_command
 
 from ..constants import AVAILABLE_EMBEDDINGS, AVAILABLE_LLMS, AVAILABLE_MEMORIES, AVAILABLE_PROMPTS, AVAILABLE_RAGS, AVAILABLE_STT, AVAILABLE_TTS, AVAILABLE_WEBSEARCH, PROMPTS
+from ..constants import AVAILABLE_EMBEDDINGS, AVAILABLE_LLMS, AVAILABLE_MEMORIES, AVAILABLE_PROMPTS, AVAILABLE_RAGS, AVAILABLE_STT, AVAILABLE_TTS, PROMPTS
+from ..constants import AVAILABLE_AVATARS, AVAILABLE_SMART_PROMPTS, AVAILABLE_TRANSLATORS
 from .settings import Settings
 from ..extensions import ExtensionLoader
 from gi.repository import Gtk, Adw, Gio, GLib
@@ -15,7 +17,7 @@ from gi.repository import Gtk, Adw, Gio, GLib
 class Extension(Gtk.Window):
     def __init__(self,app):
         Gtk.Window.__init__(self, title=_("Extensions"))
-        self.settings = Gio.Settings.new('io.github.qwersyk.Newelle')
+        self.settings = Gio.Settings.new('moe.nyarchlinux.assistant')
 
         self.directory = GLib.get_user_config_dir()
         self.controller : NewelleController = app.win.controller
@@ -99,7 +101,7 @@ class Extension(Gtk.Window):
             self.extensionloader.enable(name)
         else:
             self.extensionloader.disable(name)
-            self.extensionloader.remove_handlers(self.extensionloader.get_extension_by_id(name), AVAILABLE_LLMS, AVAILABLE_TTS, AVAILABLE_STT, AVAILABLE_MEMORIES, AVAILABLE_EMBEDDINGS, AVAILABLE_RAGS, AVAILABLE_WEBSEARCH)
+            self.extensionloader.remove_handlers(self.extensionloader.get_extension_by_id(name), AVAILABLE_LLMS, AVAILABLE_TTS, AVAILABLE_STT, AVAILABLE_MEMORIES, AVAILABLE_EMBEDDINGS, AVAILABLE_RAGS, AVAILABLE_WEBSEARCH, AVAILABLE_AVATARS,AVAILABLE_TRANSLATORS, AVAILABLE_SMART_PROMPTS)
             self.extensionloader.remove_prompts(self.extensionloader.get_extension_by_id(name), PROMPTS, AVAILABLE_PROMPTS)
     def delete_extension(self,widget):
         self.extensionloader.remove_extension(widget.get_name())
