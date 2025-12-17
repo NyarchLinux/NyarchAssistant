@@ -1,7 +1,7 @@
 {
     "app-id" : "moe.nyarchlinux.assistant",
     "runtime" : "org.gnome.Platform",
-    "runtime-version" : "48",
+    "runtime-version" : "49",
     "sdk" : "org.gnome.Sdk",
     "command" : "nyarchassistant",
     "finish-args" : [
@@ -40,6 +40,7 @@
     	"modules/python3-gtts.json",
     	"modules/portaudio.json",
     	"modules/python3-pyaudio.json",
+    	"modules/python3-six.json",
       "modules/python3-pillow.json",
       "modules/python3-matplotlib.json",
       "modules/python3-pylatexenc.json",
