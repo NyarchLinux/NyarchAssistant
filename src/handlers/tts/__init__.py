@@ -7,6 +7,9 @@ from .kokoro_handler import KokoroTTSHandler
 from .openai_tts_handler import OpenAITTSHandler
 from .custom_openai_tts import CustomOpenAITTSHandler
 from .groq_tts_handler import GroqTTSHandler
+from .edge_handler import EdgeTTSHandler
+from .vits_handler import VitsHandler
+from .voicevox_handler import VoiceVoxHanlder
 
 __all__ = [
     "TTSHandler",
@@ -17,6 +20,10 @@ __all__ = [
     "KokoroTTSHandler",
     "OpenAITTSHandler",
     "CustomOpenAITTSHandler",
-    "GroqTTSHandler"
+    "GroqTTSHandler",
+    "KokoroTTSHandler",
+    "EdgeTTSHandler",
+    "VitsHandler",
+    "VoiceVoxHanlder",
 ]
 
