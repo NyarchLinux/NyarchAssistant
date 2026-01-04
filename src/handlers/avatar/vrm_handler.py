@@ -1,5 +1,7 @@
 from urllib.parse import urlencode, urljoin
 from http.server import HTTPServer, SimpleHTTPRequestHandler
+
+from ...utility.system import open_folder
 from ...handlers.avatar import AvatarHandler
 from ...handlers.tts import TTSHandler
 from ...handlers import HandlerDescription, ExtraSettings
@@ -12,7 +14,7 @@ from livepng import LivePNG
 from gi.repository import Gtk, WebKit, GLib
 from time import sleep
 from ...utility.strings import rgb_to_hex
-from ..handler import ExtraSettings
+from ...handlers import ExtraSettings
 
 class VRMHandler(AvatarHandler):
     key = "vrm"
@@ -79,8 +81,16 @@ class VRMHandler(AvatarHandler):
                 "title": _("Background Color"),
                 "description": _("Background color of the avatar"),
                 "type": "entry",
-                "default": default,
+                "default": default,                                                                                                    
             },
+            {
+                "key": "light-color",
+                "title": _("Light Color"),
+                "description": _("Light color"),
+                "type": "entry",
+                "default": default,                                                                                                    
+            },
+            ExtraSettings.ButtonSetting("animations", _("Animations"), _("Put all the available animations in this folder"), lambda x : open_folder(os.path.join(self.webview_path, "animations")), icon="folder-symbolic"), 
         ]
 
     def is_installed(self) -> bool:
@@ -108,8 +118,14 @@ class VRMHandler(AvatarHandler):
             sleep(2)
             self.get_expressions()
             self.get_motions()
+            self.set_light_color()
         threading.Thread(target=update_expressions).start()
         httpd.serve_forever()
+
+    def set_light_color(self):
+        light_color = self.get_setting("light-color")
+        script = f"set_light_color(\"{light_color}\")"
+        self.webview.evaluate_javascript(script, len(script))
 
     def create_gtk_widget(self) -> Gtk.Widget:
         self.webview = WebKit.WebView()
@@ -184,14 +200,12 @@ class VRMHandler(AvatarHandler):
     def get_motions(self) -> list[str]:
         r = []
         for motion in self.get_motions_raw():
-            print(motion)
             name = self.get_setting("Expression " + motion, False, None)
             if name is not None:
                 r.append(name)
             else:
                 if type(motion) is str:
                     r.append(motion)
-        print(r)
         return r
 
     def get_motions_groups(self):
