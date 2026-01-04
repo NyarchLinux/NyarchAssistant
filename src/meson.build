@@ -38,7 +38,7 @@ nyarchassistant_sources = [
   'extensions.py',
   'controller.py',
   'ui_controller.py',
-  'tools.py'
+  'tools.py',
   'dataset.py',
 ]
 

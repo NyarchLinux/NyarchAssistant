@@ -590,6 +590,9 @@ AVAILABLE_PROMPTS = [
         "title": _("Tools"),
         "description": _("List tools available to the LLM"),
         "setting_name": "tools",
+        "editable": True,
+        "show_in_settings": True,
+        "default": True,
     },
     {
         "key": "custom_prompt",
