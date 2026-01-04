@@ -55,6 +55,7 @@
       "modules/live2d.json",
       "modules/python3-scikit-learn.json",
       "modules/python3-markdownify.json",
+      "modules/python3-mcp.json",
       "modules/smart-prompts.json",
       {
             "name" : "nyarchassistant",

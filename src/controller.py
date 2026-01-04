@@ -3,6 +3,7 @@ from gi.repository import GLib, Gio, Adw
 import os
 import base64
 
+from .tools import ToolRegistry
 from .utility.media import get_image_base64, get_image_path
 
 from .extensions import NewelleExtension
@@ -72,6 +73,7 @@ EXTENSIONS: Reload EXTENSIONS
     RELOAD_CHAT_LIST = 11
     WEBSEARCH = 12
     OFFERS = 13
+    TOOLS = 14 
     # Nyarch Vars
     AVATAR = 40
     SMART_PROMPTS = 41
@@ -101,6 +103,8 @@ class NewelleController:
         self.python_path = python_path
         self.ui_controller : UIController | None = None
         self.installing_handlers = {}
+        self.tools = ToolRegistry()
+        self.msgid = 0
 
     def ui_init(self):
         """Init necessary variables for the UI and load models and handlers"""
@@ -215,6 +219,7 @@ class NewelleController:
             self.extensionloader.add_prompts(PROMPTS, AVAILABLE_PROMPTS)
             self.extensionloader.add_handlers(AVAILABLE_LLMS, AVAILABLE_TTS, AVAILABLE_STT, AVAILABLE_MEMORIES, AVAILABLE_EMBEDDINGS, AVAILABLE_RAGS, AVAILABLE_WEBSEARCH,AVAILABLE_AVATARS, AVAILABLE_TRANSLATORS, AVAILABLE_SMART_PROMPTS)
             self.newelle_settings.load_prompts()
+            self.extensionloader.add_tools(self.tools)
             self.handlers.extensionloader = self.extensionloader
             self.handlers.select_handlers(self.newelle_settings)
             self.extensionloader.set_ui_controller(self.ui_controller)
@@ -257,6 +262,24 @@ class NewelleController:
         self.integrationsloader = integrationsloader
         self.handlers.integrationsloader = integrationsloader
 
+    def get_mcp_integration(self):
+        if self.integrationsloader is not None:
+            for integration in self.integrationsloader.get_extensions():
+                if integration.id == "mcp":
+                    return integration
+        return None
+    
+    def update_mcp_tools(self):
+        mcp_integration = self.get_mcp_integration()
+        if mcp_integration is not None:
+            mcp_integration.update_tools()
+            self.tools.update_tools(mcp_integration.get_tools())
+
+    def require_tool_update(self):
+        self.tools = ToolRegistry()
+        self.extensionloader.add_tools(self.tools)
+        self.integrationsloader.add_tools(self.tools)
+        
     def load_extensions(self):
         """Load extensions"""
         # Load extensions
@@ -265,12 +288,14 @@ class NewelleController:
         self.extensionloader.load_extensions()
         self.extensionloader.add_handlers(AVAILABLE_LLMS, AVAILABLE_TTS, AVAILABLE_STT, AVAILABLE_MEMORIES, AVAILABLE_EMBEDDINGS, AVAILABLE_RAGS, AVAILABLE_WEBSEARCH,AVAILABLE_AVATARS, AVAILABLE_TRANSLATORS, AVAILABLE_SMART_PROMPTS)
         self.extensionloader.add_prompts(PROMPTS, AVAILABLE_PROMPTS)
+        self.extensionloader.add_tools(self.tools)
         self.set_ui_controller(self.ui_controller)
 
     def load_integrations(self):
         """Load integrations"""
         self.integrationsloader = ExtensionLoader(self.extension_path, pip_path=self.pip_path, settings=self.settings, extension_cache=self.extensions_cache)
         self.integrationsloader.load_integrations(AVAILABLE_INTEGRATIONS)
+        self.integrationsloader.add_tools(self.tools)
         self.set_ui_controller(self.ui_controller)
 
     def create_profile(self, profile_name, picture=None, settings={}, settings_groups=[]):
@@ -417,6 +442,10 @@ class NewelleSettings:
         self.browser_search_string = settings.get_string("browser-search-string")
         self.browser_session_persist = settings.get_boolean("browser-session-persist")
         self.editor_color_scheme = settings.get_string("editor-color-scheme")
+        self.tools_settings = settings.get_string("tools-settings")
+        self.tools_settings_dict = json.loads(self.tools_settings)
+        self.mcp_servers = self.settings.get_string("mcp-servers")
+        self.mcp_servers_dict = json.loads(self.mcp_servers)
         self.load_prompts()
         # Nyarch Settings
         self.avatar_enabled = settings.get_boolean("avatar-on")
@@ -482,9 +511,10 @@ class NewelleSettings:
             reloads.append(ReloadType.RELOAD_CHAT)
         if self.reverse_order != new_settings.reverse_order:
             reloads.append(ReloadType.RELOAD_CHAT_LIST)
-
         if self.websearch_on != new_settings.websearch_on or self.websearch_model != new_settings.websearch_model or self.websearch_settings != new_settings.websearch_settings:
             reloads.append(ReloadType.WEBSEARCH)
+        if self.mcp_servers != new_settings.mcp_servers or self.tools_settings != new_settings.tools_settings:
+            reloads.append(ReloadType.TOOLS)
         if self.avatar_enabled != new_settings.avatar_enabled or self.avatar_settings != new_settings.avatar_settings or self.avatar != new_settings.avatar:
             reloads.append(ReloadType.AVATAR)
         if self.translator != new_settings.translator or self.translation_enabled != new_settings.translation_enabled or self.translation_handler != new_settings.translation_handler:

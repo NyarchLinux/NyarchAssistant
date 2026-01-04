@@ -62,6 +62,18 @@ class ReplaceHelper:
         if ReplaceHelper.controller is None:
             return "User"
         return ReplaceHelper.controller.newelle_settings.username
+    
+    @staticmethod
+    def get_tools_json() -> str:
+        """
+        Get the JSON list of tools available to the LLM
+        """
+        tools_settings = ReplaceHelper.controller.newelle_settings.tools_settings_dict
+        enabled_tools = {}
+        for tool_name, settings in tools_settings.items():
+             if "enabled" in settings:
+                 enabled_tools[tool_name] = settings["enabled"]
+        return ReplaceHelper.controller.tools.get_tools_prompt(enabled_tools_dict=enabled_tools, tools_settings=tools_settings)
    
     @staticmethod
     def set_handler(handler):
@@ -96,6 +108,7 @@ def replace_variables(text: str) -> str:
         {DE}: desktop environment
         {USER}: user's username
         {DATE}: current date
+        {TOOLS}: JSON list of tools available to the LLM
 
     Args:
         text: text of the prompt
@@ -114,6 +127,8 @@ def replace_variables(text: str) -> str:
         text = text.replace("{USER}", ReplaceHelper.get_user())
     if "{DISPLAY}" in text:
         text = text.replace("{DISPLAY}", ReplaceHelper.gisplay_server())
+    if "{TOOLS}" in text:
+        text = text.replace("{TOOLS}", ReplaceHelper.get_tools_json())
     if "{EXPRESSIONS}" in text:
         text = text.replace("{EXPRESSIONS}", ReplaceHelper.get_expressions())
     if "{MOTIONS}" in text:
@@ -128,6 +143,7 @@ def replace_variables_dict() -> dict:
         "{DATE}": str(time.strftime("%H:%M %Y-%m-%d")),
         "{USER}": ReplaceHelper.get_user(),
         "{DISPLAY}": ReplaceHelper.gisplay_server(),
+        "{TOOLS}": ReplaceHelper.get_tools_json(),
         "{EXPRESSIONS}": ReplaceHelper.get_expressions(),
         "{MOTIONS}": ReplaceHelper.get_motions()
     }

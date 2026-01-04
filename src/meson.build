@@ -38,6 +38,7 @@ nyarchassistant_sources = [
   'extensions.py',
   'controller.py',
   'ui_controller.py',
+  'tools.py',
   'dataset.py',
 ]
 
@@ -45,6 +46,7 @@ integrations_sources = [
   'integrations/__init__.py',
   'integrations/website_reader.py',
   'integrations/websearch.py',
+  'integrations/mcp.py',
 ]
 
 ui_sources = [
