@@ -35,9 +35,12 @@ class OpenAIHandler(LLMHandler):
                 for model in models:
                     result += ((model.id, model.id,), )
                 self.models = result
+                print(result)
                 self.set_setting("models", json.dumps(result))
+                print("ok")
                 self.settings_update()
             except Exception as e:
+                raise e
                 if manual:
                     self.throw("Error getting " + self.key + " models: " + str(e), ErrorSeverity.WARNING)
                 print("Error getting " + self.key + " models: " + str(e))
