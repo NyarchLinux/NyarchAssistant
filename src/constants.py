@@ -1,4 +1,5 @@
 from copy import deepcopy
+
 from .handlers.llm import ClaudeHandler, DeepseekHandler, GPT4AllHandler, GroqHandler, OllamaHandler, OpenAIHandler, CustomLLMHandler, GPT3AnyHandler, GeminiHandler, MistralHandler, OpenRouterHandler, NewelleAPIHandler, G4FHandler
 from .handlers.tts import ElevenLabs, gTTSHandler, EspeakHandler, CustomTTSHandler, KokoroTTSHandler, CustomOpenAITTSHandler, OpenAITTSHandler, GroqTTSHandler
 from .handlers.stt import GroqSRHandler, OpenAISRHandler, SphinxHandler, GoogleSRHandler, WhisperCPPHandler, WitAIHandler, VoskHandler, CustomSRHandler
@@ -13,7 +14,7 @@ from .integrations.mcp import MCPIntegration
 # Nyarch specific imports
 from .handlers.tts import EdgeTTSHandler, VitsHandler, VoiceVoxHanlder
 from .handlers.llm import NyarchApiHandler
-from .handlers.avatar import Live2DHandler, LivePNGHandler
+from .handlers.avatar import Live2DHandler, LivePNGHandler, VRMHandler
 from .handlers.translator import CustomTranslatorHandler, GoogleTranslatorHandler, LibreTranslateHandler, LigvaTranslateHandler
 from .handlers.smart_prompt import LogicalRegressionHandler, WordLlamaPromptHandler
 
@@ -305,6 +306,12 @@ AVAILABLE_AVATARS = {
         "title": _("LivePNG"),
         "description": _("LivePNG model"),
         "class": LivePNGHandler,
+    },
+    "vrm": {
+        "key": "vrm",
+        "title": _("VRM Avatar"),
+        "description": _("3D models in .vrm format"),
+        "class": VRMHandler
     }
 }
 

@@ -190,7 +190,8 @@ avatar_sources = [
  'handlers/avatar/__init__.py',
  'handlers/avatar/avatar.py',
  'handlers/avatar/live2d_handler.py',
- 'handlers/avatar/livepng_handler.py'
+ 'handlers/avatar/livepng_handler.py',
+ 'handlers/avatar/vrm_handler.py'
 ]
 
 translator_sources = [
