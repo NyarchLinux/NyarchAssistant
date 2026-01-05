@@ -47,7 +47,7 @@ class VRMHandler(AvatarHandler):
 
     def get_model(self):
         m = self.get_setting("model", False)
-        return "models/model.vrm" if m is None else m
+        return "model.vrm" if m is None else m
 
     def get_extra_settings(self) -> list:
         widget = Gtk.Box()
@@ -61,7 +61,7 @@ class VRMHandler(AvatarHandler):
                 "description": _("VRM Model to use"),
                 "type": "combo",
                 "values": self.get_available_models(),
-                "default": "models/model.vrm",
+                "default": "model.vrm",
                 "folder": os.path.abspath(self.models_dir),
                 "refresh": lambda x: self.settings_update(),
                 "update_settings": True
