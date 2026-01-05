@@ -90,9 +90,18 @@ class VRMHandler(AvatarHandler):
                 "type": "entry",
                 "default": default,                                                                                                    
             },
-            ExtraSettings.ButtonSetting("animations", _("Animations"), _("Put all the available animations in this folder"), lambda x : open_folder(os.path.join(self.webview_path, "animations")), icon="folder-symbolic"), 
+            ExtraSettings.ButtonSetting("animations", _("Animations"), _("Put all the available animations in this folder"), lambda x : open_folder(os.path.join(self.webview_path, "animations")), icon="folder-symbolic", refresh=lambda x : self.refresh_animation_list()), 
         ]
-
+    
+    def refresh_animation_list(self):
+        animation_folder = os.path.join(self.webview_path, "animations")
+        animation_file = os.path.join(self.webview_path, "animation_list.json")
+        files = [f for f in os.listdir(animation_folder) if f.lower().endswith('.bvh')] 
+        files.sort() 
+        with open(animation_file, 'w') as f:
+            json.dump(files, f, indent=2)
+        self.settings_update()
+    
     def is_installed(self) -> bool:
         return os.path.isdir(self.webview_path)
 
