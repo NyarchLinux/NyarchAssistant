@@ -8,7 +8,7 @@ import subprocess
 import pickle
 from .handlers.avatar import AvatarHandler
 
-from .constants import AVAILABLE_LLMS, AVAILABLE_SMART_PROMPTS, AVAILABLE_TRANSLATORS, EXTRA_PROMPTS, PROMPTS, AVAILABLE_TTS, AVAILABLE_STT, AVAILABLE_AVATARS, AVAILABLE_PROMPTS
+from .constants import AVAILABLE_LLMS, AVAILABLE_TRANSLATORS, PROMPTS, AVAILABLE_TTS, AVAILABLE_STT, AVAILABLE_AVATARS, AVAILABLE_PROMPTS
 import threading
 import posixpath
 import json 
@@ -570,7 +570,7 @@ class MainWindow(Adw.ApplicationWindow):
         #self.set_content(self.main_program_block)
         bin = Adw.BreakpointBin(child=self.main, width_request=300, height_request=300)
         breakpoint = Adw.Breakpoint(condition=Adw.BreakpointCondition.new_length(Adw.BreakpointConditionLengthType.MAX_WIDTH, 900, Adw.LengthUnit.PX))
-        breakpoint.add_setter(self.main_program_block, "collapsed", True)
+        breakpoint.add_setter(self.main, "collapsed", True)
         bin.add_breakpoint(breakpoint)
 
         self.main_program_block.set_content(bin)
@@ -2407,15 +2407,6 @@ class MainWindow(Adw.ApplicationWindow):
         ):
             prompts += self.get_memory_prompt()
 
-        # Get smart prompts
-        if self.controller.newelle_settings.smart_prompt_enabled:
-            self.smart_prompt_handler = self.controller.handlers.smart_prompt
-            if self.smart_prompt_handler in AVAILABLE_SMART_PROMPTS:
-                try:
-                    generated = self.smart_prompt_handler.get_extra_prompts(self.chat[-1]["Message"], self.get_history(), EXTRA_PROMPTS)
-                    prompts += generated
-                except Exception as e:
-                    print(e)
         # Set the history for the model
         history = self.get_history()
         # Let extensions preprocess the history

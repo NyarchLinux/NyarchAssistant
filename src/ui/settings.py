@@ -11,13 +11,12 @@ from gi.repository import Gtk, Adw, Gio, GLib, GtkSource
 from ..handlers import Handler
 
 from ..constants import AVAILABLE_EMBEDDINGS, AVAILABLE_LLMS, AVAILABLE_MEMORIES, AVAILABLE_PROMPTS, AVAILABLE_TTS, AVAILABLE_STT, PROMPTS, AVAILABLE_RAGS, AVAILABLE_WEBSEARCH
+from ..constants import AVAILABLE_TRANSLATORS, AVAILABLE_AVATARS
 
 from ..handlers.llm import LLMHandler
-from ..constants import AVAILABLE_AVATARS, AVAILABLE_TRANSLATORS, AVAILABLE_SMART_PROMPTS
 
 # Nyarch specific 
 from ..handlers.avatar import AvatarHandler
-from ..handlers.smart_prompt import SmartPromptHandler
 from ..handlers.translator import TranslatorHandler
 
 from ..handlers.embeddings import EmbeddingHandler
@@ -194,19 +193,6 @@ class Settings(Adw.PreferencesWindow):
         for avatar_key in AVAILABLE_AVATARS:
            row = self.build_row(AVAILABLE_AVATARS, avatar_key, selected, group) 
            avatar.add_row(row) 
-        # Build the Smart Prompt settings
-        self.smartpromptgroup = Adw.PreferencesGroup(title=_('Smart Prompt'))
-        self.PromptsPage.add(self.smartpromptgroup)
-        smart_prompt_enabled = Gtk.Switch(valign=Gtk.Align.CENTER)
-        self.settings.bind("smart-prompt-on", smart_prompt_enabled, 'active', Gio.SettingsBindFlags.DEFAULT)
-        smartprompt = Adw.ExpanderRow(title=_('Smart Prompt selector'), subtitle=_("Give extra context on Nyarch Linux based on your prompt"))
-        smartprompt.add_action(smart_prompt_enabled)
-        self.smartpromptgroup.add(smartprompt)
-        group = Gtk.CheckButton()
-        selected = self.settings.get_string("smart-prompt")
-        for smart_prompt_key in AVAILABLE_SMART_PROMPTS:
-           row = self.build_row(AVAILABLE_SMART_PROMPTS, smart_prompt_key, selected, group) 
-           smartprompt.add_row(row)
         
         self.prompt = Adw.PreferencesGroup(title=_('Prompt control'))
         self.PromptsPage.add(self.prompt)
@@ -833,8 +819,6 @@ class Settings(Adw.PreferencesWindow):
             setting_name = "avatar-model"
         elif constants == AVAILABLE_TRANSLATORS:
             setting_name = "translator"
-        elif constants == AVAILABLE_SMART_PROMPTS:
-            setting_name = "smart-prompt"
         else:
             return
         self.settings.set_string(setting_name, button.get_name())

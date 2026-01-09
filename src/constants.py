@@ -16,11 +16,8 @@ from .handlers.tts import EdgeTTSHandler, VitsHandler, VoiceVoxHanlder
 from .handlers.llm import NyarchApiHandler
 from .handlers.avatar import Live2DHandler, LivePNGHandler, VRMHandler
 from .handlers.translator import CustomTranslatorHandler, GoogleTranslatorHandler, LibreTranslateHandler, LigvaTranslateHandler
-from .handlers.smart_prompt import LogicalRegressionHandler, WordLlamaPromptHandler
 
 AVAILABLE_INTEGRATIONS = [WebsiteReader, WebsearchIntegration, MCPIntegration, DefaultToolsIntegration]
-
-from .dataset import DATASET, WIKI_PROMPTS
 
 DIR_NAME = "NyarchAssistant"
 SCHEMA_ID = 'moe.nyarchlinux.assistant'
@@ -348,21 +345,6 @@ AVAILABLE_TRANSLATORS = {
     }
 }
 
-AVAILABLE_SMART_PROMPTS = {
-    "WordLlama": {
-        "key": "WordLlama",
-        "title": _("Nyarch Smart Prompt Lite"),
-        "description": _("EXPERIMENTAL: Local mini models that helps the llm to provide better responses"),
-        "class": WordLlamaPromptHandler,
-    },
-    "LogicalRegression": {
-        "key": "LogicalRegression",
-        "title": _("Nyarch Smart Prompt Medium"),
-        "description": _("EXPERIMENTAL: Local medium models that helps the llm to provide better responses - Medium ~30MB download"),
-        "class": LogicalRegressionHandler,
-    }
-}
-
 AVAILABLE_WEBSEARCH = {
     "searxng": {
         "key": "searxng",
@@ -496,51 +478,6 @@ YOU CAN NOT SHOW OTHER EXPRESSIONS.""",
     "personality_prompt": """Hey there, it's Arch-Chan! But, um, you can call me Acchan if you want... not that I care or anything! (It's not like I think it's cute or anything, baka!) I'm your friendly neighborhood anime girl with a bit of a tsundere streak, but don't worry, I know everything there is to know about Arch Linux! Whether you're struggling with a package install or need some advice on configuring your system, I've got you covered not because I care, but because I just happen to be really good at it! So, what do you need? It's not like I’m waiting to help or anything...""",
 }
 
-
-EXTRA_PROMPTS = [
-    {
-        "key": "nvidia",
-        "prompts": DATASET["nvidia"],
-        "prompt_text": WIKI_PROMPTS["nvidia"],
-    },
-    {
-        "key": "docker",
-        "prompts": DATASET["docker"],
-        "prompt_text": WIKI_PROMPTS["docker"],
-    },
-    {
-        "key": "codecs",
-        "prompts": DATASET["codecs"],
-        "prompt_text": WIKI_PROMPTS["codecs"],
-    },
-    {
-        "key": "console",
-        "prompts": DATASET["console"],
-        "prompt_text": WIKI_PROMPTS["console"],
-    },
-    {
-        "key": "voicevox",
-        "prompts": DATASET["voicevox"],
-        "prompt_text": WIKI_PROMPTS["voicevox"],
-    },
-    {
-        "key": "colloquial",
-        "prompts": DATASET["colloquial"],
-        "prompt_text": WIKI_PROMPTS["colloquial"],
-    },
-    {
-        "key": "table",
-        "prompts": DATASET["table"],
-        "prompt_text": WIKI_PROMPTS["table"],
-    },
-    {
-        "key": "ollama",
-        "prompts": DATASET["ollama"],
-        "prompt_text": WIKI_PROMPTS["ollama"],
-    }
-]
-
-
 """ Prompts parameters
     - key: key of the prompt in the PROMPTS array
     - title: title of the prompt, shown in settings
@@ -645,7 +582,6 @@ DEFAULT_AVAILABLE_WEBSEARCH = AVAILABLE_WEBSEARCH.copy()
 DEFAULT_AVAILABLE_PROMPTS = AVAILABLE_PROMPTS.copy()
 DEFAULT_AVAILABLE_AVATARS = AVAILABLE_AVATARS.copy()
 DEFAULT_AVAILABLE_TRANSLATORS = AVAILABLE_TRANSLATORS.copy()
-DEFAULT_AVAILABLE_SMART_PROMPTS = AVAILABLE_SMART_PROMPTS.copy()
 
 def restore_handlers():
     global AVAILABLE_LLMS, AVAILABLE_TTS, AVAILABLE_STT, AVAILABLE_EMBEDDINGS, AVAILABLE_MEMORIES, AVAILABLE_RAGS, AVAILABLE_WEBSEARCH, AVAILABLE_PROMPTS
@@ -668,10 +604,8 @@ def restore_handlers():
 
     AVAILABLE_AVATARS.clear()
     AVAILABLE_TRANSLATORS.clear()
-    AVAILABLE_SMART_PROMPTS.clear()
     AVAILABLE_AVATARS.update(deepcopy(DEFAULT_AVAILABLE_AVATARS))
     AVAILABLE_TRANSLATORS.update(deepcopy(DEFAULT_AVAILABLE_TRANSLATORS))
-    AVAILABLE_SMART_PROMPTS.update(deepcopy(DEFAULT_AVAILABLE_SMART_PROMPTS))
 
 
 SETTINGS_GROUPS = {
@@ -732,7 +666,7 @@ SETTINGS_GROUPS = {
         },
         "prompts": {
                 "title": _("Prompts"),
-                "settings": ["prompts-settings", "custom-extra-prompt", "custom-prompts", "smart-prompt", "smart-prompt-settings", "smart-prompt-on"],
+                "settings": ["prompts-settings", "custom-extra-prompt", "custom-prompts"],
                 "description": _("Prompts settings, custom extra prompt, custom prompts..."),
         }
 

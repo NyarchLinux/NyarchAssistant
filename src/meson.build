@@ -39,7 +39,6 @@ nyarchassistant_sources = [
   'controller.py',
   'ui_controller.py',
   'tools.py',
-  'dataset.py',
 ]
 
 integrations_sources = [
@@ -207,10 +206,6 @@ translator_sources = [
  'handlers/translator/ligva_handler.py',
 ]
 
-smart_prompts_sources = [
- 'handlers/smart_prompt/__init__.py',
- 'handlers/smart_prompt/smart_prompt.py',
-]
 
 install_data(nyarchassistant_sources, install_dir: moduledir)
 install_data(ui_sources, install_dir: moduledir / 'ui')
@@ -228,5 +223,4 @@ install_data(integrations_sources, install_dir: moduledir / 'integrations')
 
 install_data(translator_sources, install_dir: moduledir / 'handlers' / 'translator')
 install_data(avatar_sources, install_dir: moduledir / 'handlers' / 'avatar')
-install_data(smart_prompts_sources, install_dir: moduledir / 'handlers' / 'smart_prompt')
 install_data(utility_sources, install_dir: moduledir / 'utility')

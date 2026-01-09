@@ -16,7 +16,6 @@ from .handlers.memory import MemoryHandler
 from .handlers.embeddings import EmbeddingHandler
 from .handlers.websearch import WebSearchHandler
 from .handlers.avatar import AvatarHandler
-from .handlers.smart_prompt import SmartPromptHandler
 from .handlers.translator import TranslatorHandler
 from .ui_controller import UIController
 
@@ -177,17 +176,6 @@ class NewelleExtension(Handler):
             }
         """
         return [] 
-
-    def get_smart_prompts_handlers(self) -> list[dict]:
-        """
-        Returns the list of Smart Prompts handlers
-
-        Returns:
-            list: list of Smart Prompts handlers in this format
-                "class": SmartPromptsHandler - The class of the handler,
-            }
-        """
-        return []
 
     def get_websearch_handlers(self) -> list[dict]:
         """
@@ -418,7 +406,7 @@ class ExtensionLoader:
         for tool in extension.get_tools():
             tool_registry.remove_tool(tool.name)
 
-    def add_handlers(self, AVAILABLE_LLMS, AVAILABLE_TTS, AVAILABLE_STT, AVAILABLE_MEMORIES, AVAILABLE_EMBEDDINGS, AVAILABLE_RAG, AVAILABLE_WEBSEARCH, AVAILABLE_AVATARS, AVAILABLE_TRANSLATORS, AVAILABLE_SMART_PROMPTS):
+    def add_handlers(self, AVAILABLE_LLMS, AVAILABLE_TTS, AVAILABLE_STT, AVAILABLE_MEMORIES, AVAILABLE_EMBEDDINGS, AVAILABLE_RAG, AVAILABLE_WEBSEARCH, AVAILABLE_AVATARS, AVAILABLE_TRANSLATORS):
         """Add the handlers of each extension to the available handlers
 
         Args:
@@ -457,9 +445,6 @@ class ExtensionLoader:
             handler = extension.get_translators_handlers()
             for h in handler:
                 AVAILABLE_TRANSLATORS[h["key"]] = h
-            handler = extension.get_smart_prompts_handlers()
-            for h in handler:
-                AVAILABLE_SMART_PROMPTS[h["key"]] = h
             handler = extension.get_avatar_handlers()
             for h in handler:
                 AVAILABLE_AVATARS[h["key"]] = h
@@ -481,7 +466,7 @@ class ExtensionLoader:
                     AVAILABLE_PROMPTS.append(prompt)
                 PROMPTS[prompt["key"]] = prompt["text"]
 
-    def remove_handlers(self, extension, AVAILABLE_LLMS, AVAILABLE_TTS, AVAILABLE_STT, AVAILABLE_MEMORIES, AVAILABLE_EMBEDDINGS, AVAILABLE_RAG, AVAILABLE_WEBSEARCH, AVAILABLE_AVATARS, AVAILABLE_TRANSLATORS, AVAILABLE_SMART_PROMPTS):
+    def remove_handlers(self, extension, AVAILABLE_LLMS, AVAILABLE_TTS, AVAILABLE_STT, AVAILABLE_MEMORIES, AVAILABLE_EMBEDDINGS, AVAILABLE_RAG, AVAILABLE_WEBSEARCH, AVAILABLE_AVATARS, AVAILABLE_TRANSLATORS):
         """Remove handlers of an extension
 
         Args:
@@ -513,9 +498,6 @@ class ExtensionLoader:
         handler = extension.get_translators_handlers()
         for h in handler:
             AVAILABLE_TRANSLATORS.pop(h["key"])
-        handler = extension.get_smart_prompts_handlers()
-        for h in handler:
-            AVAILABLE_SMART_PROMPTS.pop(h["key"])
         handler = extension.get_avatar_handlers()
         for h in handler:
             AVAILABLE_AVATARS.pop(h["key"])
@@ -626,9 +608,6 @@ class ExtensionLoader:
                 return False
         for h in extension.get_avatar_handlers():
             if not self.check_handler(h, AvatarHandler):
-                return False
-        for h in extension.get_smart_prompts_handlers():
-            if not self.check_handler(h, SmartPromptHandler):
                 return False
         for h in extension.get_translators_handlers():
             if not self.check_handler(h, TranslatorHandler):
