@@ -37,6 +37,7 @@ install_data (
     'magic-wand-symbolic.svg',
     'emblem-default-symbolic.svg',
     'tools-symbolic.svg',
+    'user-bookmarks-symbolic.svg',
     'avatar-symbolic.svg',
     install_dir: symbolic_dir
 )

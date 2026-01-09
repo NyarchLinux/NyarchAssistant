@@ -202,8 +202,7 @@ class MyApp(Adw.Application):
             settings = Gio.Settings.new('moe.nyarchlinux.assistant')
             settings.set_int("window-width", self.win.get_width())
             settings.set_int("window-height", self.win.get_height())
-            if self.win.avatar_handler is not None:
-                self.win.avatar_handler.destroy()
+            self.win.controller.close_application()
             return False
         else:
             dialog = Adw.MessageDialog(
@@ -225,8 +224,7 @@ class MyApp(Adw.Application):
         if status=="close":
             for i in self.win.streams:
                 i.terminate()
-            if self.win.avatar is not None:
-                self.win.avatar_handler.destroy()
+            self.win.controller.close_application()
             self.win.destroy()
     
     def do_command_line(self, command_line):
@@ -282,6 +280,10 @@ class MyApp(Adw.Application):
 
     def stop_tts(self,*a):
         self.win.mute_tts(self.win.mute_tts_button)
+
+    def stop_chat(self, *a):
+        if hasattr(self, "win") and not self.win.status:
+            self.win.stop_chat()
     
     def do_shutdown(self):
         self.win.save_chat()
@@ -304,6 +306,11 @@ class MyApp(Adw.Application):
     
     def save(self, *a):
         self.win.save()
+    def pretty_print_chat(self, *a):
+        for msg in self.win.chat:
+            print(msg["User"], msg["Message"])
+    def debug(self, *a):
+        self.pretty_print_chat()
 
 def main(version):
     app = MyApp(application_id="moe.nyarchlinux.assistant", version = version)
@@ -312,9 +319,11 @@ def main(version):
     app.create_action('new_chat', app.new_chat, ['<primary>t'])
     app.create_action('focus_message', app.focus_message, ['<primary>l'])
     app.create_action('start_recording', app.start_recording, ['<primary>g'])
+    app.create_action('stop_chat', app.stop_chat, ['<primary>q'])
     app.create_action('stop_tts', app.stop_tts, ['<primary>k'])
     app.create_action('save', app.save, ['<primary>s'])
     app.create_action('zoom', app.zoom, ['<primary>plus'])
     app.create_action('zoom', app.zoom, ['<primary>equal'])
     app.create_action('zoom_out', app.zoom_out, ['<primary>minus'])
+    app.create_action('debug', app.debug, ['<primary>b'])
     app.run(sys.argv)
