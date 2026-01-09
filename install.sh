@@ -1,6 +1,6 @@
 #!/bin/bash
-APPID="io.github.qwersyk.Newelle"
-BUNDLENAME="newelle.flatpak"
+APPID="moe.nyarchlinux.assistant"
+BUNDLENAME="nyarchassistant.flatpak"
 flatpak-builder --install --user --force-clean flatpak-app "$APPID".json
 
 if [ "$1" = "bundle" ]; then

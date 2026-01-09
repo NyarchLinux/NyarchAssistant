@@ -1,4 +1,4 @@
-application_id = 'io.github.qwersyk.Newelle'
+application_id = 'moe.nyarchlinux.assistant'
 
 scalable_dir = join_paths('hicolor', 'scalable', 'apps')
 install_data(
@@ -38,6 +38,7 @@ install_data (
     'emblem-default-symbolic.svg',
     'tools-symbolic.svg',
     'user-bookmarks-symbolic.svg',
+    'avatar-symbolic.svg',
     install_dir: symbolic_dir
 )
 install_data (
@@ -67,4 +68,8 @@ install_data (
 install_data (
   'gnome-terminal-symbolic.svg',
   install_dir: symbolic_dir
+)
+install_data (
+    'avatar-symbolic.svg',
+    install_dir: symbolic_dir
 )
