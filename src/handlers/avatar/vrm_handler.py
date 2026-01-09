@@ -150,8 +150,9 @@ class VRMHandler(AvatarHandler):
         return self.webview
 
     def destroy(self, add=None):
-        self.httpd.shutdown()
-        self.webview = None
+        if hasattr(self, "httpd"):
+            self.httpd.shutdown()
+            self.webview = None
 
     def wait_emotions(self, object, result):
         value = self.webview.evaluate_javascript_finish(result)

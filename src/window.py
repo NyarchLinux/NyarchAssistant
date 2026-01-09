@@ -705,22 +705,30 @@ class MainWindow(Adw.ApplicationWindow):
     def install_live2d(self):
         try:
             os.makedirs(os.path.join(self.controller.config_dir, "avatars/live2d/web"), exist_ok=True)
-            os.makedirs(os.path.expanduser("~/.cache/wordllama/tokenizers"), exist_ok=True)
         except Exception as e:
             print(e)
-        try:
-            if os.path.exists(os.path.join(self.controller.config_dir, "avatars/live2d/web/models")):
-                subprocess.check_output(['mv', os.path.join(self.controller.config_dir, "avatars/live2d/web/models"), os.path.join(self.controller.config_dir, 'avatars/live2d/models')])
-            subprocess.check_output(['rm', '-rf',  os.path.join(self.controller.config_dir, "avatars/live2d/web")])
-        except Exception as e:
-            print(e)
-        subprocess.check_output(['cp', '-r', os.path.join(BASE_PATH, 'live2d/web/build'), os.path.join(self.controller.config_dir, "avatars/live2d/web")])
-        try:
-            subprocess.check_output(['cp', '-rf', os.path.join(self.controller.config_dir, "avatars/live2d/models"), os.path.join(self.controller.config_dir, "avatars/live2d/web/")])
-            subprocess.check_output(['rm', '-rf', os.path.join(self.controller.config_dir, "avatars/live2d/models")])
-        except Exception as e:
-            print(e)
-
+        if self.controller.is_flatpak():
+            try:
+                if os.path.exists(os.path.join(self.controller.config_dir, "avatars/live2d/web/models")):
+                    subprocess.check_output(['mv', os.path.join(self.controller.config_dir, "avatars/live2d/web/models"), os.path.join(self.controller.config_dir, 'avatars/live2d/models')])
+                subprocess.check_output(['rm', '-rf',  os.path.join(self.controller.config_dir, "avatars/live2d/web")])
+            except Exception as e:
+                print(e)
+            subprocess.check_output(['cp', '-r', os.path.join(BASE_PATH, 'live2d/web/build'), os.path.join(self.controller.config_dir, "avatars/live2d/web")])
+            try:
+                subprocess.check_output(['cp', '-rf', os.path.join(self.controller.config_dir, "avatars/live2d/models"), os.path.join(self.controller.config_dir, "avatars/live2d/web/")])
+                subprocess.check_output(['rm', '-rf', os.path.join(self.controller.config_dir, "avatars/live2d/models")])
+            except Exception as e:
+                print(e)
+        else:
+            try:
+                if not os.path.exists(os.path.join(self.controller.config_dir, "avatars/live2d/web")):
+                    os.makedirs(os.path.join(self.controller.config_dir, "avatars/live2d/web"), exist_ok=True)
+                    subprocess.check_output(["git", "clone", "https://github.com/NyarchLinux/live2d-lipsync-viewer.git", os.path.join(self.controller.config_dir, "avatars/live2d/web")])
+                else:
+                    subprocess.check_output(["git", "pull", "https://github.com/NyarchLinux/live2d-lipsync-viewer.git", os.path.join(self.controller.config_dir, "avatars/live2d/web")])
+            except Exception as e:
+                print(e)
     def build_quick_toggles(self):
         self.quick_toggles = Gtk.MenuButton(
             css_classes=["flat"], icon_name="controls-big"
