@@ -10,6 +10,10 @@ VOICES = """
 class VoiceVoxHanlder(TTSHandler):
     key = "voicevox"
 
+    @staticmethod
+    def get_extra_requirements() -> list:
+        return ["voicevox"]
+
     def __init__(self, settings, path):
         super().__init__(settings, path)
         self._loop = asyncio.new_event_loop()
