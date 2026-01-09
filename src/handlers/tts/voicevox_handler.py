@@ -67,9 +67,9 @@ class VoiceVoxHanlder(TTSHandler):
         _ = save(message, speaker, endpoint)
 
     def get_voices(self) -> tuple:
-        from voicevox import Client
 
         try:
+            from voicevox import Client
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
 
