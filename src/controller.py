@@ -33,11 +33,14 @@ from .ui_controller import UIController
 
 from .handlers.translator import TranslatorHandler
 from .handlers.avatar import AvatarHandler
+import subprocess
 
 if is_flatpak():
     BASE_PATH = "/app/data"
+    ACCHAN_PATH = os.path.join(BASE_PATH, "live2d/web/arch-chan.png")
 else:
     BASE_PATH = "/usr/share/nyarchassistant/data"
+    ACCHAN_PATH = os.path.join(BASE_PATH, "live2d/web/arch-chan.png") 
 """
 Manage Newelle Application, create handlers, check integrity, manage settings...
 """
@@ -186,6 +189,11 @@ class NewelleController:
             self.python_path.append(self.pip_path)
         else:
             threading.Thread(target=self.init_pip_path, args=(self.python_path,)).start()
+
+        # Arch-chan profile image
+
+        if not os.path.exists(self.config_dir + "/profiles/arch-chan.png"):
+            subprocess.run(["wget", "-O", self.config_dir + "/profiles/arch-chan.png", "https://nyarchlinux.moe/acchan.png"])
 
     def init_pip_path(self, path):
         """Install a pip module to init a pip path"""
@@ -390,7 +398,11 @@ class NewelleSettings:
         self.profile_settings = json.loads(self.settings.get_string("profiles"))
         self.current_profile = self.settings.get_string("current-profile")
         if len(self.profile_settings) == 0 or self.current_profile not in self.profile_settings:
-            self.profile_settings[self.current_profile] = {"settings": {}, "picture": os.path.join(BASE_PATH, 'live2d/web/arch-chan.png'), "settings_groups": []}
+            if is_flatpak():
+                path = "/app/data/live2d/web/arch-chan.png"
+            else:
+                path = None
+            self.profile_settings[self.current_profile] = {"settings": {}, "picture": path, "settings_groups": []}
 
         # Init variables
         self.automatic_stt_status = False

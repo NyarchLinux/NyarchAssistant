@@ -707,7 +707,7 @@ class MainWindow(Adw.ApplicationWindow):
             os.makedirs(os.path.join(self.controller.config_dir, "avatars/live2d/web"), exist_ok=True)
         except Exception as e:
             print(e)
-        if self.controller.is_flatpak():
+        if is_flatpak():
             try:
                 if os.path.exists(os.path.join(self.controller.config_dir, "avatars/live2d/web/models")):
                     subprocess.check_output(['mv', os.path.join(self.controller.config_dir, "avatars/live2d/web/models"), os.path.join(self.controller.config_dir, 'avatars/live2d/models')])
@@ -722,11 +722,11 @@ class MainWindow(Adw.ApplicationWindow):
                 print(e)
         else:
             try:
-                if not os.path.exists(os.path.join(self.controller.config_dir, "avatars/live2d/web")):
-                    os.makedirs(os.path.join(self.controller.config_dir, "avatars/live2d/web"), exist_ok=True)
+                if not os.path.exists(os.path.join(self.controller.config_dir, "avatars/live2d/web/VERSION")):
                     subprocess.check_output(["git", "clone", "https://github.com/NyarchLinux/live2d-lipsync-viewer.git", os.path.join(self.controller.config_dir, "avatars/live2d/web")])
                 else:
                     subprocess.check_output(["git", "pull", "https://github.com/NyarchLinux/live2d-lipsync-viewer.git", os.path.join(self.controller.config_dir, "avatars/live2d/web")])
+                GLib.idle_add(self.load_avatar)
             except Exception as e:
                 print(e)
     def build_quick_toggles(self):
