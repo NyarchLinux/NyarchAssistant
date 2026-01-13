@@ -56,9 +56,7 @@ class TTSHandler(Handler):
     def play_audio(self, message):
         """Play an audio from the given message"""
         # Generate random name
-        timestamp = str(int(time.time()))
-        random_part = str(os.urandom(8).hex())
-        file_name = f"{timestamp}_{random_part}.mp3"
+        file_name = self.get_tempname("wav")
         path = os.path.join(self.path, file_name)
         self.save_audio(message, path)
         self.playsound(path)
@@ -66,7 +64,13 @@ class TTSHandler(Handler):
             os.remove(path)
         except Exception as e:
             print("Could not delete file: " + str(e))
-
+    
+    def get_tempname(self, extension: str) -> str:
+        timestamp = str(int(time.time()))
+        random_part = str(os.urandom(8).hex())
+        file_name = f"{timestamp}_{random_part}." + extension
+        return file_name
+    
     def connect(self, signal: str, callback: Callable):
         if signal == "start":
             self.on_start = callback
@@ -74,7 +78,8 @@ class TTSHandler(Handler):
             self.on_stop = callback
 
     def playsound(self, path):
-        """Play an audio from the given path"""
+        """Play an audio from the given path, handling incorrect file extensions"""
+        import mimetypes
         self.stop()
         self._play_lock.acquire()
         self.on_start()

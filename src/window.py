@@ -5,8 +5,13 @@ import re
 import sys
 import os
 import subprocess
+import pickle
+from .handlers.avatar import AvatarHandler
+
+from .constants import AVAILABLE_LLMS, AVAILABLE_TRANSLATORS, PROMPTS, AVAILABLE_TTS, AVAILABLE_STT, AVAILABLE_AVATARS, AVAILABLE_PROMPTS
 import threading
-import json
+import posixpath
+import json 
 import base64
 import copy
 import uuid 
@@ -46,16 +51,23 @@ from .utility.replacehelper import PromptFormatter, replace_variables, ReplaceHe
 from .utility.profile_settings import get_settings_dict, get_settings_dict_by_groups, restore_settings_from_dict, restore_settings_from_dict_by_groups
 from .utility.audio_recorder import AudioRecorder
 from .utility.media import extract_supported_files
+from .utility.system import is_flatpak
 from .ui.screenrecorder import ScreenRecorder
 from .handlers import ErrorSeverity
 from .controller import NewelleController, ReloadType
 from .ui_controller import UIController
+from .extensions import ExtensionLoader
+
+from .controller import BASE_PATH
+LIVE2D_VERSION = 0.5
+
 
 # Add gettext function
 _ = gettext.gettext
 
 class MainWindow(Adw.ApplicationWindow):
     def __init__(self, *args, **kwargs):
+        self.first_load = True
         super().__init__(*args, **kwargs)
         self.app = self.get_application()
         
@@ -302,6 +314,30 @@ class MainWindow(Adw.ApplicationWindow):
         self.chat_stop_button.connect("clicked", self.stop_chat)
         self.chat_stop_button.set_visible(False)
 
+        # Avatar
+        self.avatar_handler = None
+        self.avatar_widget = None
+        self.avatar_flap = Adw.Flap(flap_position=Gtk.PackType.END, modal=False, swipe_to_close=False, swipe_to_open=False)
+        self.avatar_flap.set_name("hide")
+
+        self.boxw = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, css_classes=["background"])
+        self.web_panel_header = Adw.HeaderBar(css_classes=["flat", "view"], show_start_title_buttons=False)
+        self.web_panel_header.set_title_widget(Gtk.Box())
+        self.boxw.append(self.web_panel_header)
+        self.boxw.set_size_request(400, 0)
+        self.boxw.set_hexpand(False)
+        self.avatar_flap.set_flap(self.boxw)
+
+        self.avatar_flap.set_content(self.main_program_block)
+        self.flap_button_avatar = Gtk.ToggleButton.new()
+        self.flap_button_avatar.set_icon_name(icon_name='avatar-symbolic')
+        self.flap_button_avatar.connect('clicked', self.on_avatar_button_toggled)
+        self.avatar_flap.connect("notify::reveal-flap", self.handle_second_block_change)
+        self.headerbox.append(self.flap_button_avatar)
+        self.set_content(self.avatar_flap)
+        self.avatar_flap.set_reveal_flap(False)
+        # End Live2d
+        self.status = True
         self.chat_controls_entry_block.append(self.chat_stop_button)
         self.status = True
         self.build_offers()
@@ -452,8 +488,13 @@ class MainWindow(Adw.ApplicationWindow):
         GLib.idle_add(self.show_chat)
         if not self.settings.get_boolean("welcome-screen-shown"):
             threading.Thread(target=self.show_presentation_window).start()
-        GLib.timeout_add(10, build_model_popup)
+            self.first_start()
+        else:
+            threading.Thread(target=self.check_version).start()
         self.controller.handlers.set_error_func(self.handle_error)
+        GLib.timeout_add(10, build_model_popup)
+        self.first_load = False
+        GLib.idle_add(self.load_avatar)
         
         # Connect cleanup on window destroy
         self.connect("destroy", self._cleanup_on_destroy)
@@ -549,7 +590,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.canvas_box.append(self.canvas_tab_bar)
         self.canvas_box.append(self.canvas_overview)
         self.add_explorer_tab(None, self.main_path)
-        self.set_content(self.main_program_block)
+        #self.set_content(self.main_program_block)
         bin = Adw.BreakpointBin(child=self.main, width_request=300, height_request=300)
         breakpoint = Adw.Breakpoint(condition=Adw.BreakpointCondition.new_length(Adw.BreakpointConditionLengthType.MAX_WIDTH, 900, Adw.LengthUnit.PX))
         breakpoint.add_setter(self.main, "collapsed", True)
@@ -618,7 +659,7 @@ class MainWindow(Adw.ApplicationWindow):
     
     def build_placeholder(self):
         tips = [
-            {"title": _("Ask about a website"), "subtitle": _("Write #https://website.com in chat to ask information about a website"), "on_click": lambda : self.send_bot_response(Gtk.Button(label="#https://github.com/qwersyk/Newelle\nWhat is Newelle?"))},
+            {"title": _("Ask about a website"), "subtitle": _("Write #https://website.com in chat to ask information about a website"), "on_click": lambda : self.send_bot_response(Gtk.Button(label="#https://github.com/NyarchLinux/NyarchAssistant\nWhat is Nyarch Assistant?"))},
             {"title": _("Check out our Extensions!"), "subtitle": _("We have a lot of extensions for different things. Check it out!"), "on_click": lambda: self.app.extension_action()},
             {"title": _("Chat with documents!"), "subtitle": _("Add your documents to your documents folder and chat using the information contained in them!"), "on_click": lambda : self.app.settings_action_paged("Memory")},
             {"title": _("Surf the web!"), "subtitle": _("Enable web search to allow the LLM to surf the web and provide up to date answers"), "on_click": lambda : self.app.settings_action_paged("Memory")},
@@ -628,6 +669,7 @@ class MainWindow(Adw.ApplicationWindow):
             {"title": _("Prompt Control"), "subtitle": _("Newelle gives you 100% prompt control. Tune your prompts for your use."), "on_click": lambda : self.app.settings_action_paged("Prompts")},
             {"title": _("Thread Editing"), "subtitle": _("Check the programs and processes you run from Newelle"), "on_click": lambda : self.app.thread_editing_action()},
             {"title": _("Programmable Prompts"), "subtitle": _("You can add dynamic prompts to Newelle, with conditions and probabilities"), "on_click": lambda : open_website("https://github.com/qwersyk/Newelle/wiki/Prompt-variables")},
+            {"title": _("Use any avatar model"), "subtitle": _("Use any Live2D or LivePNG model"), "on_click": lambda : self.app.settings_action_paged("avatar")},
         ]
         self.empty_chat_placeholder = Gtk.Box(hexpand=True, vexpand=True, orientation=Gtk.Orientation.VERTICAL)
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, halign=Gtk.Align.CENTER, valign=Gtk.Align.CENTER, spacing=20, vexpand=True)    
@@ -669,6 +711,47 @@ class MainWindow(Adw.ApplicationWindow):
             )
             self.controller.newelle_settings.zoom = zoom
 
+    def first_start(self):
+        threading.Thread(target=self.install_live2d).start()
+
+    def check_version(self):
+        print("ae")
+        try:
+            live2d_version = open(os.path.join(self.controller.config_dir, "avatars/live2d/web/VERSION"), "r").read()
+            live2d_version = float(live2d_version)
+        except Exception as e:
+            live2d_version = 0.1
+        if live2d_version < LIVE2D_VERSION:
+            print("Updating live2d...")
+            self.install_live2d()
+
+    def install_live2d(self):
+        try:
+            os.makedirs(os.path.join(self.controller.config_dir, "avatars/live2d/web"), exist_ok=True)
+        except Exception as e:
+            print(e)
+        if is_flatpak():
+            try:
+                if os.path.exists(os.path.join(self.controller.config_dir, "avatars/live2d/web/models")):
+                    subprocess.check_output(['mv', os.path.join(self.controller.config_dir, "avatars/live2d/web/models"), os.path.join(self.controller.config_dir, 'avatars/live2d/models')])
+                subprocess.check_output(['rm', '-rf',  os.path.join(self.controller.config_dir, "avatars/live2d/web")])
+            except Exception as e:
+                print(e)
+            subprocess.check_output(['cp', '-r', os.path.join(BASE_PATH, 'live2d/web/build'), os.path.join(self.controller.config_dir, "avatars/live2d/web")])
+            try:
+                subprocess.check_output(['cp', '-rf', os.path.join(self.controller.config_dir, "avatars/live2d/models"), os.path.join(self.controller.config_dir, "avatars/live2d/web/")])
+                subprocess.check_output(['rm', '-rf', os.path.join(self.controller.config_dir, "avatars/live2d/models")])
+            except Exception as e:
+                print(e)
+        else:
+            try:
+                if not os.path.exists(os.path.join(self.controller.config_dir, "avatars/live2d/web/VERSION")):
+                    subprocess.check_output(["git", "clone", "https://github.com/NyarchLinux/live2d-lipsync-viewer.git", os.path.join(self.controller.config_dir, "avatars/live2d/web")])
+                else:
+                    subprocess.check_output(["git", "pull", "https://github.com/NyarchLinux/live2d-lipsync-viewer.git", os.path.join(self.controller.config_dir, "avatars/live2d/web")])
+                GLib.idle_add(self.load_avatar)
+            except Exception as e:
+                print(e)
     def build_quick_toggles(self):
         self.quick_toggles = Gtk.MenuButton(
             css_classes=["flat"], icon_name="controls-big"
@@ -775,6 +858,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.tts_enabled = self.controller.newelle_settings.tts_enabled
         self.virtualization = self.controller.newelle_settings.virtualization
         self.prompts = self.controller.newelle_settings.prompts
+        self.translation_enabled = self.controller.newelle_settings.translation_enabled
         # Handlers
         self.tts = self.controller.handlers.tts
         self.stt = self.controller.handlers.stt
@@ -784,6 +868,9 @@ class MainWindow(Adw.ApplicationWindow):
         self.memory_handler = self.controller.handlers.memory
         self.rag_handler = self.controller.handlers.rag
         self.extensionloader = self.controller.extensionloader
+        # Nyarch Scpecific 
+        self.translator = self.controller.handlers.translator
+        self.avatar = self.controller.handlers.avatar
         if ReloadType.RELOAD_CHAT in reloads:
             self.show_chat()
         if ReloadType.RELOAD_CHAT_LIST in reloads:
@@ -802,6 +889,9 @@ class MainWindow(Adw.ApplicationWindow):
             self.update_model_popup()
         if ReloadType.TOOLS in reloads:
             self.model_popup_settings.refresh_tools_list()
+            self.reload_buttons()
+        if ReloadType.AVATAR in reloads and not self.first_load:
+            self.load_avatar()
 
     def reload_buttons(self):
         """Reload offers and buttons on LLM change"""
@@ -831,7 +921,8 @@ class MainWindow(Adw.ApplicationWindow):
             )
             self.chat_header.set_title_widget(self.build_model_popup())
 
-    # Model popup
+         
+    # Model popup 
     def update_model_popup(self):
         """Update the label in the popup"""
         if not hasattr(self, "model_menu_button"):
@@ -1105,24 +1196,63 @@ class MainWindow(Adw.ApplicationWindow):
         widget.set_margin_top(3)
         return widget
 
+    def load_avatar(self):
+        if self.controller.newelle_settings.avatar_enabled:
+            # If the avatar is enabled, check if it requires reloading 
+            if not hasattr(self, "avatar_handler"):
+                self.avatar_handler = None
+            old_avatar = self.avatar_handler
+            self.avatar_handler = self.controller.handlers.avatar
+            # If it does not require reloading, then just return
+            self.flap_button_avatar.set_visible(True)
+            if old_avatar is not None and not old_avatar.requires_reloading(self.avatar_handler):
+                self.avatar_handler = old_avatar
+                self.controller.handlers.avatar = old_avatar
+                return
+            # If it requires reloading, reload the old avatar
+            self.unload_avatar(old_avatar)
+            if self.avatar_handler is not None:   
+                self.avatar_widget = self.avatar_handler.create_gtk_widget()
+                self.boxw.append(self.avatar_widget)
+                ReplaceHelper.set_handler(self.avatar_handler)
+            else:
+                ReplaceHelper.set_handler(None)
+        else:
+            # If the avatar is disabled, unload the old one and 
+            # remove related widgets
+            if self.avatar_handler is not None:
+                self.unload_avatar(self.avatar_handler)
+            self.flap_button_avatar.set_visible(False)
+            self.avatar_flap.set_reveal_flap(False)
+            self.avatar_flap.set_name("hide")
+            return
+       
+    def unload_avatar(self, handler : AvatarHandler):
+        if self.avatar_widget is not None and handler is not None:
+            self.boxw.remove(self.avatar_widget)
+            handler.destroy()
+    
     # UI Functions
     def show_presentation_window(self):
         """Show the window for the initial program presentation on first start"""
-        def show_presentation():
+        def idle_show():
             self.presentation_dialog = PresentationWindow(
                 "presentation", self.settings, self
             )
             self.presentation_dialog.show()
-        self.controller.handlers.handlers_cached.acquire()
-        self.controller.handlers.handlers_cached.release()
-        GLib.idle_add(show_presentation)
+        def wait_handlers():
+            self.controller.handlers.handlers_cached.acquire()
+            self.controller.handlers.handlers_cached.release()
+            GLib.idle_add(idle_show)
+        threading.Thread(target=wait_handlers).start()
 
     def mute_tts(self, button: Gtk.Button):
         """Mute the TTS"""
         self.focus_input()
         if self.tts_enabled:
             self.tts.stop()
-        return False
+        if self.avatar_handler is not None:
+            self.avatar_handler.stop()
 
     def focus_input(self):
         """Focus the input box. Often used to avoid removing focues objects"""
@@ -1553,13 +1683,20 @@ class MainWindow(Adw.ApplicationWindow):
         elif (self.main_program_block.get_name() == "visible") and (not status):
             self.main_program_block.set_show_sidebar(True)
             return True
-        status = self.main_program_block.get_show_sidebar()
-        if status:
+        status = self.main_program_block.get_show_sidebar() or self.avatar_flap.get_reveal_flap()
+        
+        if self.avatar_flap.get_reveal_flap():
+            if self.avatar_flap.get_name() == "hide":
+                self.avatar_flap.set_reveal_flap(False)
+            self.chat_panel_header.set_show_end_title_buttons(False)
+            self.chat_header.set_show_end_title_buttons(False)
+            header_widget = self.web_panel_header
+        elif self.main_program_block.get_show_sidebar():
             self.chat_panel_header.set_show_end_title_buttons(False)
             self.chat_header.set_show_end_title_buttons(False)
             header_widget = self.canvas_headerbox
         else:
-            self.chat_panel_header.set_show_end_title_buttons(not self.main.get_show_sidebar())
+            self.chat_panel_header.set_show_end_title_buttons(not self.main.get_show_sidebar() and self.avatar_flap.get_folded())
             self.chat_header.set_show_end_title_buttons(True)
             header_widget = self.chat_header
         # Unparent the headerbox
@@ -1583,7 +1720,11 @@ class MainWindow(Adw.ApplicationWindow):
             self.main_program_block.set_show_sidebar(True)
             toggle_button.set_active(True)
 
+        if not self.controller.newelle_settings.avatar_enabled:
+            self.load_avatar()
+    
     # UI Functions for chat management
+
     def send_button_start_spinner(self):
         """Show a spinner when you click on send button"""
         spinner = Gtk.Spinner(spinning=True)
@@ -1598,7 +1739,19 @@ class MainWindow(Adw.ApplicationWindow):
         """When the send message button is clicked activate the input panel"""
         self.on_entry_activate(self.input_panel)
 
-    # Explorer code
+    def on_avatar_button_toggled(self, toggle_button):
+        self.focus_input()
+        self.flap_button_avatar.set_active(False)
+        if self.avatar_flap.get_name() == "visible":
+            self.avatar_flap.set_name("hide")
+            self.main_program_block.set_name("hide")
+            self.avatar_flap.set_reveal_flap(False)
+        else:
+            self.avatar_flap.set_name("visible")
+            self.avatar_flap.set_reveal_flap(True)
+        if not self.controller.newelle_settings.avatar_enabled:
+            self.load_avatar()
+    
     def get_file_button(self, path):
         """Get the button for the file
 
@@ -1722,10 +1875,11 @@ class MainWindow(Adw.ApplicationWindow):
     def handle_main_block_change(self, *data):
         if self.main.get_show_sidebar():
             self.chat_panel_header.set_show_end_title_buttons(
-                not self.main_program_block.get_show_sidebar()
+                not self.main_program_block.get_show_sidebar() or self.avatar_flap.get_reveal_flap()
             )
             self.chat_header.set_show_start_title_buttons(True)
         else:
+            self.chat_header.set_show_start_title_buttons(False)
             self.chat_panel_header.set_show_end_title_buttons(False)
             self.chat_header.set_show_start_title_buttons(False)
 
@@ -2244,6 +2398,10 @@ class MainWindow(Adw.ApplicationWindow):
             return "\n".join([f"{msg['User']}: {msg['Message']}" for msg in self.get_history()])
         elif name == "message":
             return self.chat[-1]["Message"]
+        elif name == "avatar_on":
+            return self.controller.newelle_settings.avatar_enabled
+        elif name == "translator_on":
+            return self.controller.newelle_settings.translation_enabled
         else:
             rep = replace_variables_dict()
             var = "{" + name.upper() + "}"
@@ -2415,20 +2573,35 @@ class MainWindow(Adw.ApplicationWindow):
                 GLib.idle_add(self.generate_chat_name, Gtk.Button(name=str(self.chat_id)))
             # TTS
             tts_thread = None
+            
             if self.tts_enabled:
+                # Remove text in *text*
                 message_label = convert_think_codeblocks(message_label)
                 message = re.sub(r"```.*?```", "", message_label, flags=re.DOTALL)
+                message = re.sub(r'\*.*?\*', '', message)
                 message = remove_markdown(message)
                 message = remove_emoji(message)
-                if not (
-                    not message.strip()
-                    or message.isspace()
-                    or all(char == "\n" for char in message)
-                ):
-                    tts_thread = threading.Thread(
-                        target=self.tts.play_audio, args=(message,)
-                    )
+                # Remove text in *text*
+                if not(not message.strip() or message.isspace() or all(char == '\n' for char in message)):
+                    # Translate the message
+                    translator = None
+                    if self.translation_enabled:
+                        translator = self.translator          
+                    if self.controller.newelle_settings.avatar_enabled and self.avatar_handler is not None:
+                        tts_thread = threading.Thread(target=self.avatar_handler.speak_with_tts, args=(message, self.tts, translator))
+                    else:
+                        if translator is not None:
+                            message = translator.translate(message)
+                        tts_thread = threading.Thread(target=self.tts.play_audio, args=(message, ))
                     tts_thread.start()
+                    def restart_recording():
+                        if not self.automatic_stt_status:
+                            return
+                        if tts_thread is not None:
+                            tts_thread.join()
+                        GLib.idle_add(self.start_recording, self.recording_button)
+                    if self.controller.newelle_settings.automatic_stt:
+                        threading.Thread(target=restart_recording).start()
 
             # Wait for tts to finish to restart recording
             def restart_recording():
