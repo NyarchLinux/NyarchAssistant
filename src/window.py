@@ -17,6 +17,7 @@ import copy
 import uuid 
 import inspect 
 import gettext
+import datetime
 from gi.repository import Gtk, Adw, Pango, Gio, Gdk, GObject, GLib, GdkPixbuf
 
 from .ui.settings import Settings
@@ -78,6 +79,7 @@ class MainWindow(Adw.ApplicationWindow):
             max_sidebar_width=10000
         )
         # UI things
+        self.automatic_stt_status = False
         self.model_loading_spinner_button = None
         self.model_loading_spinner_separator = None
         self.model_loading_status = False
@@ -127,6 +129,14 @@ class MainWindow(Adw.ApplicationWindow):
         self.last_error_box = None
         self.edit_entries = {}
         self.auto_run_times = 0
+        # Lazy loading state
+        self.lazy_load_enabled = True
+        self.lazy_load_batch_size = 10  # Number of messages to load initially and per batch
+        self.lazy_load_threshold = 0.1  # Load more when within 10% of top/bottom
+        self.lazy_loaded_start = 0  # First loaded message index
+        self.lazy_loaded_end = 0  # Last loaded message index (exclusive)
+        self.lazy_loading_in_progress = False
+        self.scroll_handler_id = None  # Store scroll handler ID to disconnect when needed
         # Build Window
         self.chat_panel = Gtk.Box(hexpand_set=True, hexpand=True)
         self.chat_panel.set_size_request(450, -1)
@@ -137,6 +147,18 @@ class MainWindow(Adw.ApplicationWindow):
         menu.append(_("Extensions"), "app.extension")
         menu.append(_("Settings"), "app.settings")
         menu.append(_("Keyboard shorcuts"), "app.shortcuts")
+        
+        # Add export/import section as a submenu
+        export_import_menu = Gio.Menu()
+        export_current = Gio.MenuItem.new(_("Export current chat"), "app.export_current_chat")
+        export_all = Gio.MenuItem.new(_("Export all chats"), "app.export_all_chats")
+        import_chats = Gio.MenuItem.new(_("Import chats"), "app.import_chats")
+        export_import_menu.append_item(export_current)
+        export_import_menu.append_item(export_all)
+        export_import_menu.append_item(import_chats)
+        
+        menu.append_submenu(_("Export/Import"), export_import_menu)
+        
         menu.append(_("About"), "app.about")
         menu_button.set_menu_model(menu)
         
@@ -238,6 +260,7 @@ class MainWindow(Adw.ApplicationWindow):
         )
         self.chat_scroll.set_child(self.chat_scroll_window)
         self.chat_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        # Scroll monitoring will be connected in show_chat after listbox is created
         self.chat_stack.add_child(self.chat_list_block)
         self.chat_stack.set_visible_child(self.chat_list_block)
         self.chat_scroll_window.append(self.chat_stack)
@@ -2131,7 +2154,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.chats[self.chat_id]["chat"] = self.chat
         self.show_chat()
         self.stream_number_variable += 1
-        threading.Thread(target=self.update_button_text).start()
+        GLib.idle_add(self.update_button_text)
 
     def stop_chat(self, button=None):
         """Stop generating the message"""
@@ -2346,6 +2369,13 @@ class MainWindow(Adw.ApplicationWindow):
             ).start()
 
     def get_variable(self, name:str):
+        tools = self.controller.tools.get_all_tools()
+        for tool in tools:
+            if tool.name == name:
+                if tool in self.controller.get_enabled_tools():
+                    return True
+                else:
+                    return False
         if name == "tts_on":
             return self.tts_enabled
         elif name == "virtualization_on":
@@ -2426,7 +2456,12 @@ class MainWindow(Adw.ApplicationWindow):
         history = self.get_history()
         edited_messages = get_edited_messages(history, old_history)
         if edited_messages is None:
-            GLib.idle_add(self.show_chat)
+            # Messages were added or removed - only reload if removed or if chat UI needs rebuilding
+            # If messages were added, they'll be displayed via show_message, so no need to reload
+            if len(history) < len(old_history):
+                # Messages were removed, need to reload
+                GLib.idle_add(self.show_chat)
+            # If messages were added (len increased), don't reload - they'll be added via show_message
         else:
             for message in edited_messages:
                 GLib.idle_add(self.reload_message, message)
@@ -2455,6 +2490,10 @@ class MainWindow(Adw.ApplicationWindow):
                     pass
             else:
                 message_label = self.send_message_to_bot(self.chat[-1]["Message"])
+            
+            if self.stream_number_variable != stream_number_variable:
+                return
+
             self.last_generation_time = time.time() - t1
             
             input_tokens = 0
@@ -2474,8 +2513,15 @@ class MainWindow(Adw.ApplicationWindow):
             GLib.idle_add(self.remove_send_button_spinner)
 
             def remove_streaming_box():
-                if self.model.stream_enabled() and hasattr(self, "streaming_box"):
-                    self.streaming_box.unparent()
+                try:
+                    if self.model.stream_enabled() and hasattr(self, "streaming_box"):
+                        if self.streaming_box is not None:
+                            parent = self.streaming_box.get_parent()
+                            if parent is not None:
+                                self.streaming_box.unparent()
+                except (AttributeError, RuntimeError):
+                    # Widget may have been destroyed or unparented already
+                    pass
 
             GLib.timeout_add(250, remove_streaming_box)
             return
@@ -2488,7 +2534,12 @@ class MainWindow(Adw.ApplicationWindow):
             # Edit messages that require to be updated
             edited_messages = get_edited_messages(history, old_history)
             if edited_messages is None:
-                GLib.idle_add(self.show_chat)
+                # Messages were added or removed - only reload if removed or if chat UI needs rebuilding
+                # If messages were added, they'll be displayed via show_message, so no need to reload
+                if len(history) < len(old_history):
+                    # Messages were removed, need to reload
+                    GLib.idle_add(self.show_chat)
+                # If messages were added (len increased), don't reload - they'll be added via show_message
             else:
                 for message in edited_messages:
                     GLib.idle_add(self.reload_message, message)
@@ -2502,40 +2553,66 @@ class MainWindow(Adw.ApplicationWindow):
                 False,
                 "\n".join(prompts),
             )
-        GLib.idle_add(self.remove_send_button_spinner)
-        # Generate chat name
-        self.update_memory(message_label)
-        if self.controller.newelle_settings.auto_generate_name and len(self.chat) == 1:
-            GLib.idle_add(self.generate_chat_name, Gtk.Button(name=str(self.chat_id)))
+
+            # Clean up streaming_box after message is displayed
+            def cleanup_streaming_box():
+                try:
+                    if self.model.stream_enabled() and hasattr(self, "streaming_box"):
+                        if self.streaming_box is not None:
+                            parent = self.streaming_box.get_parent()
+                            if parent is not None:
+                                self.streaming_box.unparent()
+                except (AttributeError, RuntimeError):
+                    pass
+
+            GLib.idle_add(cleanup_streaming_box)
+            GLib.idle_add(self.remove_send_button_spinner)
+            # Generate chat name
+            self.update_memory(message_label)
+            if self.controller.newelle_settings.auto_generate_name and len(self.chat) == 1:
+                GLib.idle_add(self.generate_chat_name, Gtk.Button(name=str(self.chat_id)))
+            # TTS
+            tts_thread = None
             
-        if self.tts_enabled:
-            # Remove text in *text*
-            message_label = convert_think_codeblocks(message_label)
-            message = re.sub(r"```.*?```", "", message_label, flags=re.DOTALL)
-            message = re.sub(r'\*.*?\*', '', message)
-            message = remove_markdown(message)
-            message = remove_emoji(message)
-            # Remove text in *text*
-            if not(not message.strip() or message.isspace() or all(char == '\n' for char in message)):
-                # Translate the message
-                translator = None
-                if self.translation_enabled:
-                    translator = self.translator          
-                if self.controller.newelle_settings.avatar_enabled and self.avatar_handler is not None:
-                    tts_thread = threading.Thread(target=self.avatar_handler.speak_with_tts, args=(message, self.tts, translator))
-                else:
-                    if translator is not None:
-                        message = translator.translate(message)
-                    tts_thread = threading.Thread(target=self.tts.play_audio, args=(message, ))
-                tts_thread.start()
-                def restart_recording():
-                    if not self.automatic_stt_status:
-                        return
-                    if tts_thread is not None:
-                        tts_thread.join()
-                    GLib.idle_add(self.start_recording, self.recording_button)
-                if self.controller.newelle_settings.automatic_stt:
-                    threading.Thread(target=restart_recording).start()
+            if self.tts_enabled:
+                # Remove text in *text*
+                message_label = convert_think_codeblocks(message_label)
+                message = re.sub(r"```.*?```", "", message_label, flags=re.DOTALL)
+                message = re.sub(r'\*.*?\*', '', message)
+                message = remove_markdown(message)
+                message = remove_emoji(message)
+                # Remove text in *text*
+                if not(not message.strip() or message.isspace() or all(char == '\n' for char in message)):
+                    # Translate the message
+                    translator = None
+                    if self.translation_enabled:
+                        translator = self.translator          
+                    if self.controller.newelle_settings.avatar_enabled and self.avatar_handler is not None:
+                        tts_thread = threading.Thread(target=self.avatar_handler.speak_with_tts, args=(message, self.tts, translator))
+                    else:
+                        if translator is not None:
+                            message = translator.translate(message)
+                        tts_thread = threading.Thread(target=self.tts.play_audio, args=(message, ))
+                    tts_thread.start()
+                    def restart_recording():
+                        if not self.automatic_stt_status:
+                            return
+                        if tts_thread is not None:
+                            tts_thread.join()
+                        GLib.idle_add(self.start_recording, self.recording_button)
+                    if self.controller.newelle_settings.automatic_stt:
+                        threading.Thread(target=restart_recording).start()
+
+            # Wait for tts to finish to restart recording
+            def restart_recording():
+                if not self.automatic_stt_status:
+                    return
+                if tts_thread is not None:
+                    tts_thread.join()
+                GLib.idle_add(self.start_recording, self.recording_button)
+
+            if self.controller.newelle_settings.automatic_stt:
+                threading.Thread(target=restart_recording).start()
 
     def add_reading_widget(self, documents):
         d = [document.replace("file:", "") for document in documents if document.startswith("file:")]
@@ -2547,8 +2624,17 @@ class MainWindow(Adw.ApplicationWindow):
             self.streaming_box.append(self.reading)
 
     def remove_reading_widget(self):
-        if hasattr(self, "reading"):
-            self.streaming_box.remove(self.reading)
+        try:
+            if hasattr(self, "reading") and hasattr(self, "streaming_box"):
+                # Check if streaming_box still exists and reading is a child of it
+                if self.streaming_box is not None and self.reading is not None:
+                    # Check if reading is still attached to streaming_box
+                    parent = self.reading.get_parent()
+                    if parent == self.streaming_box:
+                        self.streaming_box.remove(self.reading)
+        except (AttributeError, TypeError, RuntimeError):
+            # Widget may have been destroyed or unparented already
+            pass
 
     def create_streaming_message_label(self):
         """Create a label for message streaming"""
@@ -2583,7 +2669,12 @@ class MainWindow(Adw.ApplicationWindow):
         # Create the message label
         self.streaming_message_box.append(scrolled_window)
         self.streaming_box = self.add_message("Assistant", self.streaming_message_box)
-        self.messages_box.pop()
+        # Safely remove the last element from messages_box
+        try:
+            if hasattr(self, "messages_box") and len(self.messages_box) > 0:
+                self.messages_box.pop()
+        except (AttributeError, IndexError):
+            pass
         self.streaming_box.set_overflow(Gtk.Overflow.VISIBLE)
 
     def update_message(self, message, stream_number_variable, *args):
@@ -2595,6 +2686,11 @@ class MainWindow(Adw.ApplicationWindow):
         """
         if self.stream_number_variable != stream_number_variable:
             return
+        # Safety check: ensure streaming_box and streaming_label still exist and are valid
+        if not hasattr(self, "streaming_box") or self.streaming_box is None:
+            return
+        if not hasattr(self, "streaming_label") or self.streaming_label is None:
+            return
         self.streamed_message = message
         last_update_checked = False
         if self.streamed_message.startswith("<think>") and not self.stream_thinking:
@@ -2604,9 +2700,13 @@ class MainWindow(Adw.ApplicationWindow):
             message = text[1] if len(text) > 1 else ""
             self.streaming_thought = thinking
             def idle():
-                self.thinking_box = ThinkingWidget() 
-                self.streaming_message_box.prepend(self.thinking_box)
-                self.thinking_box.start_thinking(thinking)
+                try:
+                    if hasattr(self, "streaming_message_box") and self.streaming_message_box is not None:
+                        self.thinking_box = ThinkingWidget()
+                        self.streaming_message_box.prepend(self.thinking_box)
+                        self.thinking_box.start_thinking(thinking)
+                except (AttributeError, RuntimeError):
+                    pass
             GLib.idle_add(idle)
         elif self.stream_thinking:
 
@@ -2620,7 +2720,10 @@ class MainWindow(Adw.ApplicationWindow):
             message = text[1] if len(text) > 1 else ""
             added_thinking = thinking[len(self.streaming_thought) :]
             self.streaming_thought += added_thinking
-            self.thinking_box.append_thinking(added_thinking)
+            try:
+                self.thinking_box.append_thinking(added_thinking)
+            except (AttributeError, RuntimeError):
+                pass
         if self.streaming_label is not None:
             # Find the differences between the messages
             t = time.time()
@@ -2631,9 +2734,13 @@ class MainWindow(Adw.ApplicationWindow):
 
             # Edit the label on the main thread
             def idle_edit():
-                self.streaming_label.set_markup(
-                    simple_markdown_to_pango(self.curr_label)
-                )
+                try:
+                    if self.streaming_label is not None:
+                        self.streaming_label.set_markup(
+                            simple_markdown_to_pango(self.curr_label)
+                        )
+                except (AttributeError, RuntimeError):
+                    pass
 
             GLib.idle_add(idle_edit)
 
@@ -2641,8 +2748,8 @@ class MainWindow(Adw.ApplicationWindow):
     def show_chat(self, animate=False):
         """Show a chat"""
         self.last_error_box = None
-        self.messages_box = [] 
         if not self.check_streams["chat"]:
+            self.messages_box = []
             self.check_streams["chat"] = True
             try:
                 if not animate:
@@ -2657,6 +2764,13 @@ class MainWindow(Adw.ApplicationWindow):
                 self.chat_stack.set_visible_child(self.chat_list_block)
                 GLib.idle_add(self.chat_stack.remove,old_chat_list_block)
                 GLib.idle_add(self.chat_stack.set_transition_duration, 300)
+                # Connect scroll monitoring for lazy loading
+                # Disconnect old handler if it exists
+                if self.scroll_handler_id is not None:
+                    adjustment = self.chat_scroll.get_vadjustment()
+                    adjustment.disconnect(self.scroll_handler_id)
+                adjustment = self.chat_scroll.get_vadjustment()
+                self.scroll_handler_id = adjustment.connect("value-changed", self._on_scroll_changed)
             except Exception as e:
                 self.notification_block.add_toast(Adw.Toast(title=str(e)))
 
@@ -2668,20 +2782,34 @@ class MainWindow(Adw.ApplicationWindow):
                 self.add_message("WarningNoVirtual")
             else:
                 self.add_message("Disclaimer")
-            for i in range(len(self.chat)):
-                if self.chat[i]["User"] == "User":
-                    self.show_message(
-                        self.chat[i]["Message"], True, id_message=i, is_user=True
-                    )
-                elif self.chat[i]["User"] == "Assistant":
-                    self.show_message(self.chat[i]["Message"], True, id_message=i)
-                elif self.chat[i]["User"] in ["File", "Folder"]:
-                    self.add_message(
-                        self.chat[i]["User"],
-                        self.get_file_button(
-                            self.chat[i]["Message"][1 : len(self.chat[i]["Message"])]
-                        ),
-                    )
+            
+            # Use lazy loading for long chats
+            total_messages = len(self.chat)
+            if self.lazy_load_enabled and total_messages > self.lazy_load_batch_size:
+                # Load only the last batch_size messages initially
+                # Messages are indexed from 0 (oldest) to len-1 (newest)
+                start_idx = max(0, total_messages - self.lazy_load_batch_size)
+                self.lazy_loaded_start = start_idx
+                self.lazy_loaded_end = total_messages
+                self._load_message_range(start_idx, total_messages)
+            else:
+                # Load all messages for short chats
+                self.lazy_loaded_start = 0
+                self.lazy_loaded_end = total_messages
+                for i in range(len(self.chat)):
+                    if self.chat[i]["User"] == "User":
+                        self.show_message(
+                            self.chat[i]["Message"], True, id_message=i, is_user=True
+                        )
+                    elif self.chat[i]["User"] == "Assistant":
+                        self.show_message(self.chat[i]["Message"], True, id_message=i)
+                    elif self.chat[i]["User"] in ["File", "Folder"]:
+                        self.add_message(
+                            self.chat[i]["User"],
+                            self.get_file_button(
+                                self.chat[i]["Message"][1 : len(self.chat[i]["Message"])]
+                            ),
+                        )
             self.check_streams["chat"] = False
         if len(self.chat) == 0:
             self.show_placeholder()
@@ -2689,6 +2817,250 @@ class MainWindow(Adw.ApplicationWindow):
             self.hide_placeholder()
         GLib.idle_add(self.scrolled_chat)
         GLib.idle_add(self.update_button_text)
+
+    def _load_message_range(self, start_idx: int, end_idx: int):
+        """Load messages in the specified range (start_idx inclusive, end_idx exclusive)"""
+        for i in range(start_idx, end_idx):
+            if self.chat[i]["User"] == "User":
+                self.show_message(
+                    self.chat[i]["Message"], True, id_message=i, is_user=True
+                )
+            elif self.chat[i]["User"] == "Assistant":
+                self.show_message(self.chat[i]["Message"], True, id_message=i)
+            elif self.chat[i]["User"] in ["File", "Folder"]:
+                self.add_message(
+                    self.chat[i]["User"],
+                    self.get_file_button(
+                        self.chat[i]["Message"][1 : len(self.chat[i]["Message"])]
+                    ),
+                )
+
+    def _on_scroll_changed(self, adjustment):
+        """Handle scroll events to trigger lazy loading of messages"""
+        if not self.lazy_load_enabled or self.lazy_loading_in_progress:
+            return
+        
+        if len(self.chat) <= self.lazy_load_batch_size:
+            return  # No lazy loading needed for short chats
+        
+        value = adjustment.get_value()
+        lower = adjustment.get_lower()
+        upper = adjustment.get_upper()
+        page_size = adjustment.get_page_size()
+        
+        # Calculate scroll position (0 = top, 1 = bottom)
+        if upper - lower - page_size <= 0:
+            return
+        
+        scroll_position = (value - lower) / (upper - lower - page_size)
+        
+        # Load older messages when scrolling near the top
+        if scroll_position < self.lazy_load_threshold and self.lazy_loaded_start > 0:
+            self._load_older_messages()
+        
+        # Load newer messages when scrolling near the bottom (shouldn't happen often since we start at bottom)
+        if scroll_position > (1 - self.lazy_load_threshold) and self.lazy_loaded_end < len(self.chat):
+            self._load_newer_messages()
+
+    def _load_older_messages(self):
+        """Load older messages (lower indices) when user scrolls up"""
+        if self.lazy_loading_in_progress or self.lazy_loaded_start <= 0:
+            return
+        
+        self.lazy_loading_in_progress = True
+        
+        # Calculate how many messages to load
+        load_count = min(self.lazy_load_batch_size, self.lazy_loaded_start)
+        new_start = max(0, self.lazy_loaded_start - load_count)
+        
+        # Store current scroll position to restore it after loading
+        adjustment = self.chat_scroll.get_vadjustment()
+        current_value = adjustment.get_value()
+        current_upper = adjustment.get_upper()
+        
+        # Find the first actual message row (skip disclaimer/warning which are at index 0)
+        # We need to insert new messages after the disclaimer/warning but before existing messages
+        insert_position = 1  # After disclaimer/warning (index 0)
+        
+        # Load messages and create widgets
+        new_messages_box_items = []
+        new_rows = []
+        
+        for i in range(new_start, self.lazy_loaded_start):
+            # Create message content box using show_message with return_widget=True
+            if self.chat[i]["User"] == "User":
+                content_box = self.show_message(
+                    self.chat[i]["Message"], True, id_message=i, is_user=True, return_widget=True
+                )
+            elif self.chat[i]["User"] == "Assistant":
+                content_box = self.show_message(
+                    self.chat[i]["Message"], True, id_message=i, return_widget=True
+                )
+            elif self.chat[i]["User"] in ["File", "Folder"]:
+                # For file/folder messages, create the wrapper box manually
+                content_box = self._create_file_message_wrapper(i)
+            else:
+                continue
+            
+            if content_box is None:
+                continue
+            
+            # Wrap in the message box (same as add_message does)
+            wrapper_box = self._wrap_message_box(
+                self.chat[i]["User"], content_box, i, editable=True
+            )
+            
+            new_messages_box_items.append(wrapper_box)
+            row = Gtk.ListBoxRow()
+            row.set_child(wrapper_box)
+            new_rows.append(row)
+        
+        # Insert rows at the correct position
+        for idx, row in enumerate(new_rows):
+            self.chat_list_block.insert(row, insert_position + idx)
+        
+        # Prepend to messages_box to maintain order
+        for box in reversed(new_messages_box_items):
+            self.messages_box.insert(0, box)
+        
+        self.lazy_loaded_start = new_start
+        
+        # Restore scroll position (adjust for new content height)
+        GLib.idle_add(lambda: self._restore_scroll_position(current_value, current_upper))
+        self.lazy_loading_in_progress = False
+    
+    def _create_file_message_wrapper(self, message_idx: int):
+        """Create a file/folder message wrapper box"""
+        return self.get_file_button(
+            self.chat[message_idx]["Message"][1 : len(self.chat[message_idx]["Message"])]
+        )
+    
+    def _wrap_message_box(self, user_type: str, content_box, id_message: int, editable: bool):
+        """Wrap a content box in the message wrapper (same logic as add_message)"""
+        wrapper_box = Gtk.Box(
+            css_classes=["card"],
+            margin_top=10,
+            margin_start=10,
+            margin_bottom=10,
+            margin_end=10,
+            halign=Gtk.Align.START,
+        )
+        
+        # Create edit controls if editable
+        stack = None
+        apply_edit_stack = None
+        if editable:
+            apply_edit_stack = self.build_edit_box(wrapper_box, str(id_message))
+            evk = Gtk.GestureClick.new()
+            evk.connect("pressed", self.edit_message, wrapper_box, apply_edit_stack)
+            evk.set_name(str(id_message))
+            evk.set_button(3)
+            wrapper_box.add_controller(evk)
+            ev = Gtk.EventControllerMotion.new()
+            stack = Gtk.Stack()
+            ev.connect("enter", lambda x, y, data: stack.set_visible_child_name("edit"))
+            ev.connect("leave", lambda data: stack.set_visible_child_name("label"))
+            wrapper_box.add_controller(ev)
+        
+        # Add user label
+        if user_type == "User":
+            label = Gtk.Label(
+                label=self.controller.newelle_settings.username + ": ",
+                margin_top=10,
+                margin_start=10,
+                margin_bottom=10,
+                margin_end=0,
+                css_classes=["accent", "heading"],
+            )
+            if editable and stack is not None:
+                stack.add_named(label, "label")
+                stack.add_named(apply_edit_stack, "edit")
+                stack.set_visible_child_name("label")
+                wrapper_box.append(stack)
+            else:
+                wrapper_box.append(label)
+            wrapper_box.set_css_classes(["card", "user"])
+        elif user_type == "Assistant":
+            label = Gtk.Label(
+                label=self.current_profile + ": ",
+                margin_top=10,
+                margin_start=10,
+                margin_bottom=10,
+                margin_end=0,
+                css_classes=["warning", "heading"],
+                wrap=True,
+                ellipsize=Pango.EllipsizeMode.END,
+            )
+            if editable and stack is not None:
+                stack.add_named(label, "label")
+                stack.add_named(apply_edit_stack, "edit")
+                stack.set_visible_child_name("label")
+                wrapper_box.append(stack)
+            else:
+                wrapper_box.append(label)
+            wrapper_box.set_css_classes(["card", "assistant"])
+        elif user_type == "File":
+            wrapper_box.append(
+                Gtk.Label(
+                    label=self.controller.newelle_settings.username + ": ",
+                    margin_top=10,
+                    margin_start=10,
+                    margin_bottom=10,
+                    margin_end=0,
+                    css_classes=["accent", "heading"],
+                )
+            )
+            wrapper_box.set_css_classes(["card", "file"])
+        elif user_type == "Folder":
+            wrapper_box.append(
+                Gtk.Label(
+                    label=self.controller.newelle_settings.username + ": ",
+                    margin_top=10,
+                    margin_start=10,
+                    margin_bottom=10,
+                    margin_end=0,
+                    css_classes=["accent", "heading"],
+                )
+            )
+            wrapper_box.set_css_classes(["card", "folder"])
+        
+        # Add content
+        wrapper_box.append(content_box)
+        
+        return wrapper_box
+
+    def _load_newer_messages(self):
+        """Load newer messages (higher indices) when user scrolls down"""
+        if self.lazy_loading_in_progress or self.lazy_loaded_end >= len(self.chat):
+            return
+        
+        self.lazy_loading_in_progress = True
+        
+        # Calculate how many messages to load
+        load_count = min(self.lazy_load_batch_size, len(self.chat) - self.lazy_loaded_end)
+        new_end = min(len(self.chat), self.lazy_loaded_end + load_count)
+        
+        # Load messages and append to list
+        self._load_message_range(self.lazy_loaded_end, new_end)
+        
+        self.lazy_loaded_end = new_end
+        self.lazy_loading_in_progress = False
+
+    def _restore_scroll_position(self, old_value: float, old_upper: float):
+        """Restore scroll position after loading older messages"""
+        adjustment = self.chat_scroll.get_vadjustment()
+        new_upper = adjustment.get_upper()
+        new_lower = adjustment.get_lower()
+        page_size = adjustment.get_page_size()
+        
+        # Calculate the difference in content height
+        height_diff = new_upper - old_upper
+        
+        # Adjust scroll position to maintain visual position
+        new_value = old_value + height_diff
+        new_value = max(new_lower, min(new_value, new_upper - page_size))
+        
+        adjustment.set_value(new_value)
 
     def add_prompt(self, prompt: str | None):
         if prompt is None:
@@ -2788,6 +3160,7 @@ class MainWindow(Adw.ApplicationWindow):
             "has_terminal_command": False,
             "running_threads": [],
             "tool_call_counter": 0,  # Counter for multiple tool calls in same message
+            "should_continue": False,
         }
 
         # Process each chunk
@@ -2960,11 +3333,17 @@ class MainWindow(Adw.ApplicationWindow):
         def get_response():
             if not is_restore:
                 response = ext.get_answer(val, lng)
-                code = (True, response) if response is not None else (False, "Error:")
+                if response is None:
+                    code = (False, _("Stopped"))
+                else:
+                    state["should_continue"] = True
+                    code = (True, response)
+                    self.chat.append({"User": "Console", "Message": " " + str(code[1])})
             else:
                 code = (True, console_reply)
-            self.chat.append({"User": "Console", "Message": " " + str(code[1])})
-            GLib.idle_add(on_result, code)
+            
+            if not is_restore or code[1] is not None:
+                GLib.idle_add(on_result, code)
 
         t = threading.Thread(target=get_response)
         t.start()
@@ -3167,16 +3546,21 @@ class MainWindow(Adw.ApplicationWindow):
             def get_response():
                 if not is_restore:
                     response = tool_result.get_output()
-                    code = (True, response) if response is not None else (False, "Error:")
-                    # Store tool response with identifiable format directly in message
-                    formatted_response = f"[Tool: {t_name}, ID: {t_uuid}]\n{code[1]}"
-                    self.chat.append({
-                        "User": "Console",
-                        "Message": formatted_response,
-                    })
+                    if response is None:
+                        code = (True, None)
+                    else:
+                        state["should_continue"] = True
+                        code = (True, response)
+                        # Store tool response with identifiable format directly in message
+                        formatted_response = f"[Tool: {t_name}, ID: {t_uuid}]\n{code[1]}"
+                        self.chat.append({
+                            "User": "Console",
+                            "Message": formatted_response,
+                        })
                 else:
                     code = (True, console_reply)
-                GLib.idle_add(callback, code)
+                if not is_restore or code[1] is not None:
+                    GLib.idle_add(callback, code)
 
             t = threading.Thread(target=get_response)
             # Restore expects all tools to return things instantly and do not take any action, so we run them in parallel
@@ -3321,6 +3705,15 @@ class MainWindow(Adw.ApplicationWindow):
 
         self.add_message(user_type, box, state["original_id"], state["editable"])
 
+        # Update lazy_loaded_end when a message is displayed beyond the current range
+        # This handles both new messages (restore=False) and user messages (restore=True but already in chat)
+        if self.lazy_load_enabled:
+            message_index = state["original_id"]
+            # If message is beyond current lazy-loaded range, update the range
+            # This prevents duplicates when show_chat reloads messages
+            if message_index >= self.lazy_loaded_end:
+                self.lazy_loaded_end = message_index + 1
+
         if not state["has_terminal_command"]:
             if not restore:
                 self._finalize_message_display()
@@ -3339,8 +3732,10 @@ class MainWindow(Adw.ApplicationWindow):
                     else:
                         for t in threads:
                             t.join()
-                    if threads:
+                    if threads and state.get("should_continue", False):
                         self.send_message(manual=False)
+                    else:
+                        GLib.idle_add(self._finalize_message_display)
 
                 self.chats[self.chat_id]["chat"] = self.chat
                 threading.Thread(target=wait_and_continue).start()
@@ -4180,6 +4575,120 @@ class MainWindow(Adw.ApplicationWindow):
                 target=self.generate_chat_name, args=[button, True]
             ).start()
 
+    def export_chat(self, export_all=False):
+        """Export chat(s) to a JSON file
+
+        Args:
+            export_all: If True, export all chats; if False, export only current chat
+        """
+        # Get export data
+        if export_all:
+            export_data = self.controller.export_all_chats()
+            default_filename = f"newelle_chats_export_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        else:
+            export_data = self.controller.export_single_chat(self.chat_id)
+            if export_data is None:
+                self.notification_block.add_toast(
+                    Adw.Toast(title=_("Failed to export chat"), timeout=2)
+                )
+                return
+            default_filename = f"newelle_chat_{self.chat_id}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+
+        # Save to file
+        dialog = Gtk.FileDialog(
+            title=_("Export Chat"),
+            modal=True
+        )
+        dialog.set_initial_name(default_filename)
+
+        dialog.save(self, None, self._export_chat_finish, export_data)
+
+    def _export_chat_finish(self, dialog, result, export_data):
+        """Finish the export operation after file selection
+
+        Args:
+            dialog: The file dialog
+            result: The async result
+            export_data: The export data to save
+        """
+        try:
+            file = dialog.save_finish(result)
+        except Exception as e:
+            print(f"Export failed: {e}")
+            return
+
+        if file is None:
+            return
+
+        file_path = file.get_path()
+        try:
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump(export_data, f, indent=2, ensure_ascii=False)
+            self.notification_block.add_toast(
+                Adw.Toast(title=_("Chat exported successfully"), timeout=2)
+            )
+        except Exception as e:
+            self.notification_block.add_toast(
+                Adw.Toast(title=_("Export failed: {0}").format(str(e)), timeout=2)
+            )
+
+    def import_chat(self, button):
+        """Import chat(s) from a JSON file"""
+        dialog = Gtk.FileDialog(
+            title=_("Import Chat"),
+            modal=True
+        )
+
+        dialog.open(self, None, self._import_chat_finish)
+
+    def _import_chat_finish(self, dialog, result):
+        """Finish the import operation after file selection
+
+        Args:
+            dialog: The file dialog
+            result: The async result
+        """
+        try:
+            file = dialog.open_finish(result)
+        except Exception as e:
+            print(f"Import failed: {e}")
+            return
+
+        if file is None:
+            return
+
+        file_path = file.get_path()
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+
+            # Import the chat(s)
+            success, message, count = self.controller.import_chat(data)
+
+            if success:
+                self.notification_block.add_toast(
+                    Adw.Toast(title=message, timeout=3)
+                )
+                # Update the UI to show imported chats
+                self.update_history()
+                # Switch to the first imported chat if we imported at least one
+                if count > 0:
+                    self.chat_id = len(self.chats) - count
+                    self.chat = self.chats[self.chat_id]["chat"]
+                    self.show_chat()
+            else:
+                self.notification_block.add_toast(
+                    Adw.Toast(title=message, timeout=3)
+                )
+        except json.JSONDecodeError:
+            self.notification_block.add_toast(
+                Adw.Toast(title=_("Invalid JSON file"), timeout=2)
+            )
+        except Exception as e:
+            self.notification_block.add_toast(
+                Adw.Toast(title=_("Import failed: {0}").format(str(e)), timeout=2)
+            )
+
     def _init_stdout_monitoring(self):
         """Initialize stdout monitoring from program start""" 
         # Create the dialog but don't show it yet
@@ -4215,5 +4724,3 @@ class MainWindow(Adw.ApplicationWindow):
                 
             # Start the display update timer for the dialog
             GLib.timeout_add(100, self.stdout_monitor_dialog._update_stdout_display)
-
-
