@@ -25,6 +25,10 @@ docx2txt
 speechrecognition
 gtts
 
+# Nyarch Specific
+edge-tts
+scikit-learn
+livepng
 # list of non-python requirements
 # - git
 # - vte4
