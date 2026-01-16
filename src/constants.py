@@ -11,13 +11,15 @@ from .integrations.websearch import WebsearchIntegration
 from .integrations.mcp import MCPIntegration
 from .integrations.default_tools import DefaultToolsIntegration
 
+from .integrations.arch import ArchLinuxExtension
+
 # Nyarch specific imports
 from .handlers.tts import EdgeTTSHandler, VitsHandler, VoiceVoxHanlder
 from .handlers.llm import NyarchApiHandler
 from .handlers.avatar import Live2DHandler, LivePNGHandler, VRMHandler
 from .handlers.translator import CustomTranslatorHandler, GoogleTranslatorHandler, LibreTranslateHandler, LigvaTranslateHandler
 
-AVAILABLE_INTEGRATIONS = [WebsiteReader, WebsearchIntegration, MCPIntegration, DefaultToolsIntegration]
+AVAILABLE_INTEGRATIONS = [WebsiteReader, WebsearchIntegration, MCPIntegration, DefaultToolsIntegration, ArchLinuxExtension]
 
 DIR_NAME = "NyarchAssistant"
 SCHEMA_ID = 'moe.nyarchlinux.assistant'

@@ -46,7 +46,8 @@ integrations_sources = [
   'integrations/website_reader.py',
   'integrations/websearch.py',
   'integrations/mcp.py',
-  'integrations/default_tools.py'
+  'integrations/default_tools.py',
+  'integrations/arch.py'
 ]
 
 ui_sources = [
