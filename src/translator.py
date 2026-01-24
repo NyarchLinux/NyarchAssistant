@@ -1,11 +1,11 @@
 from abc import abstractmethod
 from urllib.parse import urlencode
-import urllib
-import json, os, requests
+import urllib, json, os, requests
 from subprocess import check_output
 from typing import Any
 from abc import abstractmethod
 from .extra import get_spawn_command, find_module, install_module
+from .utility.strings import quote_string
 import threading
 from .handler import Handler
 
@@ -76,7 +76,7 @@ class CustomTranslatorHandler(TranslatorHandler):
     def translate(self, text: str) -> str:
         command = self.get_setting("command")
         if command is not None:
-            value = check_output(get_spawn_command() + ["bash", "-c", command.replace("{0}", text)])
+            value = check_output(get_spawn_command() + ["bash", "-c", command.replace("{0}", quote_string(text))])
             return value.decode("utf-8")
         return text
 
