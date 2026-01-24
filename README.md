@@ -4,13 +4,28 @@
   Nyarch Assistant - Your ultimate Waifu AI Assistant
 </h1>
 <p align="center">
-  <a href="https://github.com/topics/newelle-extension">
-    <img width="200" alt="Newelle Extensions" src="https://raw.githubusercontent.com/qwersyk/Assets/main/newelle-extension.svg"/>
-  </a>
-  <a href="https://github.com/qwersyk/Newelle/wiki">
-    <img width="200" alt="Wiki for Nyarch Assistant" src="https://raw.githubusercontent.com/qwersyk/Assets/main/newelle-wiki.svg"/>
-  </a>
-  <br>
+    <a href="https://github.com/topics/newelle-extension">
+      <picture>
+        <source srcset="https://raw.githubusercontent.com/qwersyk/Assets/main/newelle-extension.svg" media="(prefers-color-scheme: light)">
+        <source srcset="https://raw.githubusercontent.com/qwersyk/Assets/main/newelle-extension-dark.svg" media="(prefers-color-scheme: dark)">
+        <img width="200" alt="Download on Flathub" src="https://raw.githubusercontent.com/qwersyk/Assets/main/newelle-extension.svg"/>
+      </picture>
+    </a>
+    <a href="https://github.com/qwersyk/Newelle/wiki">
+      <picture>
+        <source srcset="https://raw.githubusercontent.com/qwersyk/Assets/main/newelle-wiki.svg" media="(prefers-color-scheme: light)">
+        <source srcset="https://raw.githubusercontent.com/qwersyk/Assets/main/newelle-wiki-dark.svg" media="(prefers-color-scheme: dark)">
+        <img width="200" alt="Wiki for Newelle" src="https://raw.githubusercontent.com/qwersyk/Assets/main/newelle-wiki.svg"/>
+      </picture>
+    </a>
+	<a href="https://newelle.qsk.me/discord">
+      <picture>
+        <source srcset="https://raw.githubusercontent.com/qwersyk/Assets/main/discord.svg" media="(prefers-color-scheme: light)">
+        <source srcset="https://raw.githubusercontent.com/qwersyk/Assets/main/discord-dark.svg" media="(prefers-color-scheme: dark)">
+        <img width="200" alt="Join our discord" src="https://raw.githubusercontent.com/qwersyk/Assets/main/discord.svg"/>
+      </picture>
+    </a>
+    <br>
 </p>
 
 ![screenshot](https://raw.githubusercontent.com/NyarchLinux/NyarchAssistant/refs/heads/master/screenshots/1w.png#gh-light-mode-only)
@@ -23,8 +38,10 @@ https://github.com/user-attachments/assets/909edf0e-5a79-40c2-a3ef-cb5b2b18abfc
 - 👤 **Harem Support**: Switch between waifus on the go
 - 🎨 **Advanced Customization**: Tailor the application with a wide range of settings
 - 🚀 **Flexible Model Support**: Choose from mutliple AI models and providers to fit your specific needs
+- 📚 **Local models**: Download local models directly from Newelle, and run them using Llama.cpp or Ollama.
 - 💻 **Terminal Command Exection**: Execute commands suggested by the AI on the fly
 - 🧩 **Extensions**: Add your own functionalities and models to Newelle
+- 🛠 **Tools & MCP support**: Add tools via MCP servers or extensions 
 - 🗣 **Voice support**: Chat hands free with your waifu, supporting many Speech To Text and TTS models, with translation option
 - 🧠 **Long Term Memory**: Remember conversations from previous chats
 - 💼 **Chat with documents**: Chat with your own documents
@@ -33,6 +50,7 @@ https://github.com/user-attachments/assets/909edf0e-5a79-40c2-a3ef-cb5b2b18abfc
 - 👤 **Profile Manager**: Create settings profiles and switch between them on the go
 - 📁 **Builtin File Manager**: Manage your files with the help of AI
 - 📝 **Rich Formatting**: Support for Markdown and LaTeX
+- 🌳 **Chat Branching**: Create alternative versions of your chats strating from any message in one click
 - ✏️ **Chat editing**: Edit or remove any message and manage your prompts easily
 
 ![screenshot](https://raw.githubusercontent.com/NyarchLinux/NyarchAssistant/refs/heads/master/screenshots/3w.png#gh-light-mode-only)

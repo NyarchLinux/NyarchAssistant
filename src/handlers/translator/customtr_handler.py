@@ -1,5 +1,6 @@
 from subprocess import check_output
-from ...utility.system import get_spawn_command 
+from ...utility.system import get_spawn_command
+from ...utility.strings import quote_string
 from .translator import TranslatorHandler
 
 class CustomTranslatorHandler(TranslatorHandler):
@@ -26,7 +27,7 @@ class CustomTranslatorHandler(TranslatorHandler):
     def translate(self, text: str) -> str:
         command = self.get_setting("command")
         if command is not None:
-            value = check_output(get_spawn_command() + ["bash", "-c", command.replace("{0}", text)])
+            value = check_output(get_spawn_command() + ["bash", "-c", command.replace("{0}", quote_string(text))])
             return value.decode("utf-8")
         return text
 
