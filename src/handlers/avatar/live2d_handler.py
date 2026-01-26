@@ -225,7 +225,7 @@ class Live2DHandler(AvatarHandler):
             if name is not None:
                 r.append(name)
             else:
-                if motion is str:
+                if type(motion) is str:
                     r.append(motion)
         return r
 
