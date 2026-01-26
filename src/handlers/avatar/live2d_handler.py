@@ -224,8 +224,7 @@ class Live2DHandler(AvatarHandler):
             name = self.get_setting("Expression " + motion, False)
             if name is not None:
                 r.append(name)
-            else:
-                if type(motion) is str:
+            elif type(motion) is str:
                     r.append(motion)
         return r
 
