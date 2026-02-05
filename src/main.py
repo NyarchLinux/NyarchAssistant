@@ -113,6 +113,20 @@ class MyApp(Adw.Application):
         .navigation-sidebar row.chat-row-selected:hover {
           background-color: alpha(@accent_bg_color, 0.25);
         }
+
+        .window-bar-label {
+                color: @view_fg_color;
+                font-weight: 600;
+        }
+        @keyframes chat_locked_pulse {
+            0% { background-color: alpha(@view_fg_color, 0.06); }
+            50% { background-color: alpha(@view_fg_color, 0.12); }
+            100% { background-color: alpha(@view_fg_color, 0.06); }
+        }
+        .chat-locked {
+                background-color: alpha(@view_fg_color, 0.06);
+                animation: chat_locked_pulse 1.6s ease-in-out infinite;
+        }
         '''
         css_provider = Gtk.CssProvider()
         css_provider.load_from_data(css, -1)
@@ -171,8 +185,8 @@ class MyApp(Adw.Application):
                         developers=['Yehor Hliebov  https://github.com/qwersyk',"Francesco Caracciolo https://github.com/FrancescoCaracciolo", "Pim Snel https://github.com/mipmip"],
                         documenters=["Francesco Caracciolo https://github.com/FrancescoCaracciolo"],
                         designers=["Nokse22 https://github.com/Nokse22", "Jared Tweed https://github.com/JaredTweed"],
-                        translator_credits="\n".join(["Amine Saoud (Arabic) https://github.com/amiensa","Heimen Stoffels (Dutch) https://github.com/Vistaus","Albano Battistella (Italian) https://github.com/albanobattistella","Oliver Tzeng (Traditional Chinese, all languages) https://github.com/olivertzeng","Aritra Saha (Bengali, Hindi) https://github.com/olumolu"]),
-                        copyright='© 2025 qwersyk & NyarchLinux').present()
+                        translator_credits="\n".join(["Amine Saoud (Arabic) https://github.com/amiensa","Heimen Stoffels (Dutch) https://github.com/Vistaus","Albano Battistella (Italian) https://github.com/albanobattistella","Oliver Tzeng (Traditional Chinese, all languages) https://github.com/olivertzeng","Aritra Saha (Bengali, Hindi) https://github.com/olumolu","NorwayFun (Georgian) https://github.com/NorwayFun"]),
+                        copyright='© 2026 qwersyk & Nyarch Linux').present()
 
     def thread_editing_action(self, *a):
         threadediting = ThreadEditing(self)
