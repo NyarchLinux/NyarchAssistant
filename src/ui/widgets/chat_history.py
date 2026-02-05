@@ -11,7 +11,7 @@ from ...utility.strings import markwon_to_pango
 from ...ui.widgets import Message, MultilineEntry
 
 _ = gettext.gettext
-SCHEMA_ID = "io.github.qwersyk.Newelle"
+SCHEMA_ID = "moe.nyarchlinux.assistant"
 
 
 class ChatHistory(Gtk.Box):
