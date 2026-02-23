@@ -1,6 +1,7 @@
 from subprocess import check_output
 from .stt import STTHandler
 from ...utility.system import get_spawn_command
+from ...utility.strings import quote_string
 
 class CustomSRHandler(STTHandler):
     
@@ -25,7 +26,7 @@ class CustomSRHandler(STTHandler):
     def recognize_file(self, path):
         command = self.get_setting("command")
         if command is not None:
-            res = check_output(get_spawn_command() + ["bash", "-c", command.replace("{0}", path)]).decode("utf-8")
+            res = check_output(get_spawn_command() + ["bash", "-c", command.replace("{0}", quote_string(path))]).decode("utf-8")
             return str(res)
         return None
 

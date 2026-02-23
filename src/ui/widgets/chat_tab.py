@@ -583,17 +583,35 @@ class ChatTab(Gtk.Box):
         
         # TTS
         tts_thread = None
+        
         if self.tts_enabled:
+            # Remove text in *text*
             message_label = convert_think_codeblocks(message_label)
             message = re.sub(r"```.*?```", "", message_label, flags=re.DOTALL)
+            message = re.sub(r'\*.*?\*', '', message)
             message = remove_markdown(message)
             message = remove_emoji(message)
-            if message.strip() and not message.isspace():
-                tts_thread = threading.Thread(
-                    target=self.tts.play, args=(message,)
-                )
+            # Remove text in *text*
+            if not(not message.strip() or message.isspace() or all(char == '\n' for char in message)):
+                # Translate the message
+                translator = None
+                if self.controller.newelle_settings.translation_enabled:
+                    translator = self.controller.handlers.translator          
+                if self.controller.newelle_settings.avatar_enabled and self.controller.handlers.avatar is not None:
+                    tts_thread = threading.Thread(target=self.controller.handlers.avatar.speak_with_tts, args=(message, self.tts, translator))
+                else:
+                    if translator is not None:
+                        message = translator.translate(message)
+                    tts_thread = threading.Thread(target=self.tts.play_audio, args=(message, ))
                 tts_thread.start()
-        
+                def restart_recording():
+                    if not self.window.automatic_stt_status:
+                        return
+                    if tts_thread is not None:
+                        tts_thread.join()
+                    GLib.idle_add(self.start_recording, self.recording_button)
+                if self.controller.newelle_settings.automatic_stt:
+                    threading.Thread(target=restart_recording).start()
         # Wait for TTS to finish before restarting recording
         def restart_recording():
             if not self.window.automatic_stt_status:
