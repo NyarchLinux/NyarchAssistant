@@ -72,6 +72,49 @@ class AvatarHandler(Handler):
         """
         frame_rate = int(self.get_setting("fps", False, 10))
         chunks = extract_expressions(text, self.get_expressions() + self.get_motions()) 
+        
+        if tts.streaming_enabled():
+            self._speak_with_tts_streaming(chunks, tts, translator, frame_rate)
+        else:
+            self._speak_with_tts_file_based(chunks, tts, translator, frame_rate)
+
+    def _speak_with_tts_streaming(self, chunks: list, tts: TTSHandler, translator: TranslatorHandler, frame_rate: int = 10):
+        """Speak using streaming TTS with lipsync support"""
+        self.lock.acquire()
+        try:
+            for chunk in chunks:
+                if self.stop_request:
+                    self.stop_request = False
+                    break
+                
+                if chunk["expression"] is not None:
+                    if chunk["expression"] in self.get_expressions():
+                        self.set_expression(chunk["expression"])
+                    elif chunk["expression"] in self.get_motions():
+                        self.do_motion(chunk["expression"])
+                
+                if chunk["text"].strip():
+                    text = chunk["text"]
+                    if translator is not None:
+                        text = translator.translate(text)
+                    
+                    filename = tts.get_tempname("wav")
+                    path = os.path.join(tts.path, filename)
+                    tts.save_audio(text, path)
+                    
+                    t1 = threading.Thread(target=self.speak, args=(path, tts, frame_rate))
+                    t1.start()
+                    t1.join()
+                    
+                    try:
+                        os.remove(path)
+                    except Exception:
+                        pass
+        finally:
+            self.lock.release()
+
+    def _speak_with_tts_file_based(self, chunks: list, tts: TTSHandler, translator: TranslatorHandler, frame_rate: int):
+        """Speak using file-based TTS (existing approach)"""
         threads = []
         results = {}
         i = 0
