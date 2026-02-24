@@ -1087,7 +1087,7 @@ class NewelleController:
                     "Message": f"```json\n{{\"name\": \"{tool_name}\", \"arguments\": {json.dumps(tool_args)}}}\n```"
                 })
                 current_history.append({
-                    "User": "Tool",
+                    "User": "User",
                     "Message": f"[Tool: {tool_name}]\n{tool_result_output}"
                 })
         

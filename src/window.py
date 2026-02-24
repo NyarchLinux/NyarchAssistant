@@ -24,7 +24,7 @@ from .ui.settings import Settings
 
 from .ui.profile import ProfileDialog
 from .ui.presentation import PresentationWindow
-from .ui.widgets import File, CopyBox, BarChartBox, MarkupTextView, DocumentReaderWidget, TipsCarousel, BrowserWidget, Terminal, CodeEditorWidget, ToolWidget, CallPanel
+from .ui.widgets import File, CopyBox, BarChartBox, MarkupTextView, DocumentReaderWidget, TipsCarousel, BrowserWidget, Terminal, CodeEditorWidget, ToolWidget, CallPanel, AvatarCallWidget
 from .ui.explorer import ExplorerPanel
 from .ui.widgets import MultilineEntry, ProfileRow, DisplayLatex, InlineLatex, ThinkingWidget, Message, ChatRow, ChatHistory, ChatTab
 from .ui.stdout_monitor import StdoutMonitorDialog
@@ -2795,7 +2795,11 @@ class MainWindow(Adw.ApplicationWindow):
         profile_name = self.current_profile
         profile_picture = self.profile_settings.get(profile_name, {}).get("picture")
         
-        call_panel = CallPanel(self.controller, profile_name, profile_picture)
+        # Use AvatarCallWidget if avatar is enabled, otherwise use standard CallPanel
+        if self.controller.newelle_settings.avatar_enabled and self.avatar_handler is not None:
+            call_panel = AvatarCallWidget(self.controller, profile_name, profile_picture, self.avatar_handler)
+        else:
+            call_panel = CallPanel(self.controller, profile_name, profile_picture)
         
         tab = self.canvas_tabs.append(call_panel)
         tab.set_title(_("Call"))
