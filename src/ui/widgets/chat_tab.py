@@ -429,6 +429,10 @@ class ChatTab(Gtk.Box):
             
             self.chat.append({"User": "User", "Message": text})
             self.chat_history.show_message(text, True, id_message=len(self.chat) - 1, is_user=True)
+            
+            # Store current profile in chat data
+            if self._chat_id < len(self.controller.chats):
+                self.controller.chats[self._chat_id]["profile"] = self.window.current_profile
 
         GLib.timeout_add(200, self.chat_history.scrolled_chat)
         threading.Thread(target=self.send_message).start()
@@ -667,20 +671,22 @@ class ChatTab(Gtk.Box):
         """Add document reading widget during streaming."""
         d = [doc.replace("file:", "") for doc in documents if doc.startswith("file:")]
         documents = d
-        if self.model.stream_enabled():
-            self.reading = DocumentReaderWidget()
-            for document in documents:
-                self.reading.add_document(document)
-            self.streaming_box.append(self.reading)
+        if self.model.stream_enabled() and hasattr(self, "current_streaming_message"):
+            if self.current_streaming_message is not None:
+                self.reading = DocumentReaderWidget()
+                for document in documents:
+                    self.reading.add_document(document)
+                self.current_streaming_message.append(self.reading)
             
     def remove_reading_widget(self):
         """Remove document reading widget."""
         try:
-            if hasattr(self, "reading") and hasattr(self, "streaming_box"):
-                if self.streaming_box is not None and self.reading is not None:
+            if hasattr(self, "reading") and hasattr(self, "current_streaming_message"):
+                if self.current_streaming_message is not None and self.reading is not None:
                     parent = self.reading.get_parent()
-                    if parent == self.streaming_box:
-                        self.streaming_box.remove(self.reading)
+                    if parent == self.current_streaming_message:
+                        self.current_streaming_message.remove(self.reading)
+                    self.reading = None
         except (AttributeError, TypeError, RuntimeError):
             pass
             
@@ -793,22 +799,20 @@ class ChatTab(Gtk.Box):
     def generate_chat_name(self):
         """Generate a name for the chat based on content."""
         def generate():
-            try:
-                name = self.window.secondary_model.generate_chat_name(
-                    self.controller.newelle_settings.prompts["generate_name_prompt"],
-                    self.controller.get_history(chat_id=self._chat_id)
-                )
-                if name:
-                    name = name.strip().strip('"').strip("'")
-                    if self._chat_id < len(self.controller.chats):
-                        self.controller.chats[self._chat_id]["name"] = name
-                        self.save_chat()
-                        GLib.idle_add(self._update_tab_title)
-                        GLib.idle_add(self.window.update_history)
-                        self.emit("chat-name-changed", name)
-            except Exception:
-                pass
-        
+            name = self.window.secondary_model.generate_chat_name(
+                self.controller.newelle_settings.prompts["generate_name_prompt"],
+                self.controller.get_history(chat=self.chat)
+            )
+            if name:
+                name = name.strip().strip('"').strip("'")
+                name = remove_markdown(name)
+                if self._chat_id < len(self.controller.chats):
+                    self.controller.chats[self._chat_id]["name"] = name
+                    self.save_chat()
+                    GLib.idle_add(self._update_tab_title)
+                    GLib.idle_add(self.window.update_history)
+                    GLib.idle_add(self.emit,"chat-name-changed", name)
+
         threading.Thread(target=generate).start()
         
     # Signal handlers from ChatHistory
@@ -913,7 +917,28 @@ class ChatTab(Gtk.Box):
     # Recording
     def start_recording(self, button):
         """Start voice recording."""
+        try:
+            button.disconnect_by_func(self.start_recording)
+        except TypeError:
+            # Handler was not connected to this function
+            pass
         self.window.start_recording(button)
+
+    def set_mic_warning(self):
+        """Set mic button to warning state (yellow) when speech is detected."""
+        self.mic_button.add_css_class("warning")
+
+    def set_mic_transcribing(self):
+        """Set mic button to transcribing state (spinner)."""
+        self.mic_button.remove_css_class("warning")
+        spinner = Gtk.Spinner(spinning=True)
+        self.mic_button.set_child(spinner)
+
+    def set_mic_normal(self):
+        """Reset mic button to normal state."""
+        self.mic_button.remove_css_class("warning")
+        self.mic_button.set_child(None)
+        self.mic_button.set_icon_name("audio-input-microphone-symbolic")
         
     def start_screen_recording(self, button):
         """Start screen recording."""
@@ -926,6 +951,11 @@ class ChatTab(Gtk.Box):
         text = button.get_child().get_label()
         self.chat.append({"User": "User", "Message": text})
         self.chat_history.show_message(text, id_message=len(self.chat) - 1, is_user=True)
+        
+        # Store current profile in chat data
+        if self._chat_id < len(self.controller.chats):
+            self.controller.chats[self._chat_id]["profile"] = self.window.current_profile
+        
         threading.Thread(target=self.send_message).start()
 
     # Suggestions

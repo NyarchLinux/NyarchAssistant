@@ -11,7 +11,7 @@ from ...handlers.rag.rag_handler import RAGHandler
 from ...handlers import ExtraSettings
 from ...tools import create_io_tool
 from ...utility.pip import find_module, install_module
-from ...utility.strings import remove_thinking_blocks
+from ...utility.strings import clean_prompt, remove_thinking_blocks
 
 
 class MemoryChunk:
@@ -61,7 +61,7 @@ class AgenticMemoryHandler(MemoryHandler):
 
     def install(self):
         # No special dependencies needed - RAG handler manages its own dependencies
-        pass
+        self._is_installed_cache = None
 
 
     def get_extra_settings(self) -> list:
@@ -333,6 +333,7 @@ Recent conversations:
     def get_context(self, prompt: str, history: list[dict[str, str]]) -> list[str]:
         """Get relevant context from memory for the given prompt"""
         # Check if auto-add to context is enabled
+        prompt = clean_prompt(prompt)
         if not self.get_setting("auto_add_context", return_value=True):
             return []
 

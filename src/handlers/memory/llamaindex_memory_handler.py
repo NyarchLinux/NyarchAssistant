@@ -11,7 +11,7 @@ from ...handlers.llm import LLMHandler
 from ...handlers.rag.rag_handler import RAGHandler
 from ...handlers import ExtraSettings
 from ...utility.pip import find_module, install_module
-from ...utility.strings import remove_thinking_blocks
+from ...utility.strings import clean_prompt, remove_thinking_blocks
 
 class LlamaIndexMemoryHandler(MemoryHandler):
     key = "llamaindex"
@@ -39,6 +39,7 @@ class LlamaIndexMemoryHandler(MemoryHandler):
        if not self.is_installed(): 
            dependencies = "tiktoken faiss-cpu llama-index-core llama-index-readers-file llama-index-vector-stores-faiss"
            install_module(dependencies, self.pip_path)
+       self._is_installed_cache = None
 
     def get_extra_settings(self) -> list:
         return [
@@ -106,6 +107,7 @@ class LlamaIndexMemoryHandler(MemoryHandler):
             self.loading_thread.join()
 
     def get_context(self, prompt: str, history: list[dict[str, str]]) -> list[str]:
+        prompt = clean_prompt(prompt)
         if not self.is_installed():
             return []
             

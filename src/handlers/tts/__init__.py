@@ -21,6 +21,7 @@ __all__ = [
     "OpenAITTSHandler",
     "CustomOpenAITTSHandler",
     "GroqTTSHandler",
+    "EdgeTTSHandler"
     "KokoroTTSHandler",
     "EdgeTTSHandler",
     "VitsHandler",

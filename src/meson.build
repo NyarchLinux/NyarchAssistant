@@ -88,6 +88,7 @@ widgets_sources = [
   'ui/widgets/chatrow.py',
   'ui/widgets/chat_history.py',
   'ui/widgets/chat_tab.py',
+  'ui/widgets/call.py',
 ]
 
 handler_sources = [
@@ -144,6 +145,7 @@ stt_sources = [
   'handlers/stt/whispercpp_handler.py',
   'handlers/stt/custom_handler.py',
   'handlers/stt/vosk_handler.py',
+  'handlers/stt/openwakeword_handler.py',
 ]
 
 embedding_sources = [  
@@ -154,6 +156,7 @@ embedding_sources = [
   'handlers/embeddings/gemini_handler.py',
   'handlers/embeddings/ollama_handler.py',
   'handlers/embeddings/model2vec.py',
+  'handlers/embeddings/llama_cpp_handler.py',
 ]
 
 memory_sources = [  
@@ -193,6 +196,8 @@ utility_sources = [
   'utility/message_chunk.py',
   'utility/website_scraper.py',
   'utility/stdout_capture.py',
+  'utility/wakeword_detector.py',
+  'utility/vad.py',
   'utility/force_sync.py',
 ]
 
