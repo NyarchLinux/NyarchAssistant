@@ -3,11 +3,9 @@ import os
 import json
 import subprocess
 from http.server import HTTPServer, SimpleHTTPRequestHandler
-from pydub import AudioSegment
 from time import sleep
 from urllib.parse import urlencode, urljoin
 from gi.repository import Gtk, WebKit, GLib
-from livepng import LivePNG
 from ...utility.system import open_website
 
 from ...utility.strings import rgb_to_hex
@@ -290,26 +288,19 @@ class Live2DHandler(AvatarHandler):
         pass   
            
     def speak(self, path: str, tts: TTSHandler, frame_rate: int):
+        # LivePNG-based lipsync: model.speak drives frame-by-frame mouth animation
+        # from the complete audio file.
+        from livepng import LivePNG as _LivePNG
+        from pydub import AudioSegment
         tts.stop()
         audio = AudioSegment.from_file(path)
-        sample_rate = audio.frame_rate
-        audio_data = audio.get_array_of_samples()
-        amplitudes = LivePNG.calculate_amplitudes(sample_rate, audio_data, frame_rate=frame_rate)
+        amplitudes = _LivePNG.calculate_amplitudes(audio.frame_rate, audio.get_array_of_samples(), frame_rate=frame_rate)
         t1 = threading.Thread(target=self._start_animation, args=(amplitudes, frame_rate))
-        t2 = threading.Thread(target=tts.playsound, args=(path, ))
+        t2 = threading.Thread(target=tts.playsound, args=(path,))
         t1.start()
         t2.start()
         t1.join()
         t2.join()
-
-    def _start_animation(self, amplitudes: list[float], frame_rate=10):
-        max_amplitude = max(amplitudes)
-        for amplitude in amplitudes:
-            if self.stop_request:
-                self.set_mouth(0)
-                return
-            self.set_mouth(amplitude/max_amplitude)
-            sleep(1/frame_rate)
 
     def set_mouth(self, value):
         script = "set_mouth_y({})".format(value)
