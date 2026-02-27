@@ -1189,6 +1189,7 @@ class NewelleSettings:
         self.load_prompts()
         # Nyarch Settings
         self.avatar_enabled = settings.get_boolean("avatar-on")
+        self.hide_avatar_on_startup = settings.get_boolean("hide-avatar-on-startup")
         self.avatar_settings = settings.get_string("avatars")
         self.avatar = settings.get_string("avatar-model")
         self.translator = settings.get_string("translator")  

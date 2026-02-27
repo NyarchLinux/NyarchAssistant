@@ -341,6 +341,11 @@ class Settings(Adw.PreferencesWindow):
         avatar = Adw.ExpanderRow(title=_('Avatar model'), subtitle=_("Choose which avatar model to choose"))
         avatar.add_action(avatar_enabled)
         self.avatargroup.add(avatar)
+        hide_avatar_on_startup = Gtk.Switch(valign=Gtk.Align.CENTER)
+        hide_avatar_row = Adw.ActionRow(title=_('Hide avatar on startup'), subtitle=_('Keep the avatar panel collapsed when starting'))
+        hide_avatar_row.add_suffix(hide_avatar_on_startup)
+        self.settings.bind("hide-avatar-on-startup", hide_avatar_on_startup, 'active', Gio.SettingsBindFlags.DEFAULT)
+        self.avatargroup.add(hide_avatar_row)
         group = Gtk.CheckButton()
         selected = self.settings.get_string("avatar-model")
         for avatar_key in AVAILABLE_AVATARS:

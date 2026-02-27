@@ -1258,6 +1258,9 @@ class MainWindow(Adw.ApplicationWindow):
                 self.avatar_widget = self.avatar_handler.create_gtk_widget()
                 self.boxw.append(self.avatar_widget)
                 ReplaceHelper.set_handler(self.avatar_handler)
+                if not self.controller.newelle_settings.hide_avatar_on_startup and self.get_width() > 600:
+                    self.avatar_flap.set_name("visible")
+                    self.avatar_flap.set_reveal_flap(True)
             else:
                 ReplaceHelper.set_handler(None)
         else:

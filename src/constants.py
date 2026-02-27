@@ -673,7 +673,7 @@ SETTINGS_GROUPS = {
         },
         "avatar": {
             "title": _("Avatar"),
-            "settings": ["avatar-on", "avatar-model", "avatars"],
+            "settings": ["avatar-on", "hide-avatar-on-startup", "avatar-model", "avatars"],
             "description": _("Avatar settings"),
         },
         "Embedding": {

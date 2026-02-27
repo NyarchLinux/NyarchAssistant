@@ -76,6 +76,9 @@
 	      <key name="avatar-on" type="b">
             <default>true</default>
         </key>
+	      <key name="hide-avatar-on-startup" type="b">
+            <default>false</default>
+        </key>
 	      <key name="avatar-model" type="s">
             <default>"Live2D"</default>
         </key>
