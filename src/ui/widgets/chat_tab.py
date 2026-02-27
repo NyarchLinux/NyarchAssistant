@@ -21,6 +21,7 @@ from .multiline import MultilineEntry
 from .documents_reader import DocumentReaderWidget
 from .message import Message
 from ...utility.strings import (
+    clean_message_tts,
     convert_think_codeblocks,
     remove_markdown,
     remove_emoji,
@@ -585,12 +586,7 @@ class ChatTab(Gtk.Box):
         tts_thread = None
         
         if self.tts_enabled:
-            # Remove text in *text*
-            message_label = convert_think_codeblocks(message_label)
-            message = re.sub(r"```.*?```", "", message_label, flags=re.DOTALL)
-            message = re.sub(r'\*.*?\*', '', message)
-            message = remove_markdown(message)
-            message = remove_emoji(message)
+            message = clean_message_tts(message_label)
             # Remove text in *text*
             if not(not message.strip() or message.isspace() or all(char == '\n' for char in message)):
                 # Translate the message
@@ -701,11 +697,16 @@ class ChatTab(Gtk.Box):
         
     def reload_message(self, message_id: int):
         """Reload a message in the chat history."""
-        if len(self.chat_history.messages_box) < message_id:
+        if message_id < 0 or message_id >= len(self.chat):
             return
         if self.chat[message_id]["User"] == "Console":
             return
-        message_box = self.chat_history.messages_box[message_id + 1]
+
+        message_box_index = message_id + 1
+        if message_box_index < 0 or message_box_index >= len(self.chat_history.messages_box):
+            return
+
+        message_box = self.chat_history.messages_box[message_box_index]
         overlay = message_box.get_first_child()
         if overlay is None:
             return

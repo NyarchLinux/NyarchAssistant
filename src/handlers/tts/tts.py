@@ -235,5 +235,3 @@ class TTSHandler(Handler):
                 os.remove(path)
             except Exception:
                 pass
-
-
