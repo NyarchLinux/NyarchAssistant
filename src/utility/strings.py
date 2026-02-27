@@ -440,7 +440,6 @@ def remove_emoji(text):
             "]+", flags=re.UNICODE)
     return emoji_pattern.sub(r'', text)
 
-
 def replace_codeblock(markdown_text, block_id, new_code):
     """
     Replaces the code block at the given ID (starting from 0) with new_code.
@@ -475,3 +474,53 @@ def clean_bot_response(message_label):
     """
     message_label = message_label.replace('\\\\\\```', "```")
     return message_label 
+
+def rgb_to_hex(r, g, b):
+    """
+    Convert RGB values from float to hex.
+
+    Args:
+        r (float): Red value between 0 and 1.
+        g (float): Green value between 0 and 1.
+        b (float): Blue value between 0 and 1.
+
+    Returns:
+        str: Hex representation of the RGB values.
+    """
+    return "#{:02x}{:02x}{:02x}".format(int(r * 255), int(g * 255), int(b * 255))
+
+
+def extract_expressions(text, expressions_list):
+    expressions = []
+    current_expression = None
+    current_text = ""
+
+    tokens = text.split()
+    i = 0
+    while i < len(tokens):
+        tokens[i] = tokens[i]
+        token = tokens[i].rstrip(".").rstrip("?").rstrip("!").rstrip(",")
+        if token.startswith("(") and token.endswith(")"):
+            expression = tokens[i][1:-1]
+            if expression in [exp.replace("_", "") for exp in expressions_list]:
+                if expression not in expressions:
+                    expression = expressions_list[[exp.replace("_", "") for exp in expressions_list].index(expression)]
+                if current_text.strip():
+                    expressions.append({"expression": current_expression, "text": current_text.strip()})
+                    current_text = ""
+                current_expression = expression
+            else:
+                current_text += tokens[i] + " "
+        else:
+            if current_expression is None:
+                current_text += tokens[i] + " "
+            else:
+                current_text += tokens[i] + " "
+        i += 1
+
+    if current_expression:
+        expressions.append({"expression": current_expression, "text": current_text.strip()})
+    else:
+        expressions.append({"expression": None, "text": current_text.strip()})
+
+    return expressions
