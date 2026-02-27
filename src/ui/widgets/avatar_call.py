@@ -4,10 +4,9 @@ import time
 import os
 import wave
 import pyaudio
-import re
 import gettext
 
-from ...utility.strings import clean_bot_response, remove_emoji, remove_markdown, remove_thinking_blocks
+from ...utility.strings import clean_bot_response, clean_message_tts
 from ...utility.vad import VoiceActivityDetector
 
 
@@ -650,36 +649,66 @@ class AvatarCallWidget(Gtk.Box):
                 input=True,
                 frames_per_buffer=self.chunk_size
             )
-            
+
+            consecutive_errors = 0
+            max_consecutive_errors = 10
+
             while self.call_active:
                 if self.is_muted:
                     time.sleep(0.03)
+                    consecutive_errors = 0
                     continue
-                
+
                 try:
                     audio_data = self.audio_stream.read(self.chunk_size, exception_on_overflow=False)
-                except Exception:
+                    consecutive_errors = 0  # Reset error counter on successful read
+                except OSError as e:
+                    consecutive_errors += 1
+                    print(f"Audio stream error ({consecutive_errors}/{max_consecutive_errors}): {e}")
+
+                    if consecutive_errors >= max_consecutive_errors:
+                        print("Too many consecutive audio errors, stopping call")
+                        GLib.idle_add(self.end_call)
+                        break
+
+                    # Try to recover by continuing
+                    time.sleep(0.1)
                     continue
-                
+                except Exception as e:
+                    print(f"Unexpected audio error: {e}")
+                    time.sleep(0.1)
+                    continue
+
                 # Process VAD
                 is_speech, speech_started, speech_ended = self.vad.process_chunk(audio_data)
-                
+
                 if speech_started:
                     GLib.idle_add(self._on_speech_started)
-                
+
                 if is_speech or self.vad.is_speaking:
                     self.speech_buffer.append(audio_data)
-                
+
                 if speech_ended:
                     GLib.idle_add(self._on_speech_ended)
                     # Process the speech buffer
                     if len(self.speech_buffer) > 0:
                         self._process_speech()
                     self.speech_buffer = []
-        
+
         except Exception as e:
-            print(f"Recording error: {e}")
+            import traceback
+            print(f"Recording loop error: {e}")
+            print(traceback.format_exc())
             GLib.idle_add(self.end_call)
+        finally:
+            # Ensure stream is closed
+            if self.audio_stream:
+                try:
+                    self.audio_stream.stop_stream()
+                    self.audio_stream.close()
+                except Exception:
+                    pass
+                self.audio_stream = None
     
     def _on_speech_started(self):
         """Called when speech is detected"""
@@ -758,20 +787,28 @@ class AvatarCallWidget(Gtk.Box):
                     True
                 )
                 return
-            
+
             # Recognize
             text = stt.recognize_file(audio_path)
             if not text or text.strip() == "":
                 return
-            
+
             # Add user message to history
             GLib.idle_add(self._add_message_to_history, "You", text, False)
-            
+
             # Get LLM response
             self._get_ai_response(text)
-            
+
         except Exception as e:
+            import traceback
             print(f"Recognition error: {e}")
+            print(traceback.format_exc())
+            GLib.idle_add(
+                self._add_message_to_history,
+                "System",
+                _("Recognition error. Please try again."),
+                True
+            )
     
     def _get_ai_response(self, user_message):
         """Get AI response and play TTS using run_llm_with_tools"""
@@ -782,7 +819,7 @@ class AvatarCallWidget(Gtk.Box):
             def on_message_callback(text):
                 nonlocal streaming_text
                 streaming_text += text
-            
+
             def on_tool_result_callback(tool_name, result):
                 tool_output = result.get_output() if result else "Tool executed"
                 GLib.idle_add(
@@ -791,62 +828,69 @@ class AvatarCallWidget(Gtk.Box):
                     f"[{tool_name}] {tool_output[:300]}",
                     False
                 )
-            
-            self.controller.is_call_request = True 
-            response = self.controller.run_llm_with_tools(
-                message=user_message,
-                chat_id = self.chat_id,
-                on_message_callback=on_message_callback,
-                on_tool_result_callback=on_tool_result_callback,
-                max_tool_calls=5,
-                save_chat=True,
-            )
-            self.controller.is_call_request = False
-            
+
+            self.controller.is_call_request = True
+            try:
+                response = self.controller.run_llm_with_tools(
+                    message=user_message,
+                    chat_id=self.chat_id,
+                    on_message_callback=on_message_callback,
+                    on_tool_result_callback=on_tool_result_callback,
+                    max_tool_calls=5,
+                    save_chat=True,
+                )
+            finally:
+                self.controller.is_call_request = False
+
             if response:
                 GLib.idle_add(self._add_message_to_history, self.profile_name, response, False)
                 if self.call_active:
                     response = self._clean_response(response)
                     self._play_tts_with_avatar(response)
-        
+
         except Exception as e:
             import traceback
             print(traceback.format_exc())
             print(f"LLM error: {e}")
+            # Ensure flag is reset
+            self.controller.is_call_request = False
+            GLib.idle_add(
+                self._add_message_to_history,
+                "System",
+                _("Error getting response. Please try again."),
+                True
+            )
     
     def _clean_response(self, response):
         """Clean response for TTS"""
-        response = remove_thinking_blocks(response)
-        response = remove_markdown(response)
-        response = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', response)
-        # Remove emoji 
-        response = remove_emoji(response)
-        return response.strip()
+        return clean_message_tts(response)
     
     def _play_tts_with_avatar(self, text):
         """Play TTS using the avatar's speak_with_tts method for lip-sync"""
         if not text or not self.call_active:
             return
-        
+
         tts = self.controller.handlers.tts
         if not tts:
             return
-        
+
         # Get translator if enabled
         translator = None
         if hasattr(self.controller.newelle_settings, 'translation_enabled') and self.controller.newelle_settings.translation_enabled:
             translator = self.controller.handlers.translator
-        
+
         def on_tts_start():
-            GLib.idle_add(self._set_assistant_speaking, True)
-        
+            if self.call_active:
+                GLib.idle_add(self._set_assistant_speaking, True)
+
         def on_tts_stop():
-            GLib.idle_add(self._set_assistant_speaking, False)
-        
+            if self.call_active:
+                GLib.idle_add(self._set_assistant_speaking, False)
+
         # Connect TTS callbacks
         tts.connect("start", on_tts_start)
         tts.connect("stop", on_tts_stop)
-        
+
         try:
             if self.avatar_handler:
                 # Use avatar's speak_with_tts for full lip-sync support
@@ -857,7 +901,9 @@ class AvatarCallWidget(Gtk.Box):
                     text = translator.translate(text)
                 tts.play(text)
         except Exception as e:
+            import traceback
             print(f"TTS error: {e}")
+            print(traceback.format_exc())
             GLib.idle_add(self._set_assistant_speaking, False)
     
     def _set_assistant_speaking(self, speaking):
