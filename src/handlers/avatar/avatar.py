@@ -224,6 +224,7 @@ class AvatarHandler(Handler):
         bytes_per_frame = samples_per_frame * 2  # s16le mono
 
         stop_event = threading.Event()
+        playback_ready = threading.Event()
         play_queue: queue.Queue = queue.Queue()
         analyze_queue: queue.Queue = queue.Queue()
         amplitude_queue: queue.Queue = queue.Queue()
@@ -259,13 +260,17 @@ class AvatarHandler(Handler):
                     stderr=subprocess.DEVNULL,
                 )
                 ffplay = Popen(
-                    ["ffplay", "-nodisp", "-autoexit", "-hide_banner", "-i", "pipe:0"],
+                    ["ffplay", "-nodisp", "-autoexit", "-hide_banner",
+                     "-fflags", "nobuffer", "-analyzeduration", "0",
+                     "-probesize", "32",
+                     "-i", "pipe:0"],
                     stdin=ffmpeg_play.stdout,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                 )
                 tts.play_process = ffplay
                 ffmpeg_play.stdout.close()
+                first_chunk = True
                 while True:
                     try:
                         chunk = play_queue.get(timeout=0.5)
@@ -277,6 +282,9 @@ class AvatarHandler(Handler):
                         break
                     try:
                         ffmpeg_play.stdin.write(chunk)
+                        if first_chunk:
+                            playback_ready.set()
+                            first_chunk = False
                     except BrokenPipeError:
                         break
                 try:
@@ -298,6 +306,7 @@ class AvatarHandler(Handler):
                             proc.terminate()
                         except Exception:
                             pass
+                playback_ready.set()  # ensure animate is unblocked on failure
                 tts.play_process = None
                 tts.on_stop()
                 tts._play_lock.release()
@@ -367,6 +376,12 @@ class AvatarHandler(Handler):
 
         # --- animation: drive mouth at frame_rate cadence ---
         def animate():
+            # Wait until the playback pipeline has started feeding audio
+            # so that lipsync doesn't run ahead of audible output.
+            while not playback_ready.wait(timeout=0.5):
+                if stop_event.is_set() or self.stop_request:
+                    self.set_mouth(0)
+                    return
             running_max = 1.0
             while True:
                 if self.stop_request:
