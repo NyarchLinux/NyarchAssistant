@@ -191,26 +191,7 @@ class Live2DHandler(AvatarHandler):
 
         webview = self.webview
         if webview is not None:
-            def _cleanup_webview():
-                with contextlib.suppress(Exception):
-                    webview.set_is_muted(True)
-                with contextlib.suppress(Exception):
-                    webview.stop_loading()
-                with contextlib.suppress(Exception):
-                    webview.load_uri("about:blank")
-                if hasattr(webview, "terminate_web_process"):
-                    with contextlib.suppress(Exception):
-                        webview.terminate_web_process()
-                return False
-            GLib.idle_add(_cleanup_webview)
-
-        server_thread = self._server_thread
-        if server_thread is not None and server_thread.is_alive() and server_thread is not threading.current_thread():
-            server_thread.join(1.5)
-        self._server_thread = None
-
-        self._wait_js.set()
-        self._wait_js2.set()
+            webview.terminate_web_process()
         self.webview = None
 
     def wait_emotions(self, object, result):
@@ -365,7 +346,9 @@ class Live2DHandler(AvatarHandler):
         t2.join()
 
     def set_mouth(self, value):
+        
         if self.webview is None or self._destroyed:
+            print("Webview not available, cannot set mouth value")
             return
         script = "set_mouth_y({})".format(value)
         self.webview.evaluate_javascript(script, len(script))
