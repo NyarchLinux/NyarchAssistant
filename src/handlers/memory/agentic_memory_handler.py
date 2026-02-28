@@ -76,6 +76,7 @@ class AgenticMemoryHandler(MemoryHandler):
             ExtraSettings.ScaleSetting("extract_freq", "Extract Frequency", "Number of messages between automatic memory extractions (0=disabled, only manual tool usage)", 0, 0, 50, 0),
             ExtraSettings.ToggleSetting("auto_add_context", "Auto-add to Context", "Automatically add relevant memories to the conversation context", True),
             ExtraSettings.ToggleSetting("store_interactions", "Store Interactions", "Store user interactions in separate file for vector search", True),
+            ExtraSettings.ToggleSetting("keepalive_memory", "Always add main memory to prompt", "This option will always add consolidated memory to prompt in any request", False),
             ExtraSettings.MultilineEntrySetting("extract_prompt", "Extract Prompt",
                 "Prompt for extracting important info from conversations. {user} and {assistant} will be replaced.",
                 self._get_default_extract_prompt(), refresh=self._restore_extract_prompt, refresh_icon="star-filled-rounded-symbolic"),
@@ -333,23 +334,28 @@ Recent conversations:
     def get_context(self, prompt: str, history: list[dict[str, str]]) -> list[str]:
         """Get relevant context from memory for the given prompt"""
         # Check if auto-add to context is enabled
+        r = []
+        if self.get_setting("keepalive_memory"):
+            if os.path.exists(self.memory_file):
+                content = open(self.memory_file, 'r').read()
+                r.append("--- Memory.md Content ---\n" + content)
         prompt = clean_prompt(prompt)
         if not self.get_setting("auto_add_context", return_value=True):
-            return []
+            return r
 
         if not self.embedding or not self._index_loaded:
             self._load_index()
 
         if not self.chunks:
-            return []
+            return r
 
         # Get search results using semantic search with context threshold
         context_threshold = float(self.get_setting("context_threshold", return_value=0.7))
         results = self._semantic_search(prompt, threshold=context_threshold)
 
         if results:
-            return ["--- Memory Context ---"] + results
-        return []
+            return r + ["--- Memory Context ---"] + results
+        return r
 
     def register_response(self, bot_response: str, history: list[dict[str, str]]):
         """Extract and store important information from conversation"""

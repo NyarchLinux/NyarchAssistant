@@ -14,7 +14,6 @@ def clean_prompt(prompt: str) -> str:
     _, message = extract_video(message)
     
     return message 
-
 def clean_message_tts(text: str) -> str:
     """Clean a message for text-to-speech (TTS) readability.
 
@@ -56,6 +55,11 @@ def clean_message_tts(text: str) -> str:
     # Remove thinking blocks
     text = remove_thinking_blocks(text)
 
+    # Remove fenced markdown code blocks (and their content)
+    # Handles both ``` and ~~~ fences, including unclosed trailing fences
+    text = re.sub(r'```[\s\S]*?(?:```|$)', '', text)
+    text = re.sub(r'~~~[\s\S]*?(?:~~~|$)', '', text)
+
     # Remove markdown formatting
     text = remove_markdown(text)
 
@@ -70,7 +74,6 @@ def clean_message_tts(text: str) -> str:
     text = text.strip()
 
     return text
-
 def count_tokens(text: str, model: str = "gpt-4o-mini") -> int:
     """
     Count the number of tokens in a string
