@@ -89,6 +89,7 @@ class AvatarHandler(Handler):
         ``speak_stream`` implementation (temp-file → ``speak()``) when the subclass
         does not provide a real-time override.
         """
+        self.stop_request = False
         self.lock.acquire()
         try:
             for chunk in chunks:
@@ -386,6 +387,7 @@ class AvatarHandler(Handler):
             while True:
                 if self.stop_request:
                     self.set_mouth(0)
+                    self.stop_request = False
                     stop_event.set()
                     return
                 try:
