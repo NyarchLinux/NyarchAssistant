@@ -148,6 +148,11 @@ class VRMHandler(AvatarHandler):
         self.webview.evaluate_javascript(script, len(script))
 
     def create_gtk_widget(self) -> Gtk.Widget:
+        if self.webview is not None and not self._destroyed:
+            self.destroy(self.webview, force=True)
+        self._destroyed = False
+        self._wait_js = threading.Event()
+        self._wait_js2 = threading.Event()
         self.webview = WebKit.WebView()
         self.webview.connect("destroy", self.destroy)
         self._server_thread = threading.Thread(target=self.__start_webserver, daemon=True)
@@ -161,8 +166,10 @@ class VRMHandler(AvatarHandler):
         self.webview.set_settings(settings)
         return self.webview
 
-    def destroy(self, add=None):
-        if self._destroyed:
+    def destroy(self, widget=None, force=False):
+        if widget is not None and self.webview is not None and widget is not self.webview and not force:
+            return
+        if self._destroyed and not force:
             return
         self._destroyed = True
         httpd = self.httpd
@@ -191,6 +198,7 @@ class VRMHandler(AvatarHandler):
         server_thread = self._server_thread
         if server_thread is not None and server_thread.is_alive() and server_thread is not threading.current_thread():
             server_thread.join(1.5)
+        self._server_thread = None
 
         self._wait_js.set()
         self._wait_js2.set()
