@@ -598,7 +598,7 @@ class ChatTab(Gtk.Box):
                 else:
                     if translator is not None:
                         message = translator.translate(message)
-                    tts_thread = threading.Thread(target=self.tts.play_audio, args=(message, ))
+                    tts_thread = threading.Thread(target=self.tts.play, args=(message, ))
                 tts_thread.start()
                 def restart_recording():
                     if not self.window.automatic_stt_status:
