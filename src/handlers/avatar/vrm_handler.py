@@ -136,7 +136,6 @@ class VRMHandler(AvatarHandler):
 
     def create_gtk_widget(self) -> Gtk.Widget:
         self.webview = WebKit.WebView()
-        self.webview.connect("destroy", self.destroy)
         threading.Thread(target=self.__start_webserver).start()
         self.webview.set_hexpand(True)
         self.webview.set_vexpand(True)
