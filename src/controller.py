@@ -1318,7 +1318,8 @@ class HandlersManager:
 
     def destroy(self):
         for handler in self.handlers.values():
-            handler.destroy()
+            if handler.schema_key != "avatars":
+                handler.destroy()
 
     def fix_handlers_integrity(self, newelle_settings: NewelleSettings):
         """Select available handlers if not available handlers in settings
