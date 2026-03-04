@@ -20,6 +20,7 @@ from .chatrow import ChatRow
 from .chat_history import ChatHistory
 from .chat_tab import ChatTab
 from .call import CallPanel
+from .avatar_call import AvatarCallWidget
 
 __all__ = [
     "ProfileRow",
@@ -46,5 +47,6 @@ __all__ = [
     "ChatRow",
     "ChatHistory",
     "ChatTab",
-    "CallPanel"
+    "CallPanel",
+    "AvatarCallWidget"
 ]
