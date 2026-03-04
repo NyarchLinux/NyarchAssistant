@@ -34,6 +34,7 @@ def clean_message_tts(text: str) -> str:
     """
     # Remove markdown tables (pipe-based)
     # Match table rows and separators
+    text = re.sub(r"```.*?```", "", text, flags=re.DOTALL)
     text = re.sub(r'^\|[^\n]+\|$', '', text, flags=re.MULTILINE)
     text = re.sub(r'^\|?[-: ]+\|[-: ]+\|.*$', '', text, flags=re.MULTILINE)
 

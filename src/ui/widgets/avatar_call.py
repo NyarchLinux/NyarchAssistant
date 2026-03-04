@@ -86,6 +86,30 @@ AVATAR_CALL_CSS = """
     border: 1px solid rgba(102, 126, 234, 0.6);
 }
 
+.avatar-call-button-listen-tts {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 50%;
+    min-width: 56px;
+    min-height: 56px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.avatar-call-button-listen-tts:hover {
+    background: rgba(255, 255, 255, 0.25);
+}
+
+.avatar-call-button-listen-tts-active {
+    background: rgba(0, 255, 136, 0.3);
+    border: 1px solid rgba(0, 255, 136, 0.5);
+}
+
+.avatar-call-top-buttons {
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 16px;
+    padding: 8px;
+    spacing: 8px;
+}
+
 .avatar-call-voice-ring {
     border-radius: 50%;
     padding: 6px;
@@ -246,6 +270,7 @@ class AvatarCallWidget(Gtk.Box):
         self.assistant_speaking = False
         self.user_speaking = False
         self.history_visible = False
+        self.listen_during_tts = False
         
         # Audio settings
         self.sample_rate = 16000
@@ -334,6 +359,43 @@ class AvatarCallWidget(Gtk.Box):
             margin_end=16,
             spacing=4
         )
+        
+        # Top-right buttons box
+        top_buttons_box = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL,
+            halign=Gtk.Align.END,
+            valign=Gtk.Align.START,
+            spacing=8,
+            css_classes=["avatar-call-top-buttons"],
+            margin_bottom=8
+        )
+        
+        # Listen during TTS toggle button
+        self.listen_toggle_button = Gtk.ToggleButton(
+            css_classes=["avatar-call-button-listen-tts"],
+            tooltip_text=_("Auto-listen while agent speaks"),
+            valign=Gtk.Align.CENTER
+        )
+        listen_icon = Gtk.Image.new_from_icon_name("call-emergency-symbolic")
+        listen_icon.set_pixel_size(24)
+        self.listen_toggle_button.set_child(listen_icon)
+        self.listen_toggle_button.set_active(True)
+        self.listen_toggle_button.connect("toggled", self._on_listen_toggle)
+        top_buttons_box.append(self.listen_toggle_button)
+        
+        # History toggle button
+        self.history_button = Gtk.Button(
+            css_classes=["avatar-call-button-history"],
+            tooltip_text=_("Show/Hide chat history"),
+            valign=Gtk.Align.CENTER
+        )
+        history_icon = Gtk.Image.new_from_icon_name("chat-bubbles-text-symbolic")
+        history_icon.set_pixel_size(24)
+        self.history_button.set_child(history_icon)
+        self.history_button.connect("clicked", self._on_history_clicked)
+        top_buttons_box.append(self.history_button)
+        
+        status_box.append(top_buttons_box)
         
         self.status_label = Gtk.Label(
             label=_("Ready to call"),
@@ -463,18 +525,6 @@ class AvatarCallWidget(Gtk.Box):
         self.speaker_button.set_sensitive(False)
         controls_box.append(self.speaker_button)
         
-        # History toggle button
-        self.history_button = Gtk.Button(
-            css_classes=["avatar-call-button-history"],
-            tooltip_text=_("Show/Hide chat history"),
-            valign=Gtk.Align.CENTER
-        )
-        history_icon = Gtk.Image.new_from_icon_name("chat-bubbles-text-symbolic")
-        history_icon.set_pixel_size(24)
-        self.history_button.set_child(history_icon)
-        self.history_button.connect("clicked", self._on_history_clicked)
-        controls_box.append(self.history_button)
-        
         controls_container.append(controls_box)
         
         # Convert to chat button (shown after call ends)
@@ -536,6 +586,14 @@ class AvatarCallWidget(Gtk.Box):
             button.add_css_class("avatar-call-button-history-active")
         else:
             button.remove_css_class("avatar-call-button-history-active")
+    
+    def _on_listen_toggle(self, button):
+        """Handle listen during TTS toggle"""
+        self.listen_during_tts = button.get_active()
+        if self.listen_during_tts:
+            button.add_css_class("avatar-call-button-listen-tts-active")
+        else:
+            button.remove_css_class("avatar-call-button-listen-tts-active")
     
     def _on_convert_to_chat_clicked(self, button):
         """Handle convert to chat button click"""
@@ -655,6 +713,11 @@ class AvatarCallWidget(Gtk.Box):
 
             while self.call_active:
                 if self.is_muted:
+                    time.sleep(0.03)
+                    consecutive_errors = 0
+                    continue
+
+                if not self.listen_during_tts and self.assistant_speaking:
                     time.sleep(0.03)
                     consecutive_errors = 0
                     continue
