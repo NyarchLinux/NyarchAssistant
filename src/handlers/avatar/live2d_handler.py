@@ -16,6 +16,7 @@ from ...handlers import ExtraSettings
 
 class Live2DHandler(AvatarHandler):
     key = "Live2D"
+    WEBVIEW_IDLE_RELOAD_SECONDS = 600
     _wait_js : threading.Event
     _wait_js2 : threading.Event
     _expressions_raw : list[str]
@@ -32,6 +33,7 @@ class Live2DHandler(AvatarHandler):
         self.httpd = None
         self._server_thread = None
         self._destroyed = False
+        self._reload_timeout_id = None
 
     def get_available_models(self): 
         file_list = []
@@ -164,6 +166,7 @@ class Live2DHandler(AvatarHandler):
         self._wait_js2 = threading.Event()
         self.webview = WebKit.WebView()
         self.webview.connect("destroy", self.destroy)
+        self._start_idle_reload_timer()
         self._server_thread = threading.Thread(target=self.__start_webserver, daemon=True)
         self._server_thread.start()
         self.webview.set_hexpand(True)
@@ -175,12 +178,40 @@ class Live2DHandler(AvatarHandler):
         self.webview.set_settings(settings)
         return self.webview
 
+    def _start_idle_reload_timer(self):
+        if self._reload_timeout_id is not None:
+            GLib.source_remove(self._reload_timeout_id)
+        self._reload_timeout_id = GLib.timeout_add_seconds(
+            self.WEBVIEW_IDLE_RELOAD_SECONDS,
+            self._reload_webview_if_idle,
+        )
+
+    def _is_speaking(self) -> bool:
+        if self.lock.acquire(blocking=False):
+            self.lock.release()
+            return False
+        return True
+
+    def _reload_webview_if_idle(self):
+        if self._destroyed or self.webview is None:
+            self._reload_timeout_id = None
+            return False
+        if self._is_speaking():
+            return True
+        with contextlib.suppress(Exception):
+            self.webview.reload()
+        return True
+
     def destroy(self, widget=None, force=False):
         if widget is not None and self.webview is not None and widget is not self.webview and not force:
             return
         if self._destroyed and not force:
             return
         self._destroyed = True
+        if self._reload_timeout_id is not None:
+            with contextlib.suppress(Exception):
+                GLib.source_remove(self._reload_timeout_id)
+            self._reload_timeout_id = None
         httpd = self.httpd
         if httpd is not None:
             with contextlib.suppress(Exception):

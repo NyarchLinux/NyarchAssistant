@@ -1239,7 +1239,7 @@ class MainWindow(Adw.ApplicationWindow):
         widget.set_margin_top(3)
         return widget
 
-    def load_avatar(self):
+    def load_avatar(self, force=False):
         if self.controller.newelle_settings.avatar_enabled:
             # If the avatar is enabled, check if it requires reloading 
             if not hasattr(self, "avatar_handler"):
@@ -1248,7 +1248,7 @@ class MainWindow(Adw.ApplicationWindow):
             self.avatar_handler = self.controller.handlers.avatar
             # If it does not require reloading, then just return
             self.flap_button_avatar.set_visible(True)
-            if old_avatar is not None and not old_avatar.requires_reloading(self.avatar_handler):
+            if not force and old_avatar is not None and not old_avatar.requires_reloading(self.avatar_handler):
                 self.avatar_handler = old_avatar
                 self.controller.handlers.avatar = old_avatar
                 return
@@ -2803,6 +2803,11 @@ class MainWindow(Adw.ApplicationWindow):
         # Use AvatarCallWidget if avatar is enabled, otherwise use standard CallPanel
         if self.controller.newelle_settings.avatar_enabled and self.avatar_handler is not None:
             call_panel = AvatarCallWidget(self.controller, profile_name, profile_picture, self.avatar_handler)
+
+            def on_avatar_call_ended(_call_panel):
+                GLib.idle_add(self.load_avatar, True)
+
+            call_panel.connect("call-ended", on_avatar_call_ended)
         else:
             call_panel = CallPanel(self.controller, profile_name, profile_picture)
         

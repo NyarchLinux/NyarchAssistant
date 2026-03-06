@@ -271,6 +271,7 @@ class AvatarCallWidget(Gtk.Box):
         self.user_speaking = False
         self.history_visible = False
         self.listen_during_tts = False
+        self.avatar_needs_reload = False
         
         # Audio settings
         self.sample_rate = 16000
@@ -322,10 +323,7 @@ class AvatarCallWidget(Gtk.Box):
         
         # Background: Avatar widget
         if self.avatar_handler is not None:
-            self.avatar_widget = self.avatar_handler.create_gtk_widget()
-            self.avatar_widget.set_hexpand(True)
-            self.avatar_widget.set_vexpand(True)
-            self.overlay.set_child(self.avatar_widget)
+            self._load_avatar_widget()
         else:
             # Fallback: gradient background
             fallback = Gtk.Box(
@@ -542,6 +540,13 @@ class AvatarCallWidget(Gtk.Box):
         controls_container.append(self.convert_button)
         
         self.overlay.add_overlay(controls_container)
+
+    def _load_avatar_widget(self):
+        """Create or recreate the avatar background widget."""
+        self.avatar_widget = self.avatar_handler.create_gtk_widget()
+        self.avatar_widget.set_hexpand(True)
+        self.avatar_widget.set_vexpand(True)
+        self.overlay.set_child(self.avatar_widget)
     
     def set_tab(self, tab):
         """Set the tab reference"""
@@ -602,6 +607,10 @@ class AvatarCallWidget(Gtk.Box):
     
     def start_call(self):
         """Start the voice call"""
+        if self.avatar_handler is not None and self.avatar_needs_reload:
+            self._load_avatar_widget()
+            self.avatar_needs_reload = False
+
         self.call_active = True
         self.call_start_time = time.time()
         self.current_transcript = ""
@@ -661,6 +670,7 @@ class AvatarCallWidget(Gtk.Box):
             self.controller.handlers.tts.stop()
         if self.avatar_handler:
             self.avatar_handler.stop()
+            self.avatar_needs_reload = True
         
         # Update UI
         GLib.idle_add(self._update_ui_after_end)
