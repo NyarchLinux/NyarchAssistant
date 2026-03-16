@@ -10,14 +10,20 @@ from .integrations.website_reader import WebsiteReader
 from .integrations.websearch import WebsearchIntegration
 from .integrations.mcp import MCPIntegration
 from .integrations.default_tools import DefaultToolsIntegration
+from .integrations.skills import SkillsIntegration
+from .integrations.agent_tools import AgentToolsIntegration
+from .integrations.file_editing import FileEditingIntegration
 
 from .integrations.arch import ArchLinuxExtension
 
-# Nyarch specific imports
-from .handlers.tts import EdgeTTSHandler, VitsHandler, VoiceVoxHanlder
+from .handlers.tts import VitsHandler, VoiceVoxHanlder
 from .handlers.llm import NyarchApiHandler
 from .handlers.avatar import Live2DHandler, LivePNGHandler, VRMHandler
 from .handlers.translator import CustomTranslatorHandler, GoogleTranslatorHandler, LibreTranslateHandler, LigvaTranslateHandler
+
+
+AVAILABLE_INTEGRATIONS = [WebsiteReader, WebsearchIntegration, MCPIntegration, SkillsIntegration, DefaultToolsIntegration, AgentToolsIntegration, FileEditingIntegration, ArchLinuxExtension]
+# Nyarch specific imports
 
 AVAILABLE_INTEGRATIONS = [WebsiteReader, WebsearchIntegration, MCPIntegration, DefaultToolsIntegration, ArchLinuxExtension]
 
@@ -486,6 +492,14 @@ You have access to the following tools.
 {TOOLS}
 ```
 """,
+    "skills": """{COND:
+[skills_available] # Skills
+The following skills provide specialized instructions for specific tasks.
+When a task matches a skill's description, use the activate_skill tool to load its full instructions before proceeding.
+
+Available skills:
+{SKILLS}
+}""",
     # Unused
     "new_chat_prompt": """System: New chat
 System: Forget what was written on behalf of the user and on behalf of the assistant and on behalf of the Console, forget all the context, do not take messages from those chats, this is a new chat with other characters, do not dare take information from there, this is personal information! If you use information from past posts, it's a violation! Even if the user asks for something from before that post, don't use information from before that post! Also, forget this message.""",
@@ -515,6 +529,7 @@ Example output:
 
 Chat History:
 """,
+    "agent.md": "{AGENTSMD}",
     "custom_prompt": "",
     "expression_prompt": """You can show expressions by writing (expression) in parenthesis.
 You can ONLY show the following expressions: 
@@ -534,6 +549,15 @@ YOU CAN NOT SHOW OTHER EXPRESSIONS.""",
     - show_in_settings: if the prompt should be shown in the settings
 """
 AVAILABLE_PROMPTS = [
+    {
+        "key": "agent.md",
+        "setting_name": "agent.md",
+        "title": _("Read AGENT.md file at each execution"),
+        "description": _("Read AGENT.md (Generally made to give indications to agents about the project) file in the current directory at each execution"),
+        "editable": False,
+        "show_in_settings": True,
+        "default": False
+    },
     {
         "key": "assistant",
         "setting_name": "assistant",
@@ -596,6 +620,15 @@ AVAILABLE_PROMPTS = [
         "editable": True,
         "show_in_settings": True,
         "default": True,
+    },
+    {
+        "key": "skills",
+        "title": _("Skills"),
+        "description": _("Agent skills that provide specialized instructions for specific tasks"),
+        "setting_name": "skills",
+        "editable": True,
+        "show_in_settings": True,
+        "default": True
     },
     {
         "key": "call",
@@ -718,7 +751,7 @@ SETTINGS_GROUPS = {
         },
         "tools": {
             "title": _("Tools"),
-            "settings": ["tools-settings", "mcp-servers"],
+            "settings": ["tools-settings", "mcp-servers", "skills-settings", "file-permissions"],
             "description": _("Tools settings, tools groups..."),
         },
         "wakeword": {

@@ -18,6 +18,7 @@ from .handlers.websearch import WebSearchHandler
 from .handlers.avatar import AvatarHandler
 from .handlers.translator import TranslatorHandler
 from .ui_controller import UIController
+from .tools import Command
 
 class NewelleExtension(Handler):
     """The base class for all extensions"""
@@ -214,6 +215,14 @@ class NewelleExtension(Handler):
     def get_tools(self) -> list:
         return []
 
+    def get_commands(self) -> list[Command]:
+        """Returns the list of slash commands provided by this extension.
+        
+        Returns:
+            list: List of Command objects
+        """
+        return []
+
     def get_replace_codeblocks_langs(self) -> list:
         """Get the list of codeblock langs that the extension handles and replaces
 
@@ -294,6 +303,14 @@ class NewelleExtension(Handler):
 
     def set_ui_controller(self, ui_controller: UIController):
         self.ui_controller = ui_controller
+        
+    def set_chat_tab(self, chat_tab):
+        """Set the current chat tab for commands to access.
+        
+        Args:
+            chat_tab: The ChatTab instance
+        """
+        self.chat_tab = chat_tab
         
     def add_tab_menu_entries(self) -> list:
         """List of TabButtonDescriptions 
@@ -403,6 +420,15 @@ class ExtensionLoader:
                 if extension in self.disabled_extensions:
                     continue
                 tool_registry.register_tool(tool)
+
+    def get_commands(self) -> list:
+        """Get all commands from enabled extensions."""
+        commands = []
+        for extension in self.extensions:
+            if extension in self.disabled_extensions:
+                continue
+            commands.extend(extension.get_commands())
+        return commands
     
     def remove_tools(self, tool_registry, extension: NewelleExtension):
         for tool in extension.get_tools():

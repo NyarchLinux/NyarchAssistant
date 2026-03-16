@@ -102,6 +102,21 @@ class ReplaceHelper:
                 result += " (" + motion + ")"
         return result
 
+    @staticmethod
+    def get_skills_catalog() -> str:
+        if ReplaceHelper.controller is None:
+            return ""
+        if not hasattr(ReplaceHelper.controller, "skill_manager"):
+            return ""
+        return ReplaceHelper.controller.skill_manager.get_catalog()
+
+    @staticmethod
+    def get_agents_md() -> str:
+        if os.path.exists("AGENTS.md"):
+            with open("AGENTS.md", "r") as f:
+                return f.read()
+        return ""
+
 def replace_variables(text: str) -> str:
     """
     Replace variables in prompts
@@ -120,6 +135,8 @@ def replace_variables(text: str) -> str:
         str: text with replaced variables
     """
     text = text.replace("{DIR}", os.getcwd())
+    if "{AGENTSMD}" in text:
+        text = text.replace("{AGENTSMD}", ReplaceHelper.get_agents_md())
     if "{DISTRO}" in text:
         text = text.replace("{DISTRO}", ReplaceHelper.get_distribution())
     if "{DE}" in text:
@@ -132,6 +149,8 @@ def replace_variables(text: str) -> str:
         text = text.replace("{DISPLAY}", ReplaceHelper.gisplay_server())
     if "{TOOLS}" in text:
         text = text.replace("{TOOLS}", ReplaceHelper.get_tools_json())
+    if "{SKILLS}" in text:
+        text = text.replace("{SKILLS}", ReplaceHelper.get_skills_catalog())
     if "{EXPRESSIONS}" in text:
         text = text.replace("{EXPRESSIONS}", ReplaceHelper.get_expressions())
     if "{MOTIONS}" in text:
@@ -141,12 +160,14 @@ def replace_variables(text: str) -> str:
 def replace_variables_dict() -> dict:
     return {
         "{DIR}": os.getcwd(),
+        "{AGENTSMD}": ReplaceHelper.get_agents_md(),
         "{DISTRO}": ReplaceHelper.get_distribution(),
         "{DE}": ReplaceHelper.get_desktop_environment(),
         "{DATE}": str(time.strftime("%H:%M %Y-%m-%d")),
         "{USER}": ReplaceHelper.get_user(),
         "{DISPLAY}": ReplaceHelper.gisplay_server(),
         "{TOOLS}": ReplaceHelper.get_tools_json(),
+        "{SKILLS}": ReplaceHelper.get_skills_catalog(),
         "{EXPRESSIONS}": ReplaceHelper.get_expressions(),
         "{MOTIONS}": ReplaceHelper.get_motions()
     }
