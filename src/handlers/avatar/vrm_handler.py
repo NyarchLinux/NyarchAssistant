@@ -1,0 +1,373 @@
+from urllib.parse import urlencode, urljoin
+from http.server import HTTPServer, SimpleHTTPRequestHandler
+
+from ...utility.system import open_folder
+from ...handlers.avatar import AvatarHandler
+from ...handlers.tts import TTSHandler
+from ...handlers import HandlerDescription, ExtraSettings
+import threading
+import os
+import json
+import subprocess
+import contextlib
+from gi.repository import Gtk, WebKit, GLib
+from time import sleep
+from ...utility.strings import rgb_to_hex
+from ...handlers import ExtraSettings
+
+class VRMHandler(AvatarHandler):
+    key = "vrm"
+    WEBVIEW_IDLE_RELOAD_SECONDS = 600
+    _wait_js : threading.Event
+    _wait_js2 : threading.Event
+    _expressions_raw : list[str]
+    _motions_raw : list[str]
+    def __init__(self, settings, path: str):
+        super().__init__(settings, path)
+        self._expressions_raw = []
+        self._motions_raw = []
+        self._wait_js = threading.Event()
+        self._wait_js2 = threading.Event()
+        self.webview_path = os.path.join(path, "avatars", "vrm", "web")
+        self.models_dir = os.path.join(self.webview_path, "models")
+        self.webview = None
+        self.httpd = None
+        self._server_thread = None
+        self._destroyed = False
+        self._reload_timeout_id = None
+
+    def get_available_models(self): 
+        file_list = []
+        for root, _, files in os.walk(self.models_dir):
+            for file in files:
+                if file.endswith('.vrm'):
+                    file_name = file.rstrip('.vrm')
+                    relative_path = os.path.relpath(os.path.join(root, file), self.models_dir)
+                    file_list.append((file_name, relative_path))
+        return file_list
+
+    def model_updated(self):
+        self.settings_update()
+
+    def get_model(self):
+        m = self.get_setting("model", False)
+        return "model.vrm" if m is None else m
+
+    def get_extra_settings(self) -> list:
+        widget = Gtk.Box()
+        color = widget.get_style_context().lookup_color('window_bg_color')[1]
+        default = rgb_to_hex(color.red, color.green, color.blue)
+
+        return [
+            {
+                "key": "model",
+                "title": _("VRM Model"),
+                "description": _("VRM Model to use"),
+                "type": "combo",
+                "values": self.get_available_models(),
+                "default": "model.vrm",
+                "folder": os.path.abspath(self.models_dir),
+                "refresh": lambda x: self.settings_update(),
+                "update_settings": True
+            },
+            {
+             "key": "fps",
+                "title": _("Lipsync Framerate"),
+                "description": _("Maximum amount of frames to generate for lipsync"),
+                "type": "range",
+                "min": 5,
+                "max": 30,
+                "default": 10.0,
+                "round-digits": 0
+            },
+            {
+                "key": "background-color",
+                "title": _("Background Color"),
+                "description": _("Background color of the avatar"),
+                "type": "entry",
+                "default": default,                                                                                                    
+            },
+            {
+                "key": "light-color",
+                "title": _("Light Color"),
+                "description": _("Light color"),
+                "type": "entry",
+                "default": default,                                                                                                    
+            },
+            ExtraSettings.ButtonSetting("animations", _("Animations"), _("Put all the available animations in this folder"), lambda x : open_folder(os.path.join(self.webview_path, "animations")), icon="folder-symbolic", refresh=lambda x : self.refresh_animation_list()), 
+        ]
+    
+    def refresh_animation_list(self):
+        animation_folder = os.path.join(self.webview_path, "animations")
+        animation_file = os.path.join(self.webview_path, "animation_list.json")
+        files = [f for f in os.listdir(animation_folder) if f.lower().endswith('.bvh')] 
+        files.sort() 
+        with open(animation_file, 'w') as f:
+            json.dump(files, f, indent=2)
+        self.settings_update()
+    
+    def is_installed(self) -> bool:
+        return os.path.isdir(self.webview_path)
+
+    def install(self):
+        subprocess.check_output(["git", "clone", "https://github.com/NyarchLinux/VRM-Web-Viewer", self.webview_path])
+    
+    def __start_webserver(self):
+        folder_path = self.webview_path
+        class CustomHTTPRequestHandler(SimpleHTTPRequestHandler):
+            def translate_path(self, path):
+                # Get the default translate path
+                path = super().translate_path(path)
+                # Replace the default directory with the specified folder path
+                return os.path.join(folder_path, os.path.relpath(path, os.getcwd()))
+        self.httpd = HTTPServer(('127.0.0.1', 0), CustomHTTPRequestHandler)
+        httpd = self.httpd
+        model = self.get_setting("model")
+        background_color = self.get_setting("background-color")
+        scale = int(self.get_setting("scale", False, 100))/100
+        q = urlencode({"model": "models/" + model, "bg": background_color, "scale": scale})
+        if self.webview is not None and not self._destroyed:
+            GLib.idle_add(self.webview.load_uri, urljoin("http://localhost:" + str(httpd.server_address[1]), f"?{q}"))
+        def update_expressions():
+            sleep(2)
+            if self._destroyed:
+                return
+            self.get_expressions()
+            self.get_motions()
+            self.set_light_color()
+        threading.Thread(target=update_expressions, daemon=True).start()
+        try:
+            httpd.serve_forever()
+        finally:
+            with contextlib.suppress(Exception):
+                httpd.server_close()
+
+    def set_light_color(self):
+        if self.webview is None or self._destroyed:
+            return
+        light_color = self.get_setting("light-color")
+        script = f"set_light_color(\"{light_color}\")"
+        self.webview.evaluate_javascript(script, len(script))
+
+    def create_gtk_widget(self) -> Gtk.Widget:
+        if self.webview is not None and not self._destroyed:
+            self.destroy(self.webview, force=True)
+        self._destroyed = False
+        self._wait_js = threading.Event()
+        self._wait_js2 = threading.Event()
+        self.webview = WebKit.WebView()
+        self.webview.connect("destroy", self.destroy)
+        self._start_idle_reload_timer()
+        self._server_thread = threading.Thread(target=self.__start_webserver, daemon=True)
+        self._server_thread.start()
+        self.webview.set_hexpand(True)
+        self.webview.set_vexpand(True)
+        settings = self.webview.get_settings()
+        settings.set_enable_webaudio(True)
+        settings.set_media_playback_requires_user_gesture(False)
+        self.webview.set_is_muted(False)
+        self.webview.set_settings(settings)
+        return self.webview
+
+    def _start_idle_reload_timer(self):
+        if self._reload_timeout_id is not None:
+            GLib.source_remove(self._reload_timeout_id)
+        self._reload_timeout_id = GLib.timeout_add_seconds(
+            self.WEBVIEW_IDLE_RELOAD_SECONDS,
+            self._reload_webview_if_idle,
+        )
+
+    def _is_speaking(self) -> bool:
+        if self.lock.acquire(blocking=False):
+            self.lock.release()
+            return False
+        return True
+
+    def _reload_webview_if_idle(self):
+        if self._destroyed or self.webview is None:
+            self._reload_timeout_id = None
+            return False
+        if self._is_speaking():
+            return True
+        with contextlib.suppress(Exception):
+            self.webview.reload()
+        return True
+
+    def destroy(self, widget=None, force=False):
+        if widget is not None and self.webview is not None and widget is not self.webview and not force:
+            return
+        if self._destroyed and not force:
+            return
+        self._destroyed = True
+        if self._reload_timeout_id is not None:
+            with contextlib.suppress(Exception):
+                GLib.source_remove(self._reload_timeout_id)
+            self._reload_timeout_id = None
+        httpd = self.httpd
+        if httpd is not None:
+            with contextlib.suppress(Exception):
+                httpd.shutdown()
+            with contextlib.suppress(Exception):
+                httpd.server_close()
+            self.httpd = None
+
+        webview = self.webview
+        if webview is not None:
+            def _cleanup_webview():
+                with contextlib.suppress(Exception):
+                    webview.set_is_muted(True)
+                with contextlib.suppress(Exception):
+                    webview.stop_loading()
+                with contextlib.suppress(Exception):
+                    webview.load_uri("about:blank")
+                if hasattr(webview, "terminate_web_process"):
+                    with contextlib.suppress(Exception):
+                        webview.terminate_web_process()
+                return False
+            GLib.idle_add(_cleanup_webview)
+
+        server_thread = self._server_thread
+        if server_thread is not None and server_thread.is_alive() and server_thread is not threading.current_thread():
+            server_thread.join(1.5)
+        self._server_thread = None
+
+        self._wait_js.set()
+        self._wait_js2.set()
+        self.webview = None
+
+    def wait_emotions(self, object, result):
+        if self.webview is None or self._destroyed:
+            self._wait_js.set()
+            return
+        value = self.webview.evaluate_javascript_finish(result)
+        self._expressions_raw = json.loads(value.to_string())
+        self._wait_js.set()
+
+    def get_expressions_raw(self, allow_webview=True): 
+        try:
+            if len(self._expressions_raw) > 0:
+                return self._expressions_raw
+            if self.webview is None or not allow_webview:
+                m = self.get_setting(self.get_model() + " expressions", False)
+                return m if m is not None else []
+            self._expressions_raw = []
+            script = "get_expressions_json()"
+            self.webview.evaluate_javascript(script, len(script), callback=self.wait_emotions)
+            self._wait_js.wait(3)   
+            self.set_setting(self.get_model() + " expressions", self._expressions_raw)
+        except Exception as e:
+            return []
+        return self._expressions_raw 
+
+    def convert_motion(self, motion: str):
+        if motion in self.get_motions_raw():
+            return motion
+        for motion in self.get_motions_raw():
+            name = self.get_setting("Expression " + motion, False)
+            if name is not None:
+                if name == motion:
+                    return motion
+        return None
+
+    def convert_expression(self, expression: str):
+        if expression in self.get_expressions_raw():
+            return expression
+        for expression in self.get_expressions_raw():
+            name = self.get_setting("Expression " + expression, False)
+            if name is not None:
+                if name == expression:
+                    return expression
+        return None
+
+    def get_expressions(self) -> list[str]:
+        r = []
+        for expression in self.get_expressions_raw():
+            if expression is None:
+                continue
+            name = self.get_setting("Expression " + expression, False)
+            if name is not None:
+                r.append(name)
+            else:
+                r.append(expression)
+        return r
+
+    def get_motions(self) -> list[str]:
+        r = []
+        for motion in self.get_motions_raw():
+            name = self.get_setting("Expression " + motion, False, None)
+            if name is not None:
+                r.append(name)
+            else:
+                if type(motion) is str:
+                    r.append(motion)
+        return r
+
+    def get_motions_groups(self):
+        if self.webview is None or self._destroyed:
+            return []
+        if len(self._motions_raw) > 0:
+            return self._motions_raw
+        self._motions_raw = []
+        script = "get_motions_json()"
+        self.webview.evaluate_javascript(script, len(script), callback=self.wait_motions)
+        self._wait_js2.wait(3)
+        return self._motions_raw
+
+    def get_motions_raw(self, allow_webview=True):
+        if self.webview is None or not allow_webview:
+            m = self.get_setting(self.get_model() + " motions", False)
+            return m if m is not None else []
+        r = []
+        groups = self.get_motions_groups()
+        r = groups
+        if allow_webview:
+            self.set_setting(self.get_model() + " motions", r)
+        return r
+
+    def wait_motions(self, object, result):
+        if self.webview is None or self._destroyed:
+            self._wait_js2.set()
+            return
+        value = self.webview.evaluate_javascript_finish(result)
+        self._motions_raw = json.loads(value.to_string())
+        self._wait_js2.set()
+
+    def do_motion(self, motion : str):
+        if self.webview is None or self._destroyed:
+            return
+        motion = self.convert_motion(motion)
+        if motion is None:
+            return
+        script = "do_motion('{}')".format(motion)
+        self.webview.evaluate_javascript(script, len(script))
+        pass
+
+    def set_expression(self, expression : str):
+        if self.webview is None or self._destroyed:
+            return
+        exp = self.convert_expression(expression)
+        if exp is None:
+            return
+        script = "set_expression('{}')".format(exp)
+        self.webview.evaluate_javascript(script, len(script))
+        pass   
+           
+    def speak(self, path: str, tts: TTSHandler, frame_rate: int):
+        from livepng import LivePNG as _LivePNG
+        from pydub import AudioSegment
+        tts.stop()
+        audio = AudioSegment.from_file(path)
+        amplitudes = _LivePNG.calculate_amplitudes(audio.frame_rate, audio.get_array_of_samples(), frame_rate=frame_rate)
+        t1 = threading.Thread(target=self._start_animation, args=(amplitudes, frame_rate))
+        t2 = threading.Thread(target=tts.playsound, args=(path,))
+        t1.start()
+        t2.start()
+        t1.join()
+        t2.join()
+
+    def set_mouth(self, value):
+        if self.webview is None or self._destroyed:
+            return
+        script = "set_mouth_y({})".format(value)
+        self.webview.evaluate_javascript(script, len(script))
+

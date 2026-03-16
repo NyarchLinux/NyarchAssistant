@@ -16,7 +16,7 @@ class WordLlamaHandler(EmbeddingHandler):
     
     def get_extra_settings(self) -> list:
         return [
-            ExtraSettings.ComboSetting("model_size", "Model Size", "Size of the embedding", ["128", "256", "512", "1024"],"512"),
+            ExtraSettings.ComboSetting("model_size", "Model Size", "Size of the embedding", ["128", "256", "512", "1024"],"256"),
         ]
 
     def load_model(self):
