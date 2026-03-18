@@ -1,5 +1,5 @@
 {
-  description = "Newelle";
+  description = "Nyarch Assistant - Your ultimate Waifu AI Assistant";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
