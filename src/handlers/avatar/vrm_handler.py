@@ -196,6 +196,7 @@ class VRMHandler(AvatarHandler):
     def destroy(self, widget=None, force=False):
         if widget is not None and self.webview is not None and widget is not self.webview and not force:
             return
+        return
         if self._destroyed and not force:
             return
         self._destroyed = True

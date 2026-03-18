@@ -1279,7 +1279,7 @@ class MainWindow(Adw.ApplicationWindow):
     def unload_avatar(self, handler : AvatarHandler):
         if self.avatar_widget is not None and handler is not None:
             self.boxw.remove(self.avatar_widget)
-            handler.destroy()
+            #handler.destroy()
     
     # UI Functions
     def show_presentation_window(self):
