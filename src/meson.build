@@ -52,8 +52,8 @@ integrations_sources = [
   'integrations/skills.py',
   'integrations/agent_tools.py',
   'integrations/file_editing.py',
-  'integrations/todo_list.py'
-  'integrations/arch.py'
+  'integrations/todo_list.py',
+  'integrations/arch.py',
 ]
 
 ui_sources = [
