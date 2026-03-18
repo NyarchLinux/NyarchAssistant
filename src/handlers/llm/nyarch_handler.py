@@ -32,7 +32,7 @@ class NyarchApiHandler(OpenAIHandler):
             self.set_setting("endpoint", "https://llm.nyarchlinux.moe/")
         return super().generate_text_stream(prompt, history, system_prompt, on_update, extra_args)
 
-    def generate_chat_name(self, request_prompt:str = "") -> str | None:
+    def generate_chat_name(self, request_prompt: str = "", history: list = []) -> str | None:
         """Generate name of the current chat
 
         Args:
@@ -42,4 +42,4 @@ class NyarchApiHandler(OpenAIHandler):
             str: name of the chat
         """
         request_prompt = "/chatname" + request_prompt
-        return super().generate_chat_name(request_prompt)
+        return super().generate_chat_name(request_prompt, history)
