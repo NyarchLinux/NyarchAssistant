@@ -1,7 +1,7 @@
 {
     "app-id" : "moe.nyarchlinux.assistant",
     "runtime" : "org.gnome.Platform",
-    "runtime-version" : "49",
+    "runtime-version" : "50",
     "sdk" : "org.gnome.Sdk",
     "command" : "nyarchassistant",
     "finish-args" : [
