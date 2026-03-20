@@ -194,15 +194,23 @@ class Live2DHandler(AvatarHandler):
     def destroy(self, widget=None, force=False):
         if widget is not None and self.webview is not None and widget is not self.webview and not force:
             return
-        return
-        httpd = self.httpd
-        if httpd is not None:
-            with contextlib.suppress(Exception):
-                httpd.shutdown()
-            with contextlib.suppress(Exception):
-                httpd.server_close()
-            self.httpd = None
+        self._destroyed = True
         self.webview = None
+        self._wait_js.set()
+        self._wait_js2.set()
+        httpd = self.httpd
+        self.httpd = None
+        server_thread = self._server_thread
+        self._server_thread = None
+        if httpd is not None:
+            def _shutdown():
+                with contextlib.suppress(Exception):
+                    httpd.shutdown()
+                with contextlib.suppress(Exception):
+                    httpd.server_close()
+                if server_thread is not None and server_thread.is_alive():
+                    server_thread.join(2)
+            threading.Thread(target=_shutdown, daemon=True).start()
 
     def wait_emotions(self, object, result):
         if self.webview is None or self._destroyed:
