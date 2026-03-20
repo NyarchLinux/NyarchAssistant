@@ -129,6 +129,47 @@ class LivePNGHandler(AvatarHandler):
     def stop(self):
         self.model.stop()
 
+    def speak_stream(self, audio_gen, format_args: list, tts, frame_rate: int):
+        """Buffer streamed audio to a temp file, then use file-based speak().
+
+        LivePNG cannot use set_mouth() — it needs a complete audio file to
+        drive its image-based animation via model.speak().
+        """
+        import tempfile
+        import subprocess as sp
+
+        fmt_args = format_args or []
+        tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+        tmp_path = tmp.name
+        tmp.close()
+        try:
+            ffmpeg = sp.Popen(
+                ["ffmpeg", "-y"] + fmt_args + ["-i", "pipe:0", "-f", "wav", tmp_path],
+                stdin=sp.PIPE,
+                stdout=sp.DEVNULL,
+                stderr=sp.DEVNULL,
+            )
+            for chunk in audio_gen:
+                if self.stop_request:
+                    break
+                try:
+                    ffmpeg.stdin.write(chunk)
+                except BrokenPipeError:
+                    break
+            try:
+                ffmpeg.stdin.close()
+            except Exception:
+                pass
+            ffmpeg.wait()
+
+            if not self.stop_request and os.path.getsize(tmp_path) > 0:
+                self.speak(tmp_path, tts, frame_rate)
+        finally:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+
     def _start_animation(self, path, frame_rate):
         self.model.speak(path, True, False, frame_rate, True, False)
 
