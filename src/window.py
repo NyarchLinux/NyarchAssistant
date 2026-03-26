@@ -1778,6 +1778,10 @@ class MainWindow(Adw.ApplicationWindow):
             self.controller.require_tool_update()
             reload_types.discard(ReloadType.RAG)
 
+        if ReloadType.AVATAR in reload_types:
+            GLib.idle_add(self.load_avatar, True)
+            reload_types.discard(ReloadType.AVATAR)
+
         if ReloadType.EMBEDDINGS in reload_types:
             GLib.timeout_add(200, threading.Thread(target=self.controller.handlers.embedding.load_model).start)
             reload_types.discard(ReloadType.EMBEDDINGS)
