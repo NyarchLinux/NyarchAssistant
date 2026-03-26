@@ -2,7 +2,6 @@ import threading
 import os
 import json
 import subprocess
-import contextlib
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from time import sleep
 from urllib.parse import urlencode, urljoin
@@ -29,9 +28,6 @@ class Live2DHandler(AvatarHandler):
         self.webview_path = os.path.join(path, "avatars", "live2d", "web")
         self.models_dir = os.path.join(self.webview_path, "models")
         self.webview = None
-        self.httpd = None
-        self._server_thread = None
-        self._destroyed = False
 
     def get_available_models(self): 
         file_list = []
@@ -98,7 +94,6 @@ class Live2DHandler(AvatarHandler):
                 self.get_expression_manager()
             )
         ]
-    
     def get_expression_manager(self):
         r = []
         li = (self.get_expressions_raw(allow_webview=False) + self.get_motions_raw(allow_webview=False))
@@ -142,31 +137,17 @@ class Live2DHandler(AvatarHandler):
         background_color = self.get_setting("background-color")
         scale = int(self.get_setting("scale"))/100
         q = urlencode({"model": model, "bg": background_color, "scale": scale})
-        if self.webview is not None and not self._destroyed:
-            GLib.idle_add(self.webview.load_uri, urljoin("http://localhost:" + str(httpd.server_address[1]), f"?{q}"))
+        GLib.idle_add(self.webview.load_uri, urljoin("http://localhost:" + str(httpd.server_address[1]), f"?{q}"))
         def update_expressions():
             sleep(2)
-            if self._destroyed:
-                return
             self.get_expressions()
             self.get_motions()
-        threading.Thread(target=update_expressions, daemon=True).start()
-        try:
-            httpd.serve_forever()
-        finally:
-            with contextlib.suppress(Exception):
-                httpd.server_close()
+        threading.Thread(target=update_expressions).start()
+        httpd.serve_forever()
 
     def create_gtk_widget(self) -> Gtk.Widget:
-        if self.webview is not None and not self._destroyed:
-            self.destroy(self.webview, force=True)
-        self._destroyed = False
-        self._wait_js = threading.Event()
-        self._wait_js2 = threading.Event()
         self.webview = WebKit.WebView()
-        self.webview.connect("destroy", self.destroy)
-        self._server_thread = threading.Thread(target=self.__start_webserver, daemon=True)
-        self._server_thread.start()
+        threading.Thread(target=self.__start_webserver).start()
         self.webview.set_hexpand(True)
         self.webview.set_vexpand(True)
         settings = self.webview.get_settings()
@@ -176,46 +157,12 @@ class Live2DHandler(AvatarHandler):
         self.webview.set_settings(settings)
         return self.webview
 
-    def _is_speaking(self) -> bool:
-        if self.lock.acquire(blocking=False):
-            self.lock.release()
-            return False
-        return True
-
-    def _reload_webview_if_idle(self):
-        if self._destroyed or self.webview is None:
-            return False
-        if self._is_speaking():
-            return True
-        with contextlib.suppress(Exception):
-            self.webview.reload()
-        return True
-
-    def destroy(self, widget=None, force=False):
-        if widget is not None and self.webview is not None and widget is not self.webview and not force:
-            return
-        self._destroyed = True
-        self.webview = None
-        self._wait_js.set()
-        self._wait_js2.set()
-        httpd = self.httpd
-        self.httpd = None
-        server_thread = self._server_thread
-        self._server_thread = None
-        if httpd is not None:
-            def _shutdown():
-                with contextlib.suppress(Exception):
-                    httpd.shutdown()
-                with contextlib.suppress(Exception):
-                    httpd.server_close()
-                if server_thread is not None and server_thread.is_alive():
-                    server_thread.join(2)
-            threading.Thread(target=_shutdown, daemon=True).start()
+    def destroy(self, add=None):
+        if hasattr(self, "httpd"):
+            self.httpd.shutdown()
+            self.webview = None
 
     def wait_emotions(self, object, result):
-        if self.webview is None or self._destroyed:
-            self._wait_js.set()
-            return
         value = self.webview.evaluate_javascript_finish(result)
         self._expressions_raw = json.loads(value.to_string())
         self._wait_js.set()
@@ -279,8 +226,6 @@ class Live2DHandler(AvatarHandler):
         return r
 
     def get_motions_groups(self):
-        if self.webview is None or self._destroyed:
-            return []
         if len(self._motions_raw) > 0:
             return self._motions_raw
         self._motions_raw = []
@@ -318,16 +263,11 @@ class Live2DHandler(AvatarHandler):
         return None
 
     def wait_motions(self, object, result):
-        if self.webview is None or self._destroyed:
-            self._wait_js2.set()
-            return
         value = self.webview.evaluate_javascript_finish(result)
         self._motions_raw = json.loads(value.to_string())
         self._wait_js2.set()
 
     def do_motion(self, motion : str):
-        if self.webview is None or self._destroyed:
-            return
         motion = self.convert_motion(motion)
         if motion is None:
             return
@@ -339,8 +279,6 @@ class Live2DHandler(AvatarHandler):
         pass
 
     def set_expression(self, expression : str):
-        if self.webview is None or self._destroyed:
-            return
         exp = self.convert_expression(expression)
         if exp is None:
             return
@@ -364,10 +302,5 @@ class Live2DHandler(AvatarHandler):
         t2.join()
 
     def set_mouth(self, value):
-        
-        if self.webview is None or self._destroyed:
-            print("Webview not available, cannot set mouth value")
-            return
         script = "set_mouth_y({})".format(value)
         self.webview.evaluate_javascript(script, len(script))
-

@@ -2180,7 +2180,7 @@ class Settings(Adw.PreferencesWindow):
             scale.set_value(round(handler.get_setting(setting["key"]), setting["round-digits"]))
             scale.set_size_request(120, -1)
             scale.connect("change-value", self.setting_change_scale, constants, handler)
-            label = Gtk.Label(label=handler.get_setting(setting["key"]))
+            label = Gtk.Label(label=str(handler.get_setting(setting["key"])))
             box.append(label)
             box.append(scale)
             self.slider_labels[scale] = label
