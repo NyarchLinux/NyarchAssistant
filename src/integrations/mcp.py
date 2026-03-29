@@ -40,7 +40,7 @@ class MCPIntegration(NewelleExtension):
     def _get_config_dir(self):
         """Return the Newelle config directory (where OAuth creds are stored)."""
         base = GLib.get_user_config_dir()
-        return base if is_flatpak() else os.path.join(base, "Newelle")
+        return base if is_flatpak() else os.path.join(base, "NyarchAssistant")
 
     def _get_server_info(self, server):
         """Extract server info from both old (string) and new (dict) formats"""
