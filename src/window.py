@@ -742,7 +742,7 @@ class MainWindow(Adw.ApplicationWindow):
             os.makedirs(os.path.join(self.controller.config_dir, "avatars/live2d/web"), exist_ok=True)
         except Exception as e:
             print(e)
-        if is_flatpak():
+        if os.path.exists(os.path.join(BASE_PATH, "live2d/web/build")):
             try:
                 if os.path.exists(os.path.join(self.controller.config_dir, "avatars/live2d/web/models")):
                     subprocess.check_output(['mv', os.path.join(self.controller.config_dir, "avatars/live2d/web/models"), os.path.join(self.controller.config_dir, 'avatars/live2d/models')])
