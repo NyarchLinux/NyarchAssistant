@@ -8,12 +8,12 @@ from ..constants import AVAILABLE_INTERFACES
 from .extra_settings import ExtraSettingsBuilder
 from ..utility.system import can_escape_sandbox
 from ..handlers.interfaces.interface import Interface
-
+from ..constants import SCHEMA_ID
 
 class InterfacesWindow(Gtk.Window):
     def __init__(self, app):
         Gtk.Window.__init__(self, title=_("Interfaces"))
-        self.settings = Gio.Settings.new('io.github.qwersyk.Newelle')
+        self.settings = Gio.Settings.new(SCHEMA_ID)
         self.controller: NewelleController = app.win.controller
         self.app = app
         self.sandbox = can_escape_sandbox()
