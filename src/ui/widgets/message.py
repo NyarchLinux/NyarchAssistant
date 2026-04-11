@@ -65,48 +65,41 @@ class Message(Gtk.Box):
         self.update_content(message)
 
     def update_content(self, message: str, is_streaming: bool = False):
-        """Update the message content, intelligently updating widgets."""
+        """Update the message content safely from any thread."""
         self.message = message
         self.streaming = is_streaming
-        
+        # Schedule the UI update on the Main Thread
+        GLib.idle_add(self._ui_sync_content, message)
+
+    def _ui_sync_content(self, message: str):
+        """Internal method to synchronize UI (Main Thread only)."""
+        if not self.get_display(): 
+            return False
+
         chunks = get_message_chunks(message, allow_latex=self.controller.newelle_settings.display_latex)
-        
         current_widget_idx = 0
-        
-        # Make a copy of state to simulate processing
         temp_state = self.state.copy()
-        temp_state["codeblock_id"] = -1 # Reset for this pass
+        temp_state["codeblock_id"] = -1 
         
-        for i, chunk in enumerate(chunks):
-            # matches existing widget?
+        for chunk in chunks:
             if current_widget_idx < len(self.widgets_map):
                 w_type, widget, w_data = self.widgets_map[current_widget_idx]
-                
-                # Check if we can update
                 if self._can_update_widget(w_type, widget, chunk):
                     self._update_widget(widget, w_type, chunk)
                     self.widgets_map[current_widget_idx] = (chunk.type, widget, chunk)
-                    
-                    # Update state based on this chunk (accumulate side effects)
                     self._simulate_state_update(chunk, temp_state)
-                    
                     current_widget_idx += 1
                     continue
                 else:
-                    # Remove mismatch and following
                     self._remove_widgets_from(current_widget_idx)
             
-            # Create new widget
             self._process_chunk(chunk, self, temp_state, self.restore, self.is_user, self.chunk_uuid)
-            
             current_widget_idx = len(self.widgets_map)
         
-        # Update state
         self.state = temp_state
-        
-        # Remove any remaining widgets if chunk list shorter
         if current_widget_idx < len(self.widgets_map):
              self._remove_widgets_from(current_widget_idx)
+        return False
 
     def append(self, widget):
         super().append(widget)
@@ -192,6 +185,7 @@ class Message(Gtk.Box):
         widget = widget_or_list
         if w_type != new_chunk.type: return False
         if w_type == "text": return True
+        if w_type == "divider": return True
         if w_type == "codeblock":
             if isinstance(widget, CopyBox):
                 # If streaming previously showed an extension block as plain code,
@@ -242,6 +236,8 @@ class Message(Gtk.Box):
             self._queue_execution(lambda: GLib.idle_add(think.stop_thinking))
         elif chunk.type == "text":
             self._process_text(chunk, box)
+        elif chunk.type == "divider":
+            self._process_divider(box)
             
         # Capture added widgets
         end_children = self.observe_children()
@@ -265,14 +261,23 @@ class Message(Gtk.Box):
     # --- Process Methods (Copied & Adapted from window.py) ---
 
     def _process_text(self, chunk, box):
+        text = re.sub(r'\n{2,}', '\n', chunk.text)
         box.append(Gtk.Label(
-            label=markwon_to_pango(chunk.text, validate=not self.streaming),
+            label=markwon_to_pango(text, validate=not self.streaming),
             wrap=True,
             halign=Gtk.Align.START,
             wrap_mode=Pango.WrapMode.WORD_CHAR,
             width_chars=1,
             selectable=True,
             use_markup=True,
+            css_classes=["message-text"],
+        ))
+
+    def _process_divider(self, box):
+        box.append(Gtk.Separator(
+            orientation=Gtk.Orientation.HORIZONTAL,
+            margin_top=8,
+            margin_bottom=8,
         ))
 
     def _get_chat_tab(self):
@@ -578,12 +583,21 @@ class Message(Gtk.Box):
             box.append(self._create_copybox(chunk.text, lang, state=state, codeblock_id=state["codeblock_id"], allow_edit=state["editable"], enable_run_callback=True))
 
     def _process_console_codeblock(self, chunk, box, state, restore):
-        # Defer execution if streaming
+        from ...utility.command_permissions import CommandPermissionManager, CommandAction
+
         state["id_message"] += 1
         command = chunk.text
-        dangerous_commands = ["rm ", "apt ", "sudo ", "yum ", "mkfs "]
         chat_tab = self._get_chat_tab()
-        can_auto_run = (self.controller.newelle_settings.auto_run and not any(cmd in command for cmd in dangerous_commands) and chat_tab.auto_run_times < self.controller.newelle_settings.max_run_times)
+
+        perm_manager = CommandPermissionManager.get_instance(self.controller.settings)
+        working_dir = self.controller.settings.get_string("path")
+        action, reason = perm_manager.check_command(command, working_dir)
+
+        can_auto_run = (
+            action == CommandAction.ALLOW and
+            self.controller.newelle_settings.auto_run and
+            chat_tab.auto_run_times < self.controller.newelle_settings.max_run_times
+        )
         
         if can_auto_run:
             state["has_terminal_command"] = True
@@ -599,9 +613,16 @@ class Message(Gtk.Box):
             if not restore:
                 chat_tab.auto_run_times += 1
         else:
-            if not restore:
-                 self.controller.chat.append({"User": "Console", "Message": "None"})
-            box.append(self._create_copybox(command, "console", state=state, codeblock_id=state["codeblock_id"], allow_edit=state["editable"], enable_run_callback=True))
+            if action == CommandAction.BLOCK:
+                if not restore:
+                    self.controller.chat.append({"User": "Console", "Message": f"Command blocked: {reason}"})
+            else:
+                if not restore:
+                    self.controller.chat.append({"User": "Console", "Message": "None"})
+            copybox = self._create_copybox(command, "console", state=state, codeblock_id=state["codeblock_id"], allow_edit=state["editable"], enable_run_callback=True)
+            if action == CommandAction.BLOCK:
+                copybox.complete_execution(None)
+            box.append(copybox)
 
     def _process_tool_call(self, chunk, box, state, restore, msg_uuid):
         tool_name = chunk.tool_name
