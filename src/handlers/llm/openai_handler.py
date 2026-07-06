@@ -15,6 +15,7 @@ class OpenAIHandler(LLMHandler):
     default_models = (("gpt-3.5-turbo", "gpt-3.5-turbo"), )
     def __init__(self, settings, path):
         super().__init__(settings, path)
+        self.reasoning_content = ""
         if self.get_setting("models", False) is None:
             self.models = self.default_models 
             threading.Thread(target=self.get_models).start()
@@ -245,10 +246,14 @@ class OpenAIHandler(LLMHandler):
             response = client.chat.completions.create(**kwargs)
             if not hasattr(response, "choices") or response.choices is None or len(response.choices) == 0:
                 raise Exception(str(response))
-            
-            content = response.choices[0].message.content or ""
-            if hasattr(response.choices[0].message, "tool_calls") and response.choices[0].message.tool_calls is not None:
-                for tool_call in response.choices[0].message.tool_calls:
+
+            msg = response.choices[0].message
+            rc = getattr(msg, "reasoning_content", None)
+            self.reasoning_content = rc or ""
+
+            content = msg.content or ""
+            if hasattr(msg, "tool_calls") and msg.tool_calls is not None:
+                for tool_call in msg.tool_calls:
                     tool = tool_call.function
                     tool_call_dict = {"tool": tool.name, "arguments": json.loads(tool.arguments) if tool.arguments else {}}
                     tc_id = getattr(tool_call, "id", None)
@@ -308,7 +313,7 @@ class OpenAIHandler(LLMHandler):
             full_message = ""
             prev_message = ""
             is_reasoning = False
-            # Track ongoing tool calls
+            raw_reasoning = ""
             tool_calls = {}
 
             for chunk in response:
@@ -332,6 +337,7 @@ class OpenAIHandler(LLMHandler):
                     if not is_reasoning:
                         full_message += "<think>"
                     is_reasoning = True
+                    raw_reasoning += delta.reasoning
                     full_message += delta.reasoning
                     if len(full_message) - len(prev_message) > 1:
                         args = (full_message.strip(), ) + tuple(extra_args)
@@ -341,6 +347,7 @@ class OpenAIHandler(LLMHandler):
                     if not is_reasoning:
                         full_message += "<think>"
                     is_reasoning = True
+                    raw_reasoning += delta.reasoning_content
                     full_message += delta.reasoning_content
                     if len(full_message) - len(prev_message) > 1:
                         args = (full_message.strip(), ) + tuple(extra_args)
@@ -362,7 +369,8 @@ class OpenAIHandler(LLMHandler):
                         if tc_delta.function.arguments:
                             tool_calls[tc_delta.index]["arguments"] += tc_delta.function.arguments
             
-            # After stream finishes, append any tool calls to full_message
+            self.reasoning_content = raw_reasoning
+
             if tool_calls:
                 if is_reasoning:
                     full_message += "</think>"

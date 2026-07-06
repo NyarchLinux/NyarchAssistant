@@ -1772,9 +1772,10 @@ class NewelleController:
                 
                 if not tool_calls:
                     msg_uuid = int(uuid_lib.uuid4())
-                    current_history.append({"User": "Assistant", "Message": text_content, "UUID": msg_uuid})
+                    rc = getattr(self.handlers.llm, "reasoning_content", None) or ""
+                    current_history.append({"User": "Assistant", "Message": text_content, "UUID": msg_uuid, "ReasoningContent": rc})
                     if save_chat:
-                        self.chats[chat_id]["chat"].append({"User": "Assistant", "Message": response, "UUID": msg_uuid, "Profile": self.newelle_settings.current_profile})
+                        self.chats[chat_id]["chat"].append({"User": "Assistant", "Message": response, "UUID": msg_uuid, "Profile": self.newelle_settings.current_profile, "ReasoningContent": rc})
                         self.save_chats()
                     return text_content
                 assistant_msg_uuid = int(uuid_lib.uuid4())
@@ -1846,11 +1847,13 @@ class NewelleController:
                     
                     tool_call_msg = f"```json\n{{\"name\": \"{tool_name}\", \"arguments\": {json.dumps(tool_args)}}}\n```"
                     tool_result_msg = f"[Tool: {tool_name}, ID: {tool_uuid}]\n{tool_result_output}"
-                    
+                    tc_rc = getattr(self.handlers.llm, "reasoning_content", None) or ""
+
                     current_history.append({
                         "User": "Assistant",
                         "Message": tool_call_msg,
-                        "UUID": assistant_msg_uuid
+                        "UUID": assistant_msg_uuid,
+                        "ReasoningContent": tc_rc
                     })
                     current_history.append({
                         "User": "Console",
@@ -1862,7 +1865,8 @@ class NewelleController:
                             "User": "Assistant",
                             "Message": tool_call_msg,
                             "UUID": assistant_msg_uuid,
-                            "Profile": self.newelle_settings.current_profile
+                            "Profile": self.newelle_settings.current_profile,
+                            "ReasoningContent": tc_rc
                         })
                         self.chats[chat_id]["chat"].append({
                             "User": "Console",
@@ -1872,7 +1876,8 @@ class NewelleController:
             
             if save_chat:
                 msg_uuid = int(uuid_lib.uuid4())
-                self.chats[chat_id]["chat"].append({"User": "Assistant", "Message": text_content, "UUID": msg_uuid, "Profile": self.newelle_settings.current_profile})
+                frc = getattr(self.handlers.llm, "reasoning_content", None) or ""
+                self.chats[chat_id]["chat"].append({"User": "Assistant", "Message": text_content, "UUID": msg_uuid, "Profile": self.newelle_settings.current_profile, "ReasoningContent": frc})
                 self.save_chats()
             return text_content
         finally:

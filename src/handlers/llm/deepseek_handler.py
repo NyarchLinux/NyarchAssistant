@@ -12,5 +12,11 @@ class DeepseekHandler(OpenAIHandler):
         return False 
     
     def get_extra_settings(self) -> list:
-        return self.build_extra_settings("Deepseek", True, True, False, True, True, None, "https://api-docs.deepseek.com/quick_start/pricing", False, True)
+        return self.build_extra_settings("Deepseek", True, True, False, True, True, None, "https://api-docs.deepseek.com/quick_start/pricing", False, True, supports_thinking=True)
+
+    def get_thinking_params(self):
+        params = super().get_thinking_params()
+        if params:
+            params["thinking"] = {"type": "enabled"}
+        return params
 

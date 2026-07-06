@@ -1,3 +1,6 @@
 .flatpak-builder/*
 flatpak-pip-generator
 nyarchassistant.flatpak
+AGENTS.md
+.venv
+builddir

@@ -394,7 +394,8 @@ class ChatHistory(Gtk.Box):
         # Handle empty/whitespace messages
         if message_label == " " * len(message_label) and not is_user:
             if not restore:
-                self.chat.append({"User": "Assistant", "Message": message_label, "Profile": self.controller.newelle_settings.current_profile})
+                rc = getattr(self.controller.handlers.llm, "reasoning_content", None) or ""
+                self.chat.append({"User": "Assistant", "Message": message_label, "Profile": self.controller.newelle_settings.current_profile, "ReasoningContent": rc})
                 self.add_prompt(prompt)
                 self._finalize_message_display()
             GLib.idle_add(self.scrolled_chat)
@@ -427,7 +428,8 @@ class ChatHistory(Gtk.Box):
         if not is_user:
             if not restore:
                 msg_uuid = int(uuid.uuid4())
-                self.chat.append({"User": "Assistant", "Message": message_label, "UUID": msg_uuid, "Profile": self.controller.newelle_settings.current_profile})
+                rc = getattr(self.controller.handlers.llm, "reasoning_content", None) or ""
+                self.chat.append({"User": "Assistant", "Message": message_label, "UUID": msg_uuid, "Profile": self.controller.newelle_settings.current_profile, "ReasoningContent": rc})
                 self.add_prompt(prompt)
             else:
                 msg_uuid = self.chat[id_message].get("UUID", 0)

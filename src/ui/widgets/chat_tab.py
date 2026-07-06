@@ -689,11 +689,13 @@ class ChatTab(Gtk.Box):
         if hasattr(self, "current_streaming_message") and self.current_streaming_message:
             # Streaming was active, finalize the existing widget
             streaming_widget = self.current_streaming_message
+            rc = getattr(self.controller.handlers.llm, "reasoning_content", None) or ""
             self.chat.append({
                 "User": "Assistant", 
                 "Message": message_label, 
                 "UUID": streaming_widget.chunk_uuid,
-                "Profile": self.controller.newelle_settings.current_profile
+                "Profile": self.controller.newelle_settings.current_profile,
+                "ReasoningContent": rc
             })
             self.chat_history.update_history(self.chat)
             self.add_prompt("\n".join(prompts))
@@ -942,11 +944,13 @@ class ChatTab(Gtk.Box):
         if hasattr(self, 'current_streaming_message') and self.current_streaming_message is not None:
             streamed_text = self.current_streaming_message.message
             if streamed_text and streamed_text.strip():
+                rc = getattr(self.controller.handlers.llm, "reasoning_content", None) or ""
                 self.chat.append({
                     "User": "Assistant",
                     "Message": streamed_text,
                     "UUID": self.current_streaming_message.chunk_uuid,
-                    "Profile": self.controller.newelle_settings.current_profile
+                    "Profile": self.controller.newelle_settings.current_profile,
+                    "ReasoningContent": rc
                 })
             self.current_streaming_message = None
 

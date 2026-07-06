@@ -188,12 +188,14 @@ def convert_messages_openai_to_newelle(messages: list) -> tuple[str, list[dict],
             tool_calls = msg.get("tool_calls")
             tool_call_id = msg.get("tool_call_id")
             name = msg.get("name")
+            reasoning_content = msg.get("reasoning_content")
         else:
             role = getattr(msg, "role", "user")
             content = getattr(msg, "content", None)
             tool_calls = getattr(msg, "tool_calls", None)
             tool_call_id = getattr(msg, "tool_call_id", None)
             name = getattr(msg, "name", None)
+            reasoning_content = getattr(msg, "reasoning_content", None)
         if content is None:
             content = ""
 
@@ -238,12 +240,18 @@ def convert_messages_openai_to_newelle(messages: list) -> tuple[str, list[dict],
                     )
                 tool_data["id"] = tc_id
                 parts.append(f"```json\n{json.dumps(tool_data)}\n```")
-            history.append({"User": "Assistant", "Message": "\n".join(parts)})
+            history_entry = {"User": "Assistant", "Message": "\n".join(parts)}
+            if reasoning_content:
+                history_entry["ReasoningContent"] = reasoning_content
+            history.append(history_entry)
         elif role == "user":
             last_user_message = content
             history.append({"User": "User", "Message": content})
         elif role == "assistant":
-            history.append({"User": "Assistant", "Message": content})
+            history_entry = {"User": "Assistant", "Message": content}
+            if reasoning_content:
+                history_entry["ReasoningContent"] = reasoning_content
+            history.append(history_entry)
 
     return last_user_message, history, system_prompt
 
@@ -399,6 +407,9 @@ def convert_history_openai(history: list, prompts: list, vision_support : bool =
                     text_part, tool_calls, _ = parsed_calls
                     ast_msg: dict = {"role": "assistant", "content": text_part or ""}
                     ast_msg["tool_calls"] = tool_calls
+                    rc = message.get("ReasoningContent")
+                    if rc:
+                        ast_msg["reasoning_content"] = rc
                     result.append(ast_msg)
                     continue
 
@@ -419,10 +430,14 @@ def convert_history_openai(history: list, prompts: list, vision_support : bool =
                     ],
                 })
             else:
-                result.append({
+                msg = {
                     "role": "user" if message["User"] == "User" else "assistant",
                     "content": message["Message"]
-                })
+                }
+                rc = message.get("ReasoningContent")
+                if rc and message["User"] == "Assistant":
+                    msg["reasoning_content"] = rc
+                result.append(msg)
     return aggregate_messages(result, "openai")
 
 def aggregate_messages(messages: list, format="newelle"):
@@ -474,6 +489,11 @@ def aggregate_messages(messages: list, format="newelle"):
                 current_message[content_key] = c1 + c2
             else:
                 current_message[content_key] = str(content1) + "\n" + str(content2)
+            for extra_key in ("reasoning_content", "tool_calls"):
+                if extra_key in current_message and extra_key not in message:
+                    message[extra_key] = current_message[extra_key]
+                elif extra_key not in current_message and extra_key in message:
+                    current_message[extra_key] = message[extra_key]
         else:
             aggregated_messages.append(current_message)
             current_message = message.copy()
@@ -660,10 +680,14 @@ def convert_history_newelle(openai_history: list, vision_support: bool = False):
                     )
                 tool_data["id"] = tc_id
                 parts.append(f"```json\n{json.dumps(tool_data)}\n```")
-            newelle_history.append({
+            history_entry = {
                 "User": "Assistant",
                 "Message": "\n".join(parts)
-            })
+            }
+            rc = message.get("reasoning_content")
+            if rc:
+                history_entry["ReasoningContent"] = rc
+            newelle_history.append(history_entry)
         elif vision_support and isinstance(content, list):
             text = None
             image = None
@@ -688,10 +712,14 @@ def convert_history_newelle(openai_history: list, vision_support: bool = False):
                 "Message": content
             })
         elif role == "assistant":
-            newelle_history.append({
+            history_entry = {
                 "User": "Assistant",
                 "Message": content
-            })
+            }
+            rc = message.get("reasoning_content")
+            if rc:
+                history_entry["ReasoningContent"] = rc
+            newelle_history.append(history_entry)
         else:
             newelle_history.append({
                 "User": role,
