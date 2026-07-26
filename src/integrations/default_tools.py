@@ -1,6 +1,6 @@
 from ..extensions import NewelleExtension
 from ..tools import InteractionOption, Tool, ToolResult, create_io_tool 
-from ..ui.widgets import CopyBox
+from ..ui.widgets import CommandSessionActionWidget, CopyBox
 import os
 from ..utility.system import is_flatpak
 from ..utility.system import get_spawn_command
@@ -47,6 +47,40 @@ class DefaultToolsIntegration(NewelleExtension):
         terminal.save_output_func(save_output)
         terminal.present()
 
+    def _on_session_terminal_clicked(self, session_widget, session_id, chat_id):
+        try:
+            session = get_command_session_manager().get(
+                session_id,
+                self._session_owner(chat_id),
+            )
+            if not session.is_running:
+                session_widget.set_active_session_available(False)
+                return
+        except CommandSessionError:
+            session_widget.set_active_session_available(False)
+            return
+
+        terminal_dialogs = getattr(self, "_session_terminal_dialogs", None)
+        if terminal_dialogs is None:
+            terminal_dialogs = {}
+            self._session_terminal_dialogs = terminal_dialogs
+        existing_dialog = terminal_dialogs.get(session.session_id)
+        if existing_dialog is not None:
+            existing_dialog.present()
+            return
+
+        terminal = TerminalDialog(confirm_output=False)
+        terminal.set_title(f"{terminal.get_title()} · {session.session_id}")
+        terminal.load_session(session)
+        terminal_dialogs[session.session_id] = terminal
+
+        def forget_dialog(dialog):
+            if terminal_dialogs.get(session.session_id) is dialog:
+                terminal_dialogs.pop(session.session_id, None)
+
+        terminal.connect("closed", forget_dialog)
+        terminal.present()
+
     def _host_prefix(self) -> list[str]:
         if is_flatpak() and not self.settings.get_boolean("virtualization"):
             return get_spawn_command()
@@ -75,6 +109,34 @@ class DefaultToolsIntegration(NewelleExtension):
     def _tool_result(output: str) -> ToolResult:
         result = ToolResult()
         result.set_output(output)
+        return result
+
+    def _session_action_result(
+        self,
+        action: str,
+        output: str,
+        *,
+        session_id: str | None = None,
+        keys: list | None = None,
+        chat_id: int | None = None,
+    ) -> ToolResult:
+        result = ToolResult()
+        result.set_output(output)
+        widget = CommandSessionActionWidget(
+            action,
+            output,
+            session_id=session_id,
+            keys=keys,
+        )
+        widget.connect(
+            "terminal-clicked",
+            lambda session_widget, active_session_id: self._on_session_terminal_clicked(
+                session_widget,
+                active_session_id,
+                chat_id,
+            ),
+        )
+        result.set_widget(widget)
         return result
 
     @staticmethod
@@ -169,7 +231,17 @@ class DefaultToolsIntegration(NewelleExtension):
             run_callback=execute_callback,
             managed_terminal=(action_name == "start"),
         )
-        widget.connect("terminal-clicked", self._on_copybox_terminal_clicked)
+        if action_name == "start":
+            widget.connect(
+                "terminal-clicked",
+                lambda copybox, _command, _mode: self._on_session_terminal_clicked(
+                    copybox,
+                    copybox.active_session_id,
+                    chat_id,
+                ),
+            )
+        else:
+            widget.connect("terminal-clicked", self._on_copybox_terminal_clicked)
 
         if action == CommandAction.BLOCK:
             output = f"Status: blocked\nReason: {reason}"
@@ -215,7 +287,16 @@ class DefaultToolsIntegration(NewelleExtension):
             wait_ms = max(0, min(int(wait_ms), MAX_SESSION_WAIT_MS))
             max_output_chars = max(1, min(int(max_output_chars), MAX_SESSION_OUTPUT_CHARS))
         except (TypeError, ValueError) as error:
-            return self._tool_result(self._error_output(normalized_action, error))
+            output = self._error_output(normalized_action, error)
+            if normalized_action in ("read", "send_keys"):
+                return self._session_action_result(
+                    normalized_action,
+                    output,
+                    session_id=session_id,
+                    keys=keys,
+                    chat_id=chat_id,
+                )
+            return self._tool_result(output)
 
         if normalized_action in ("run", "start"):
             return self._command_request(
@@ -265,22 +346,75 @@ class DefaultToolsIntegration(NewelleExtension):
                 raise CommandSessionError(
                     "action must be one of: run, start, read, write, send_keys, list, terminate"
                 )
+            if normalized_action in ("read", "send_keys"):
+                return self._session_action_result(
+                    normalized_action,
+                    output,
+                    session_id=session_id,
+                    keys=keys,
+                    chat_id=chat_id,
+                )
             return self._tool_result(output)
         except Exception as error:
-            return self._tool_result(self._error_output(normalized_action, error))
+            output = self._error_output(normalized_action, error)
+            if normalized_action in ("read", "send_keys"):
+                return self._session_action_result(
+                    normalized_action,
+                    output,
+                    session_id=session_id,
+                    keys=keys,
+                    chat_id=chat_id,
+                )
+            return self._tool_result(output)
 
     def execute_command_restore(
         self,
         tool_uuid: str,
         command: str | None = None,
         action: str = "run",
+        session_id: str | None = None,
+        keys: list | None = None,
+        chat_id: int | None = None,
         **_kwargs,
     ):
         output = self.ui_controller.get_tool_result_by_id(tool_uuid)
-        if action not in (None, "run", "start") or command is None:
+        normalized_action = (action or "run").strip().lower().replace("-", "_")
+        normalized_action = {"keys": "send_keys"}.get(
+            normalized_action,
+            normalized_action,
+        )
+        if normalized_action in ("read", "send_keys"):
+            output = (
+                output
+                or "Status: failure\nStored terminal result is unavailable."
+            )
+            return self._session_action_result(
+                normalized_action,
+                output,
+                session_id=session_id,
+                keys=keys,
+                chat_id=chat_id,
+            )
+        if normalized_action not in ("run", "start") or command is None:
             return self._tool_result(output or "Status: failure\nStored terminal result is unavailable.")
 
-        widget = CopyBox(command, "console", execution_request=True)
+        widget = CopyBox(
+            command,
+            "console",
+            execution_request=True,
+            managed_terminal=(normalized_action == "start"),
+        )
+        if normalized_action == "start":
+            widget.connect(
+                "terminal-clicked",
+                lambda copybox, _command, _mode: self._on_session_terminal_clicked(
+                    copybox,
+                    copybox.active_session_id,
+                    chat_id,
+                ),
+            )
+        else:
+            widget.connect("terminal-clicked", self._on_copybox_terminal_clicked)
         if output is None or "skipped" in output.lower():
             output = None
         widget.complete_execution(output)

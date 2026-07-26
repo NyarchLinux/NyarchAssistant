@@ -83,6 +83,7 @@ widgets_sources = [
   'ui/widgets/barchart.py',
   'ui/widgets/comborow.py',
   'ui/widgets/copybox.py',
+  'ui/widgets/command_session_action.py',
   'ui/widgets/file.py',
   'ui/widgets/file_read.py',
   'ui/widgets/file_edit.py',

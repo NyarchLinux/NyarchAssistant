@@ -72,6 +72,7 @@ class CopyBox(Gtk.Box):
         self.run_callback = run_callback
         self.managed_terminal = managed_terminal
         self.has_responded = False
+        self.active_session_id = None
         
         # Set color scheme
         self.color_scheme = color_scheme if color_scheme is not None else "Adwaita-dark"
@@ -126,8 +127,10 @@ class CopyBox(Gtk.Box):
         # Terminal button
         self.terminal_button = Gtk.Button(css_classes=["flat"], valign=Gtk.Align.CENTER)
         self.terminal_button.set_icon_name("gnome-terminal-symbolic")
-        self.terminal_button.set_tooltip_text("Open in Terminal")
+        self.terminal_button.set_tooltip_text(_("Open in Terminal"))
         self.terminal_button.connect("clicked", self._on_execution_terminal_clicked)
+        if self.managed_terminal:
+            self.terminal_button.set_visible(False)
         header_box.append(self.terminal_button)
         
         # Skip button
@@ -383,6 +386,10 @@ class CopyBox(Gtk.Box):
 
     def _on_execution_terminal_clicked(self, widget):
         """Handle terminal button click in execution_request mode."""
+        if self.managed_terminal:
+            if self.active_session_id is not None:
+                self.emit('terminal-clicked', self.txt, True)
+            return
         if self.has_responded:
             return
         self.emit('terminal-clicked', self.txt, True)
@@ -472,6 +479,14 @@ class CopyBox(Gtk.Box):
             status,
             states["success"],
         )
+        if self.managed_terminal:
+            session_running = metadata.get("Session State") == "running"
+            self.active_session_id = (
+                metadata.get("Session ID")
+                if status == "success" and session_running
+                else None
+            )
+            self.terminal_button.set_visible(self.active_session_id is not None)
 
         check_icon = Gtk.Image.new_from_icon_name(icon_name)
         complete_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
@@ -508,6 +523,14 @@ class CopyBox(Gtk.Box):
         
         # Emit completion signal
         self.emit('command-complete', output_text)
+
+    def set_active_session_available(self, available: bool):
+        """Update whether the managed session can be opened interactively."""
+        if not self.managed_terminal:
+            return
+        if not available:
+            self.active_session_id = None
+        self.terminal_button.set_visible(available)
     
     def _on_skip_clicked(self, button):
         """Handle skip click in execution_request mode."""

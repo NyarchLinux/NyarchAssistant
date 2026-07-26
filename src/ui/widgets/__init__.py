@@ -3,6 +3,7 @@ from .multiline import MultilineEntry
 from .barchart import BarChartBox
 from .comborow import ComboRowHelper
 from .copybox import CopyBox
+from .command_session_action import CommandSessionActionWidget
 from .file import File
 from .file_read import ReadFileWidget
 from .file_permission_confirm import FilePermissionConfirmWidget
@@ -40,6 +41,7 @@ __all__ = [
     "BarChartBox",
     "ComboRowHelper",
     "CopyBox",
+    "CommandSessionActionWidget",
     "File",
     "ReadFileWidget",
     "FilePermissionConfirmWidget",
