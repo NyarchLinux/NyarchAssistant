@@ -246,6 +246,8 @@ utility_sources = [
   'utility/force_sync.py',
   'utility/context_manager.py',
   'utility/command_permissions.py',
+  'utility/command_runner.py',
+  'utility/command_sessions.py',
   'utility/background_process.py',
 ]
 

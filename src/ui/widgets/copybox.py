@@ -25,6 +25,7 @@ class CopyBox(Gtk.Box):
         executable_languages: List of languages that should show run button, or None for defaults
         execution_request: If True, behaves like a command confirmation dialog with Run/Skip buttons
         run_callback: Optional callback for command execution (signature: callback(command) -> output)
+        managed_terminal: Whether the callback owns interactive terminal handling
     """
     
     __gsignals__ = {
@@ -49,7 +50,8 @@ class CopyBox(Gtk.Box):
         color_scheme: str = None,
         executable_languages: list = None,
         execution_request: bool = False,
-        run_callback=None
+        run_callback=None,
+        managed_terminal: bool = False,
     ):
         Gtk.Box.__init__(
             self,
@@ -68,6 +70,7 @@ class CopyBox(Gtk.Box):
         self.id_codeblock = id_codeblock
         self.execution_request = execution_request
         self.run_callback = run_callback
+        self.managed_terminal = managed_terminal
         self.has_responded = False
         
         # Set color scheme
@@ -389,7 +392,7 @@ class CopyBox(Gtk.Box):
         if self.has_responded:
             return
 
-        if self._needs_terminal(self.txt):
+        if not self.managed_terminal and self._needs_terminal(self.txt):
             self.run_button.set_sensitive(False)
             self.skip_button.set_sensitive(False)
             self.emit('terminal-clicked', self.txt, True)
@@ -405,7 +408,7 @@ class CopyBox(Gtk.Box):
         spinner = Gtk.Spinner(spinning=True)
         running_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         running_box.append(spinner)
-        running_box.append(Gtk.Label(label="Running..."))
+        running_box.append(Gtk.Label(label=_("Running...")))
         self.run_button.set_child(running_box)
 
         # Emit signal
@@ -414,7 +417,10 @@ class CopyBox(Gtk.Box):
         # Execute command if callback provided
         if self.run_callback is not None:
             def execute_command():
-                output = self.run_callback(self.txt)
+                try:
+                    output = self.run_callback(self.txt)
+                except Exception as error:
+                    output = f"Status: startup-error\nError: {error}"
                 GLib.idle_add(self._on_execution_complete, output)
 
             threading.Thread(target=execute_command, daemon=True).start()
@@ -430,26 +436,78 @@ class CopyBox(Gtk.Box):
                 return True
         return "sudo " in stripped
     
+    @staticmethod
+    def _execution_status(output) -> tuple[str, str, dict[str, str]]:
+        """Normalize a command result into display text, status, and metadata."""
+        if hasattr(output, "to_output"):
+            output = output.to_output()
+        text = str(output) if output is not None else ""
+        metadata = {}
+        for line in text.splitlines():
+            if line in ("Stdout:", "Stderr:", "Output:"):
+                break
+            if ": " in line:
+                key, value = line.split(": ", 1)
+                metadata.setdefault(key.strip(), value.strip())
+
+        status = metadata.get("Status", "success").lower().replace("_", "-")
+        aliases = {
+            "failed": "failure",
+            "timed-out": "timeout",
+            "error": "startup-error",
+        }
+        return text, aliases.get(status, status), metadata
+
     def _on_execution_complete(self, output):
         """Handle command completion in execution_request mode."""
-        # Update button to show completed
-        check_icon = Gtk.Image.new_from_icon_name("emblem-default-symbolic")
+        output_text, status, metadata = self._execution_status(output)
+        states = {
+            "success": ("emblem-default-symbolic", _("Completed"), "success"),
+            "failure": ("dialog-error-symbolic", _("Failed"), "error"),
+            "timeout": ("alarm-symbolic", _("Timed out"), "warning"),
+            "startup-error": ("dialog-error-symbolic", _("Failed to start"), "error"),
+            "blocked": ("action-unavailable-symbolic", _("Blocked"), "warning"),
+        }
+        icon_name, label, css_class = states.get(
+            status,
+            states["success"],
+        )
+
+        check_icon = Gtk.Image.new_from_icon_name(icon_name)
         complete_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         complete_box.append(check_icon)
-        complete_box.append(Gtk.Label(label="Completed"))
+        complete_box.append(Gtk.Label(label=label))
         self.run_button.set_child(complete_box)
         self.run_button.remove_css_class("suggested-action")
-        self.run_button.add_css_class("success")
+        self.run_button.remove_css_class("success")
+        self.run_button.remove_css_class("warning")
+        self.run_button.remove_css_class("error")
+        self.run_button.add_css_class(css_class)
+        self.run_button.set_sensitive(False)
+        self.skip_button.set_sensitive(False)
         
         # Show output
-        self.output_label.set_text(output if output else "No output")
+        self.output_label.set_text(output_text if output_text else _("No output"))
         self.output_expander.set_visible(True)
         self.output_expander.set_expanded(True)
-        
-        self.status_label.set_visible(False)
+
+        detail = ""
+        if status == "timeout":
+            timeout = metadata.get("Timed Out After", "").removesuffix(" seconds")
+            detail = _("Command timed out after {} seconds.").format(timeout) if timeout else _("Command timed out.")
+        elif status == "failure":
+            exit_code = metadata.get("Exit Code")
+            detail = _("Command exited with code {}.").format(exit_code) if exit_code else _("Command failed.")
+        elif status == "startup-error":
+            detail = _("The command could not be started.")
+        elif status == "blocked":
+            detail = _("Command blocked by security policy.")
+
+        self.status_label.set_text(detail)
+        self.status_label.set_visible(bool(detail))
         
         # Emit completion signal
-        self.emit('command-complete', output if output else "")
+        self.emit('command-complete', output_text)
     
     def _on_skip_clicked(self, button):
         """Handle skip click in execution_request mode."""

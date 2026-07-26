@@ -419,6 +419,9 @@ class MyApp(Adw.Application):
             self.win.stop_chat()
     
     def do_shutdown(self):
+        from .utility.command_sessions import shutdown_command_sessions
+
+        shutdown_command_sessions()
         self.win.save_chat()
         settings = Gio.Settings.new('io.github.qwersyk.Newelle')
         settings.set_int("chat", self.win.chat_id)

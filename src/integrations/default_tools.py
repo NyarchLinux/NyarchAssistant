@@ -1,14 +1,24 @@
-import re
 from ..extensions import NewelleExtension
 from ..tools import InteractionOption, Tool, ToolResult, create_io_tool 
-import threading 
-import json 
 from ..ui.widgets import CopyBox
-import subprocess
 import os
 from ..utility.system import is_flatpak
 from ..utility.system import get_spawn_command
 from ..utility.strings import quote_string, add_S_to_sudo
+from ..utility.command_runner import (
+    CommandRunner,
+    DEFAULT_COMMAND_TIMEOUT,
+    MAX_COMMAND_TIMEOUT,
+)
+from ..utility.command_sessions import (
+    CommandSessionError,
+    DEFAULT_SESSION_OUTPUT_CHARS,
+    DEFAULT_SESSION_WAIT_MS,
+    MAX_SESSION_OUTPUT_CHARS,
+    MAX_SESSION_WAIT_MS,
+    format_session_result,
+    get_command_session_manager,
+)
 from gi.repository import Gtk, Gio
 from ..ui import load_image_with_callback
 from ..ui.widgets.terminal_dialog import TerminalDialog
@@ -37,51 +47,135 @@ class DefaultToolsIntegration(NewelleExtension):
         terminal.save_output_func(save_output)
         terminal.present()
 
-    def _truncate(self, text: str) -> str:
-        maxlength = 4000
-        if len(text) > maxlength:
-            return text[:maxlength] + f"\n... (Output truncated to {maxlength} characters)"
-        return text
-    
-    def execute_command(self, command: str | None):
-        if command is None:
-            return "The user skipped the command execution."
+    def _host_prefix(self) -> list[str]:
         if is_flatpak() and not self.settings.get_boolean("virtualization"):
-            cmd = ["flatpak-spawn", "--host", "bash", "-c", command]
-        else:
-            cmd = ["bash", "-c", command]
-        
-        try:
-            result = subprocess.run(
-                cmd, 
-                capture_output=True, 
-                text=True, 
-                check=False
-            )
-            return f"Stdout:\n{self._truncate(result.stdout)}\nStderr:\n{self._truncate(result.stderr)}\nExit Code: {result.returncode}"
-        except Exception as e:
-            return f"Error executing command: {str(e)}"
+            return get_spawn_command()
+        return []
 
-    def execute_command_widget(self, command: str):
+    def _working_dir(self) -> str:
+        return self.settings.get_string("path") or os.getcwd()
+
+    def _timeout(self, timeout_seconds: int | None) -> int:
+        if timeout_seconds is None:
+            timeout_seconds = DEFAULT_COMMAND_TIMEOUT
+        try:
+            return max(1, min(int(timeout_seconds), MAX_COMMAND_TIMEOUT))
+        except (TypeError, ValueError) as error:
+            raise CommandSessionError("timeout_seconds must be an integer") from error
+
+    def _session_owner(self, chat_id: int | None):
+        if chat_id is None and hasattr(self, "ui_controller"):
+            chat_id = self.ui_controller.get_current_chat_id()
+        if chat_id is None:
+            raise CommandSessionError("A chat ID is required for terminal sessions")
+        controller_scope = id(getattr(self, "ui_controller", self))
+        return ("chat", controller_scope, str(chat_id))
+
+    @staticmethod
+    def _tool_result(output: str) -> ToolResult:
+        result = ToolResult()
+        result.set_output(output)
+        return result
+
+    @staticmethod
+    def _error_output(action: str, error: Exception, *, startup: bool = False) -> str:
+        status = "startup-error" if startup else "failure"
+        return f"Status: {status}\nAction: {action}\nError: {error}"
+
+    def execute_command(
+        self,
+        command: str | None,
+        timeout_seconds: int | None = None,
+    ) -> str:
+        """Run one non-interactive command and return its bounded result."""
+        if command is None:
+            return "Status: skipped\nThe user skipped the command execution."
+        runner = CommandRunner(self._timeout(timeout_seconds))
+        return runner.run(
+            command,
+            self._working_dir(),
+            host_prefix=self._host_prefix(),
+        ).to_output()
+
+    def _start_session(self, command: str, chat_id: int | None, wait_ms: int, max_output_chars: int) -> str:
+        manager = get_command_session_manager()
+        session = manager.start(
+            command,
+            self._working_dir(),
+            self._session_owner(chat_id),
+            host_prefix=self._host_prefix(),
+        )
+        initial_output = session.read(
+            wait_ms=wait_ms,
+            max_chars=max_output_chars,
+            mode="incremental",
+        )
+        return format_session_result(session, initial_output, action="start")
+
+    def _command_request(
+        self,
+        *,
+        action_name: str,
+        command: str | None,
+        chat_id: int | None,
+        timeout_seconds: int | None,
+        wait_ms: int,
+        max_output_chars: int,
+    ) -> ToolResult:
         from ..utility.command_permissions import CommandPermissionManager, CommandAction
 
+        if not isinstance(command, str) or not command.strip():
+            return self._tool_result(
+                self._error_output(
+                    action_name,
+                    CommandSessionError(f"command is required for the {action_name} action"),
+                    startup=True,
+                )
+            )
+
         perm_manager = CommandPermissionManager.get_instance(self.settings)
-        working_dir = self.settings.get_string("path")
+        working_dir = self._working_dir()
         action, reason = perm_manager.check_command(command, working_dir)
 
         result = ToolResult(requires_interaction=(action != CommandAction.ALLOW))
 
-        def execute_callback(command):
-            output = self.execute_command(command)
+        def execute_callback(approved_command):
+            if approved_command is None:
+                output = "Status: skipped\nThe user skipped the command execution."
+            else:
+                try:
+                    if action_name == "start":
+                        output = self._start_session(
+                            approved_command,
+                            chat_id,
+                            wait_ms,
+                            max_output_chars,
+                        )
+                    else:
+                        output = self.execute_command(approved_command, timeout_seconds)
+                except Exception as error:
+                    output = self._error_output(
+                        action_name,
+                        error,
+                        startup=(action_name == "start"),
+                    )
             result.set_output(output)
             return output
 
-        widget = CopyBox(command, "console", execution_request=True, run_callback=execute_callback)
+        widget = CopyBox(
+            command,
+            "console",
+            execution_request=True,
+            run_callback=execute_callback,
+            managed_terminal=(action_name == "start"),
+        )
         widget.connect("terminal-clicked", self._on_copybox_terminal_clicked)
 
         if action == CommandAction.BLOCK:
-            widget.complete_execution(None)
-            result.set_output("Command blocked by security policy: " + reason)
+            output = f"Status: blocked\nReason: {reason}"
+            widget.complete_execution(output)
+            result.set_output(output)
+            result.requires_interaction = False
             result.set_display_text("```bash\n" + command + "\n```\n\n**Blocked:** " + reason)
             result.set_widget(widget)
             return result
@@ -91,7 +185,7 @@ class DefaultToolsIntegration(NewelleExtension):
         else:
             result.set_intreaction_options([
                 InteractionOption(_("Accept"), lambda command=command: execute_callback(command)),
-                InteractionOption(_("Skip"), lambda : self.execute_command(None))])
+                InteractionOption(_("Skip"), lambda: execute_callback(None))])
             result.requires_interaction = True 
         widget.connect("command-complete", lambda _, output: result.set_output(output))
 
@@ -99,9 +193,94 @@ class DefaultToolsIntegration(NewelleExtension):
         result.set_display_text("```bash\n" + command + "\n```")
         return result
 
-    def execute_command_restore(self, tool_uuid: str, command: str):
-        widget = CopyBox(command, "console", execution_request=True)
+    def execute_command_widget(
+        self,
+        command: str | None = None,
+        action: str = "run",
+        session_id: str | None = None,
+        input_text: str | None = None,
+        keys: list | None = None,
+        timeout_seconds: int | None = None,
+        wait_ms: int = DEFAULT_SESSION_WAIT_MS,
+        max_output_chars: int = DEFAULT_SESSION_OUTPUT_CHARS,
+        read_mode: str = "incremental",
+        chat_id: int | None = None,
+    ) -> ToolResult:
+        """Run a command or control a chat-owned persistent terminal session."""
+        normalized_action = (action or "run").strip().lower().replace("-", "_")
+        aliases = {"keys": "send_keys", "kill": "terminate", "sessions": "list"}
+        normalized_action = aliases.get(normalized_action, normalized_action)
+
+        try:
+            wait_ms = max(0, min(int(wait_ms), MAX_SESSION_WAIT_MS))
+            max_output_chars = max(1, min(int(max_output_chars), MAX_SESSION_OUTPUT_CHARS))
+        except (TypeError, ValueError) as error:
+            return self._tool_result(self._error_output(normalized_action, error))
+
+        if normalized_action in ("run", "start"):
+            return self._command_request(
+                action_name=normalized_action,
+                command=command,
+                chat_id=chat_id,
+                timeout_seconds=timeout_seconds,
+                wait_ms=wait_ms,
+                max_output_chars=max_output_chars,
+            )
+
+        manager = get_command_session_manager()
+        try:
+            owner = self._session_owner(chat_id)
+            if normalized_action == "list":
+                sessions = manager.list(owner)
+                lines = ["Status: success", "Action: list", f"Sessions: {len(sessions)}"]
+                for session in sessions:
+                    state = "running" if session.is_running else "exited"
+                    exit_suffix = "" if session.is_running else f", exit_code={session.exit_code}"
+                    lines.append(
+                        f"- {session.session_id}: {state}{exit_suffix}, pid={session.pid}, "
+                        f"cwd={session.working_dir}, command={session.command!r}"
+                    )
+                return self._tool_result("\n".join(lines))
+
+            session = manager.get(session_id, owner)
+            if normalized_action == "read":
+                read_result = session.read(
+                    wait_ms=wait_ms,
+                    max_chars=max_output_chars,
+                    mode=read_mode,
+                )
+                output = format_session_result(session, read_result, action="read")
+            elif normalized_action == "write":
+                written = session.write_text(input_text)
+                output = format_session_result(session, action="write") + f"\nBytes Written: {written}"
+            elif normalized_action == "send_keys":
+                written = session.send_keys(keys)
+                output = format_session_result(session, action="send_keys") + f"\nBytes Written: {written}"
+            elif normalized_action == "terminate":
+                session.terminate()
+                manager.forget(session)
+                final_output = session.read(wait_ms=0, max_chars=max_output_chars, mode="snapshot")
+                output = format_session_result(session, final_output, action="terminate")
+            else:
+                raise CommandSessionError(
+                    "action must be one of: run, start, read, write, send_keys, list, terminate"
+                )
+            return self._tool_result(output)
+        except Exception as error:
+            return self._tool_result(self._error_output(normalized_action, error))
+
+    def execute_command_restore(
+        self,
+        tool_uuid: str,
+        command: str | None = None,
+        action: str = "run",
+        **_kwargs,
+    ):
         output = self.ui_controller.get_tool_result_by_id(tool_uuid)
+        if action not in (None, "run", "start") or command is None:
+            return self._tool_result(output or "Status: failure\nStored terminal result is unavailable.")
+
+        widget = CopyBox(command, "console", execution_request=True)
         if output is None or "skipped" in output.lower():
             output = None
         widget.complete_execution(output)
@@ -163,8 +342,79 @@ class DefaultToolsIntegration(NewelleExtension):
         return [
             Tool(
                 name="execute_command",
-                description="Execute a command and return the output on the user computer.",
+                description=(
+                    "Run a bounded one-shot shell command or control a persistent PTY session. "
+                    "Use action=start for interactive programs, then read, write, send_keys, "
+                    "list, or terminate with the returned chat-scoped session ID."
+                ),
                 func=self.execute_command_widget,
+                schema={
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": ["run", "start", "read", "write", "send_keys", "list", "terminate"],
+                            "default": "run",
+                            "description": "Operation to perform. Omit for a backward-compatible one-shot run.",
+                        },
+                        "command": {
+                            "type": "string",
+                            "description": "Shell command; required for run and start.",
+                        },
+                        "session_id": {
+                            "type": "string",
+                            "description": "Session returned by start; required for read, write, send_keys, and terminate.",
+                        },
+                        "input_text": {
+                            "type": "string",
+                            "description": "Exact text to write. It is not followed by Enter automatically.",
+                        },
+                        "keys": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "enum": [
+                                    "ENTER", "TAB", "SHIFT_TAB", "ESC", "SPACE", "BACKSPACE",
+                                    "DELETE", "UP", "DOWN", "RIGHT", "LEFT", "HOME", "END",
+                                    "PAGE_UP", "PAGE_DOWN", "CTRL_A", "CTRL_B", "CTRL_C", "CTRL_D",
+                                    "CTRL_E", "CTRL_F", "CTRL_G", "CTRL_H", "CTRL_I", "CTRL_J",
+                                    "CTRL_K", "CTRL_L", "CTRL_M", "CTRL_N", "CTRL_O", "CTRL_P",
+                                    "CTRL_Q", "CTRL_R", "CTRL_S", "CTRL_T", "CTRL_U", "CTRL_V",
+                                    "CTRL_W", "CTRL_X", "CTRL_Y", "CTRL_Z", "CTRL_BACKSLASH",
+                                    "CTRL_RIGHT_BRACKET",
+                                ],
+                            },
+                            "description": "Special keystrokes for send_keys.",
+                        },
+                        "timeout_seconds": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": MAX_COMMAND_TIMEOUT,
+                            "default": DEFAULT_COMMAND_TIMEOUT,
+                            "description": "One-shot run timeout in seconds.",
+                        },
+                        "wait_ms": {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": MAX_SESSION_WAIT_MS,
+                            "default": DEFAULT_SESSION_WAIT_MS,
+                            "description": "How long start/read may wait for fresh terminal output.",
+                        },
+                        "max_output_chars": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": MAX_SESSION_OUTPUT_CHARS,
+                            "default": DEFAULT_SESSION_OUTPUT_CHARS,
+                            "description": "Maximum terminal characters returned by start/read/terminate.",
+                        },
+                        "read_mode": {
+                            "type": "string",
+                            "enum": ["incremental", "snapshot"],
+                            "default": "incremental",
+                            "description": "Read only unseen output or a bounded snapshot of recent output.",
+                        },
+                    },
+                },
                 title="Execute Command",
                 restore_func=self.execute_command_restore,
                 default_on=True,
