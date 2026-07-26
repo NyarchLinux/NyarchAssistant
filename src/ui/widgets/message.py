@@ -808,16 +808,25 @@ class Message(Gtk.Box):
                 def get_response(reply_from_console):
                     if not restore:
                         response = result.get_output()
+                        context_messages = result.get_context_messages()
                         if not restore:
                             try: self._get_chat_tab().active_tool_results.remove(result)
                             except: pass
                         if result.is_cancelled: return
-                        if response is None: code = (not tool_failed, None)
+                        if response is None and not context_messages:
+                            code = (not tool_failed, None)
                         else:
                             state["should_continue"] = True
                             code = (not tool_failed, response)
-                            formatted = f"[Tool: {tool.name}, ID: {tool_uuid}]\n{code[1]}"
+                            console_output = response or "Tool returned additional context."
+                            formatted = f"[Tool: {tool.name}, ID: {tool_uuid}]\n{console_output}"
                             self.controller.chat.append({"User": "Console", "Message": formatted})
+                            for context_message in context_messages:
+                                self.controller.chat.append({
+                                    "User": "User",
+                                    "Message": context_message,
+                                    "ToolContext": True,
+                                })
                     else:
                         code = (True, reply_from_console)
                     

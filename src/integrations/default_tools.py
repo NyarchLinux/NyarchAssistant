@@ -23,6 +23,7 @@ from gi.repository import Gtk, Gio
 from ..ui import load_image_with_callback
 from ..ui.widgets.terminal_dialog import TerminalDialog
 
+
 class DefaultToolsIntegration(NewelleExtension):
     id = "default_tools"
     name = "Default Tools"
@@ -440,6 +441,32 @@ class DefaultToolsIntegration(NewelleExtension):
         result.set_display_text("```image\n" + image_path + "\n```")
         result.set_output(None)
         return result
+
+    def read_image(
+        self,
+        path: str | None = None,
+        image_path: str | None = None,
+    ):
+        requested_path = path or image_path
+        result = ToolResult()
+        if not requested_path:
+            result.set_output("Error: An image path is required.")
+            return result
+
+        expanded_path = os.path.expanduser(requested_path)
+        if not os.path.isabs(expanded_path):
+            expanded_path = os.path.join(self._working_dir(), expanded_path)
+        resolved_path = os.path.abspath(expanded_path)
+
+        if not os.path.isfile(resolved_path):
+            result.set_output(f"Error: Image file not found: {resolved_path}")
+            return result
+
+        context_message = f"```image\n{resolved_path}\n```"
+        result.set_context_messages([context_message])
+        result.set_display_text(context_message)
+        result.set_output(context_message)
+        return result
     
     def show_video(self, video_path: str):
             result = ToolResult() 
@@ -562,6 +589,27 @@ class DefaultToolsIntegration(NewelleExtension):
                 default_on=True,
                 restore_func=self.show_image,
                 tools_group=_("Media Display")
+
+            ),
+            Tool(
+                name="read_image",
+                description="Read an image from a local file path and add it to the model context.",
+                func=self.read_image,
+                schema={
+                    "type": "object",
+                    "properties": {
+                        "path": {
+                            "type": "string",
+                            "description": "Local path to the image. Relative paths use the configured working directory.",
+                        },
+                    },
+                    "required": ["path"],
+                },
+                title="Read Image",
+                default_on=True,
+                restore_func=self.read_image,
+                tools_group=_("Media Display"),
+                icon_name="image-x-generic-symbolic",
 
             ),
             Tool(

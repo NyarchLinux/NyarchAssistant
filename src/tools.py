@@ -18,6 +18,7 @@ class ToolResult:
         output (Any): The textual/data output to be returned to the LLM (and displayed in Console).
         widget (Any): Optional GTK Widget to be displayed in the chat UI.
         requires_interaction (bool): Flag indicating if this tool requires user interaction.
+        context_messages (list[str]): Additional messages to add to the model context.
     """
     output: Any = None
     widget: Any = None
@@ -25,12 +26,22 @@ class ToolResult:
     requires_interaction: bool = False
     interaction_options : list
     display_text : str | None 
+    context_messages: list[str]
     output_semaphore : threading.Semaphore
 
-    def __init__(self, output=None, widget=None, requires_interaction=False, interaction_options: list=[], display_text: str | None = None) -> None:
+    def __init__(
+        self,
+        output=None,
+        widget=None,
+        requires_interaction=False,
+        interaction_options: list=[],
+        display_text: str | None = None,
+        context_messages: list[str] | None = None,
+    ) -> None:
         self.output = output 
         self.widget = widget
         self.display_text = display_text
+        self.context_messages = list(context_messages or [])
         self.is_cancelled = False
         self.requires_interaction = requires_interaction
         self.output_semaphore = threading.Semaphore()
@@ -59,6 +70,12 @@ class ToolResult:
     
     def set_display_text(self, text:str|None):
         self.display_text = text
+
+    def set_context_messages(self, messages: list[str]):
+        self.context_messages = list(messages)
+
+    def get_context_messages(self) -> list[str]:
+        return list(self.context_messages)
 
     def set_intreaction_options(self, interaction_options : list = []):
         self.interaction_options = interaction_options

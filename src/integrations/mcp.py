@@ -287,33 +287,104 @@ class MCPIntegration(NewelleExtension):
     def execute_tool(self, name) -> str:
         return lambda **arguments : self.execute_tool_name(name, **arguments)
 
+    @staticmethod
+    def _image_context_message(data, mime_type) -> str | None:
+        if not data:
+            return None
+        data = str(data)
+        if data.startswith("data:image/"):
+            image = data
+        else:
+            mime_type = str(mime_type or "image/png")
+            image = f"data:{mime_type};base64,{data}"
+        return f"```image\n{image}\n```"
+
+    @classmethod
+    def _format_tool_result(cls, value) -> tuple[str, list[str]]:
+        """Split an MCP result into textual output and image context messages."""
+        content = getattr(value, "content", None)
+        if content is None:
+            return str(value), []
+
+        output_parts = []
+        context_messages = []
+        for item in content:
+            content_type = getattr(item, "type", None)
+            if content_type == "text":
+                output_parts.append(str(getattr(item, "text", "")))
+            elif content_type == "image":
+                message = cls._image_context_message(
+                    getattr(item, "data", None),
+                    getattr(item, "mimeType", None),
+                )
+                if message is not None:
+                    context_messages.append(message)
+            elif content_type == "resource":
+                resource = getattr(item, "resource", None)
+                mime_type = getattr(resource, "mimeType", None)
+                blob = getattr(resource, "blob", None)
+                if mime_type and str(mime_type).startswith("image/") and blob:
+                    message = cls._image_context_message(blob, mime_type)
+                    if message is not None:
+                        context_messages.append(message)
+                elif getattr(resource, "text", None) is not None:
+                    output_parts.append(str(resource.text))
+                else:
+                    output_parts.append(str(item))
+            elif content_type == "resource_link":
+                mime_type = getattr(item, "mimeType", None)
+                uri = getattr(item, "uri", None)
+                if mime_type and str(mime_type).startswith("image/") and uri:
+                    context_messages.append(f"```image\n{uri}\n```")
+                else:
+                    output_parts.append(str(uri or item))
+            else:
+                output_parts.append(str(item))
+
+        structured_content = getattr(value, "structuredContent", None)
+        if structured_content is not None:
+            output_parts.append(json.dumps(structured_content, ensure_ascii=False))
+
+        output = "\n\n".join(part for part in output_parts if part)
+        if not output:
+            if context_messages:
+                output = "Image content returned by MCP server."
+            else:
+                output = "Tool executed successfully."
+        return output, context_messages
+
     def execute_tool_name(self, tool_name: str, **arguments) -> str:
         result = ToolResult()
         def get_answer():
-            server_info = self.tools_dict.get(tool_name, {})
-            if not server_info:
-                result.set_output("Error: Tool server not found")
-                return
-            
-            if server_info.get("type") == "stdio":
-                command = server_info.get("command")
-                args = server_info.get("args") or []
-                env = server_info.get("env")
-                if not command:
-                    result.set_output("Error: Stdio server command not found")
+            try:
+                server_info = self.tools_dict.get(tool_name, {})
+                if not server_info:
+                    result.set_output("Error: Tool server not found")
                     return
-                out = self.sync_call_tool_stdio(command, args, env, tool_name, arguments)
-            else:
-                url = server_info.get("url")
-                if not url:
-                    result.set_output("Error: HTTP server URL not found")
-                    return
-                out = self.sync_call_tool(
-                    url, tool_name, arguments,
-                    server_info=server_info,
-                    client_id=server_info.get("client_id")
-                )
-            result.set_output(out)
+
+                if server_info.get("type") == "stdio":
+                    command = server_info.get("command")
+                    args = server_info.get("args") or []
+                    env = server_info.get("env")
+                    if not command:
+                        result.set_output("Error: Stdio server command not found")
+                        return
+                    value = self.sync_call_tool_stdio(command, args, env, tool_name, arguments)
+                else:
+                    url = server_info.get("url")
+                    if not url:
+                        result.set_output("Error: HTTP server URL not found")
+                        return
+                    value = self.sync_call_tool(
+                        url, tool_name, arguments,
+                        server_info=server_info,
+                        client_id=server_info.get("client_id")
+                    )
+                output, context_messages = self._format_tool_result(value)
+                result.set_context_messages(context_messages)
+                result.set_output(output)
+            except Exception as error:
+                result.set_output(f"Error: {error}")
         t = threading.Thread(target=get_answer)
         t.start()
         return result
