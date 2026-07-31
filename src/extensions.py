@@ -231,11 +231,16 @@ class NewelleExtension(Handler):
         same shape used by :class:`ModeManager`::
 
             {
-                "prompt": "<str>",          # injected via {MODEPROMPT}
                 "description": "<str>",      # one-line summary
                 "icon": "<str>",             # GTK symbolic icon name
                 "tools":  {"<tool_name>": "<state>", ...},   # optional
                 "skills": {"<skill_name>": "<state>", ...},  # optional
+                "prompts": {                                      # optional
+                    "<prompt_key>": {
+                        "state": "<state>",
+                        "override": "<replacement text>",         # optional
+                    },
+                },
             }
 
         where ``<state>`` is ``"enable"``, ``"remove"`` or ``"no_change"``.
