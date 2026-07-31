@@ -612,6 +612,8 @@ class ExtensionLoader:
             except Exception as e:
                 print(f"Error during extension uninstall cleanup: {e}")
         os.remove(os.path.join(self.extension_dir, self.filemap[extension]))
+        self.extensions_settings.pop(extension, None)
+        self.save_settings()
 
     def add_extension(self, file_path : str):
         """
@@ -660,7 +662,9 @@ class ExtensionLoader:
         if not isinstance(extension, str):
             extension = extension.id
         self.extensions_settings[extension]["disabled"] = True
-        self.disabled_extensions.append(self.get_extension_by_id(extension))
+        extension_object = self.get_extension_by_id(extension)
+        if extension_object not in self.disabled_extensions:
+            self.disabled_extensions.append(extension_object)
         self.save_settings()
 
     def save_settings(self):

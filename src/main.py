@@ -16,8 +16,6 @@ from .window import MainWindow
 from .ui.shortcuts import Shortcuts
 from .ui.thread_editing import ThreadEditing
 from .ui.scheduled_tasks import ScheduledTasksWindow
-from .ui.extension import Extension
-from .ui.interfaces import InterfacesWindow
 from .ui.mini_window import MiniWindow
 
 
@@ -291,20 +289,10 @@ class MyApp(Adw.Application):
         return True
 
     def extension_action(self, *a):
-        extension = Extension(self)
-        def close(win):
-            settings = Gio.Settings.new('io.github.qwersyk.Newelle')
-            settings.set_int("chat", self.win.chat_id)
-            settings.set_string("path", os.path.normpath(self.win.main_path))
-            self.win.update_settings()
-            win.destroy()
-            return True
-        extension.connect("close-request", close) 
-        extension.present()
+        self.settings_action_paged("Extensions")
 
     def interfaces_action(self, *a):
-        interfaces = InterfacesWindow(self)
-        interfaces.present()
+        self.settings_action_paged("Interfaces")
     
     def export_current_chat_action(self, *a):
         """Export the current chat"""
