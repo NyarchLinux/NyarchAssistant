@@ -1,7 +1,7 @@
 import json
 import threading
 
-from gi.repository import Gtk, Adw, Gio, GLib
+from gi.repository import Gtk, Adw, GLib
 
 from ..controller import NewelleController
 from ..constants import AVAILABLE_INTERFACES
@@ -10,24 +10,16 @@ from ..utility.system import can_escape_sandbox
 from ..handlers.interfaces.interface import Interface
 
 
-class InterfacesWindow(Gtk.Window):
-    def __init__(self, app):
-        Gtk.Window.__init__(self, title=_("Interfaces"))
-        self.settings = Gio.Settings.new('io.github.qwersyk.Newelle')
-        self.controller: NewelleController = app.win.controller
+class InterfacesPage(Adw.PreferencesPage):
+    def __init__(self, app, controller: NewelleController):
+        super().__init__(
+            icon_name="controls-big-symbolic",
+            title=_("Interfaces"),
+        )
+        self.settings = controller.settings
+        self.controller = controller
         self.app = app
         self.sandbox = can_escape_sandbox()
-
-        self.set_default_size(500, 500)
-        self.set_transient_for(app.win)
-        self.set_modal(True)
-        self.set_titlebar(Adw.HeaderBar(css_classes=["flat"]))
-
-        self.notification_block = Adw.ToastOverlay()
-        self.scrolled_window = Gtk.ScrolledWindow()
-        self.scrolled_window.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        self.notification_block.set_child(self.scrolled_window)
-        self.set_child(self.notification_block)
 
         self.settingsrows = {}
         self.extra_settings_builder = ExtraSettingsBuilder(
@@ -68,16 +60,8 @@ class InterfacesWindow(Gtk.Window):
         return "interface"
 
     def _build_ui(self):
-        self.main = Gtk.Box(
-            margin_top=10, margin_start=10, margin_bottom=10, margin_end=10,
-            valign=Gtk.Align.FILL, halign=Gtk.Align.CENTER,
-            orientation=Gtk.Orientation.VERTICAL,
-        )
-        self.main.set_size_request(300, -1)
-        self.scrolled_window.set_child(self.main)
-
         self.interfaces_group = Adw.PreferencesGroup(title=_("Available Interfaces"), description=_("Interfaces are background running services that allow third party applications to interact with Newelle. Enabling an interface means making it auto-start with Newelle."))
-        self.main.append(self.interfaces_group)
+        self.add(self.interfaces_group)
 
         for key in AVAILABLE_INTERFACES:
             model = AVAILABLE_INTERFACES[key]
@@ -201,3 +185,22 @@ class InterfacesWindow(Gtk.Window):
         self.extra_settings_builder.add_extra_settings(
             AVAILABLE_INTERFACES, interface, row, settings=interface.get_extra_settings()
         )
+
+
+class InterfacesWindow(Adw.Window):
+    """Compatibility wrapper for callers that still open interfaces directly."""
+
+    def __init__(self, app):
+        super().__init__(
+            title=_("Interfaces"),
+            default_width=600,
+            default_height=600,
+            transient_for=app.win,
+            modal=True,
+        )
+        toolbar_view = Adw.ToolbarView()
+        toolbar_view.add_top_bar(Adw.HeaderBar())
+        toolbar_view.set_content(
+            InterfacesPage(app, app.win.controller)
+        )
+        self.set_content(toolbar_view)
