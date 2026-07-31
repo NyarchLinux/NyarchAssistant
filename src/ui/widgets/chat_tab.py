@@ -328,7 +328,7 @@ class ChatTab(Gtk.Box):
         if mm is None:
             return
         name = mm.cycle_mode()
-        # Propagate skill overrides + reload so {MODEPROMPT} and tools update.
+        # Propagate skill overrides and reload prompt/tool mode settings.
         active = mm.get_active_mode()
         self.controller.skill_manager.set_mode_overrides(active.get("skills", {}))
         self.controller.update_settings()

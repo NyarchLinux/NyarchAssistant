@@ -101,16 +101,6 @@ class ReplaceHelper:
         return ReplaceHelper.controller.skill_manager.get_catalog()
 
     @staticmethod
-    def get_mode_prompt() -> str:
-        """Return the active Mode's prompt text (empty string if none)."""
-        controller = ReplaceHelper.controller
-        if controller is None:
-            return ""
-        if not hasattr(controller, "mode_manager"):
-            return ""
-        return controller.mode_manager.get_active_mode_prompt()
-
-    @staticmethod
     def get_agents_md() -> str:
         if os.path.exists("AGENTS.md"):
             with open("AGENTS.md", "r") as f:
@@ -151,8 +141,6 @@ def replace_variables(text: str) -> str:
         text = text.replace("{TOOLS}", ReplaceHelper.get_tools_json())
     if "{SKILLS}" in text:
         text = text.replace("{SKILLS}", ReplaceHelper.get_skills_catalog())
-    if "{MODEPROMPT}" in text:
-        text = text.replace("{MODEPROMPT}", ReplaceHelper.get_mode_prompt())
     return text
 
 def replace_variables_dict() -> dict:
@@ -166,7 +154,6 @@ def replace_variables_dict() -> dict:
         "{DISPLAY}": ReplaceHelper.gisplay_server(),
         "{TOOLS}": ReplaceHelper.get_tools_json(),
         "{SKILLS}": ReplaceHelper.get_skills_catalog(),
-        "{MODEPROMPT}": ReplaceHelper.get_mode_prompt(),
     }
 
 class PromptFormatter:

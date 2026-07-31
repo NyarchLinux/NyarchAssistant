@@ -1,16 +1,21 @@
-"""ModeEditorDialog — create or edit a Mode.
+"""Create and edit modes through a tabbed preferences dialog.
 
-An ``Adw.PreferencesDialog`` (same base class as ``ProfileDialog``) used both
-for creating a new Mode and editing an existing one. Lets the user pick a name,
-an icon, a description, the mode prompt (injected via ``{MODEPROMPT}``), and a
-3-state override (No change / Enable / Remove) for each tool and skill.
+Modes are generic overlays for prompts, tools, and skills. Every configurable
+item has three states: inherit the profile, force enable, or force disable.
+Prompt text can additionally be replaced for the lifetime of the mode.
 """
 
 import gettext
 
 from gi.repository import Gtk, Adw
 
-from ...modes import DEFAULT_MODE_NAME, DEFAULT_MODE_ICON, NO_CHANGE, ENABLE, REMOVE
+from ...modes import (
+    DEFAULT_MODE_NAME,
+    DEFAULT_MODE_ICON,
+    NO_CHANGE,
+    ENABLE,
+    REMOVE,
+)
 from .multiline import MultilineEntry
 
 _ = gettext.gettext
@@ -33,7 +38,7 @@ MODE_ICON_CHOICES = [
 
 
 class ModeEditorDialog(Adw.PreferencesDialog):
-    """Dialog to create or edit a Mode."""
+    """Dialog to create or edit a mode."""
 
     def __init__(self, controller, window, mode_name: str | None = None):
         super().__init__()
@@ -44,41 +49,70 @@ class ModeEditorDialog(Adw.PreferencesDialog):
         self.editing = mode_name is not None
         self.original_name = mode_name
         self.is_builtin = mode_name == DEFAULT_MODE_NAME
+        self._syncing_group_controls = False
+        self._tool_controls = {}
+        self._tool_group_controls = {}
+        self._tool_to_group = {}
+        self._prompt_status_labels = {}
 
-        if self.editing:
-            self.set_title(_("Edit Mode"))
-        else:
-            self.set_title(_("New Mode"))
+        self.set_title(_("Edit Mode") if self.editing else _("New Mode"))
         self.set_search_enabled(False)
+        self.set_content_width(760)
+        self.set_content_height(720)
 
-        self.page = Adw.PreferencesPage()
-        self.add(self.page)
-
-        # Local working copy of the mode being edited.
         existing = self.mode_manager.get_mode(mode_name) if self.editing else None
         self._working = {
             "name": mode_name or "",
-            "prompt": (existing or {}).get("prompt", ""),
             "description": (existing or {}).get("description", ""),
             "icon": (existing or {}).get("icon", DEFAULT_MODE_ICON),
             "tools": dict((existing or {}).get("tools", {})),
             "skills": dict((existing or {}).get("skills", {})),
+            "prompts": {
+                key: dict(config)
+                for key, config in (existing or {}).get("prompts", {}).items()
+            },
         }
 
+        # Multiple PreferencesPages give the dialog a native libadwaita page
+        # switcher, keeping each kind of override focused and scannable.
+        self.general_page = self._add_page(
+            _("General"), "settings-symbolic", "general"
+        )
+        self.prompts_page = self._add_page(
+            _("Prompts"), "question-round-outline-symbolic", "prompts"
+        )
+        self.tools_page = self._add_page(_("Tools"), "tools-symbolic", "tools")
+        self.skills_page = self._add_page(
+            _("Skills"), "emoji-actions-symbolic", "skills"
+        )
+
         self._build_identity_group()
-        self._build_prompt_group()
+        self._build_prompts_group()
         self._build_tools_group()
         self._build_skills_group()
-        self._build_actions_group()
+        for page in (
+            self.general_page,
+            self.prompts_page,
+            self.tools_page,
+            self.skills_page,
+        ):
+            self._build_actions_group(page, include_delete=page is self.general_page)
+
+    def _add_page(self, title, icon_name, name):
+        page = Adw.PreferencesPage(title=title, icon_name=icon_name, name=name)
+        self.add(page)
+        return page
 
     # ------------------------------------------------------------------ #
-    # Identity: name / icon / description
+    # General: name / icon / description
     # ------------------------------------------------------------------ #
     def _build_identity_group(self):
-        group = Adw.PreferencesGroup(title=_("Mode"))
-        self.page.add(group)
+        group = Adw.PreferencesGroup(
+            title=_("Mode details"),
+            description=_("Choose how this mode appears in the mode switcher"),
+        )
+        self.general_page.add(group)
 
-        # Name
         name_row = Adw.EntryRow(title=_("Name"), text=self._working["name"])
         if self.is_builtin:
             name_row.set_editable(False)
@@ -87,197 +121,407 @@ class ModeEditorDialog(Adw.PreferencesDialog):
         self.name_row = name_row
         group.add(name_row)
 
-        # Description
         desc_row = Adw.EntryRow(
             title=_("Description"), text=self._working["description"]
         )
         desc_row.connect("changed", self._on_desc_changed)
         group.add(desc_row)
 
-        # Icon picker: horizontal flow of toggle buttons acting as a radio
-        # group (GTK handles mutual exclusion natively via set_group).
         icon_row = Adw.ActionRow(title=_("Icon"))
         self.icon_box = Gtk.Box(
-            orientation=Gtk.Orientation.HORIZONTAL, spacing=6, halign=Gtk.Align.END
+            orientation=Gtk.Orientation.HORIZONTAL,
+            spacing=6,
+            halign=Gtk.Align.END,
         )
         self.icon_buttons = []
         group_leader = None
         for icon_name in MODE_ICON_CHOICES:
-            btn = Gtk.ToggleButton(
+            button = Gtk.ToggleButton(
                 css_classes=["flat"],
                 tooltip_text=icon_name,
             )
-            img = Gtk.Image(icon_name=icon_name, pixel_size=18)
-            btn.set_child(img)
+            button.set_child(Gtk.Image(icon_name=icon_name, pixel_size=18))
             if group_leader is None:
-                group_leader = btn
+                group_leader = button
             else:
-                btn.set_group(group_leader)
-            hid = btn.connect("toggled", self._on_icon_toggled, icon_name)
-            btn._toggled_hid = hid
-            self.icon_buttons.append(btn)
-            self.icon_box.append(btn)
+                button.set_group(group_leader)
+            handler_id = button.connect(
+                "toggled", self._on_icon_toggled, icon_name
+            )
+            button._toggled_hid = handler_id
+            self.icon_buttons.append(button)
+            self.icon_box.append(button)
         icon_row.add_suffix(self.icon_box)
         group.add(icon_row)
-        self._icon_group_leader = group_leader
         self._sync_icon_toggles()
 
     # ------------------------------------------------------------------ #
-    # Prompt
+    # Prompt state and text overrides
     # ------------------------------------------------------------------ #
-    def _build_prompt_group(self):
+    def _build_prompts_group(self):
+        # Import lazily: constants imports handler widgets during application
+        # startup, and importing it at module scope here would form a cycle.
+        from ...constants import AVAILABLE_PROMPTS, PROMPTS
+
         group = Adw.PreferencesGroup(
-            title=_("Mode Prompt"),
-            description=_("Injected into the conversation via {MODEPROMPT}"),
+            title=_("Prompt behavior"),
+            description=_(
+                "Inherit each profile prompt, force it on or off, and optionally replace its text in this mode"
+            ),
         )
-        self.page.add(group)
+        self.prompts_page.add(group)
 
-        row = Adw.PreferencesRow(
-            title=_("Mode Prompt"), activatable=False, focusable=False
+        if not AVAILABLE_PROMPTS:
+            group.add(Adw.ActionRow(title=_("No prompts available")))
+            return
+
+        base_prompts = self.controller.newelle_settings.prompts
+        for prompt in AVAILABLE_PROMPTS:
+            key = prompt["key"]
+            config = self._working["prompts"].get(key, {})
+            base_text = base_prompts.get(key, PROMPTS.get(key, ""))
+            displayed_text = config.get("override", base_text)
+
+            row = Adw.ExpanderRow(
+                title=prompt["title"],
+                subtitle=prompt["description"],
+            )
+            row.add_prefix(
+                Gtk.Image(
+                    icon_name="text-x-generic-symbolic",
+                    css_classes=["dim-label"],
+                )
+            )
+            row.add_suffix(
+                self._build_state_control(
+                    config.get("state", NO_CHANGE),
+                    self._on_prompt_state_selected,
+                    key,
+                )
+            )
+
+            editor_box = Gtk.Box(
+                orientation=Gtk.Orientation.VERTICAL,
+                spacing=6,
+                margin_start=12,
+                margin_end=12,
+                margin_top=8,
+                margin_bottom=12,
+            )
+            editor_header = Gtk.Box(
+                orientation=Gtk.Orientation.HORIZONTAL,
+                spacing=6,
+            )
+            status = Gtk.Label(halign=Gtk.Align.START, hexpand=True)
+            status.add_css_class("dim-label")
+            self._prompt_status_labels[key] = status
+            self._update_prompt_status(key)
+            editor_header.append(status)
+
+            reset_button = Gtk.Button(
+                icon_name="edit-undo-symbolic",
+                css_classes=["flat"],
+                valign=Gtk.Align.CENTER,
+                tooltip_text=_("Use profile prompt text"),
+            )
+            editor_header.append(reset_button)
+            editor_box.append(editor_header)
+
+            entry = MultilineEntry()
+            entry.set_text(displayed_text)
+            entry.prompt_key = key
+            entry.prompt_base_text = base_text
+            entry.set_on_change(self._on_prompt_text_changed)
+            reset_button.connect("clicked", self._on_reset_prompt, entry)
+            editor_box.append(entry)
+            row.add_row(editor_box)
+            group.add(row)
+
+    def _prompt_config(self, key):
+        return self._working["prompts"].setdefault(
+            key, {"state": NO_CHANGE}
         )
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        box.set_margin_start(6)
-        box.set_margin_end(6)
-        box.set_margin_top(6)
-        box.set_margin_bottom(6)
-        self.prompt_entry = MultilineEntry()
-        self.prompt_entry.set_placeholder(_("Describe how the assistant should behave in this mode…"))
-        self.prompt_entry.set_text(self._working["prompt"])
-        self.prompt_entry.set_on_change(self._on_prompt_changed)
-        box.append(self.prompt_entry)
-        row.set_child(box)
-        group.add(row)
+
+    def _on_prompt_state_selected(self, toggle_group, _pspec, key):
+        value = toggle_group.props.active_name
+        if value:
+            self._prompt_config(key)["state"] = value
+
+    def _on_prompt_text_changed(self, entry):
+        key = entry.prompt_key
+        config = self._prompt_config(key)
+        text = entry.get_text()
+        if text == entry.prompt_base_text:
+            config.pop("override", None)
+        else:
+            config["override"] = text
+        self._update_prompt_status(key)
+
+    def _on_reset_prompt(self, _button, entry):
+        entry.set_text(entry.prompt_base_text)
+
+    def _update_prompt_status(self, key):
+        status = self._prompt_status_labels.get(key)
+        if status is None:
+            return
+        config = self._working["prompts"].get(key, {})
+        status.set_label(
+            _("Mode-specific text")
+            if "override" in config
+            else _("Using profile text")
+        )
 
     # ------------------------------------------------------------------ #
-    # Tools / skills 3-state overrides
+    # Tools: three-state overrides grouped by tool metadata
     # ------------------------------------------------------------------ #
     def _build_tools_group(self):
-        group = Adw.PreferencesGroup(title=_("Tools"))
-        self.page.add(group)
+        group = Adw.PreferencesGroup(
+            title=_("Tool behavior"),
+            description=_(
+                "Set a whole group at once, then refine individual tools if needed"
+            ),
+        )
+        self.tools_page.add(group)
+
         tools = self.controller.tools.get_all_tools()
         if not tools:
-            group.add(Adw.ActionRow(title=_("No tools available"), subtitle=""))
+            group.add(Adw.ActionRow(title=_("No tools available")))
             return
+
+        tool_groups = {}
+        ungrouped_tools = []
         for tool in tools:
+            if tool.tools_group:
+                tool_groups.setdefault(tool.tools_group, []).append(tool)
+            else:
+                ungrouped_tools.append(tool)
+
+        for group_name, grouped_tools in tool_groups.items():
+            tool_count = len(grouped_tools)
+            tools_label = _("tools") if tool_count != 1 else _("tool")
+            group_row = Adw.ExpanderRow(
+                title=group_name,
+                subtitle=("{} {}").format(tool_count, tools_label),
+            )
+            group_row.add_prefix(
+                Gtk.Image(
+                    icon_name="folder-symbolic", css_classes=["dim-label"]
+                )
+            )
+
+            keys = [tool.name for tool in grouped_tools]
+            states = {
+                self._working["tools"].get(key, NO_CHANGE) for key in keys
+            }
+            group_state = states.pop() if len(states) == 1 else None
+            group_control = self._build_state_control(
+                group_state,
+                self._on_tool_group_selected,
+                group_name,
+                keys,
+                tooltip_prefix=_("Apply to group: "),
+            )
+            self._tool_group_controls[group_name] = group_control
+            group_row.add_suffix(group_control)
+
+            for tool in grouped_tools:
+                self._tool_to_group[tool.name] = group_name
+                control = self._build_state_control(
+                    self._working["tools"].get(tool.name, NO_CHANGE),
+                    self._on_item_state_selected,
+                    "tools",
+                    tool.name,
+                )
+                self._tool_controls[tool.name] = control
+                group_row.add_row(
+                    self._build_state_row(
+                        title=tool.title,
+                        subtitle=tool.description,
+                        icon_name=tool.icon_name or "tools-symbolic",
+                        control=control,
+                    )
+                )
+            group.add(group_row)
+
+        for tool in ungrouped_tools:
+            control = self._build_state_control(
+                self._working["tools"].get(tool.name, NO_CHANGE),
+                self._on_item_state_selected,
+                "tools",
+                tool.name,
+            )
+            self._tool_controls[tool.name] = control
             group.add(
                 self._build_state_row(
                     title=tool.title,
                     subtitle=tool.description,
                     icon_name=tool.icon_name or "tools-symbolic",
-                    key=tool.name,
-                    current=self._working["tools"].get(tool.name, NO_CHANGE),
-                    target="tools",
+                    control=control,
                 )
             )
 
+    def _on_tool_group_selected(
+        self, toggle_group, _pspec, group_name, tool_keys
+    ):
+        if self._syncing_group_controls:
+            return
+        value = toggle_group.props.active_name
+        if not value:
+            return
+
+        self._syncing_group_controls = True
+        try:
+            for key in tool_keys:
+                self._working["tools"][key] = value
+                control = self._tool_controls.get(key)
+                if control is not None and control.props.active_name != value:
+                    control.set_active_name(value)
+        finally:
+            self._syncing_group_controls = False
+
+    def _sync_tool_group(self, tool_key):
+        if self._syncing_group_controls:
+            return
+        group_name = self._tool_to_group.get(tool_key)
+        control = self._tool_group_controls.get(group_name)
+        if control is None:
+            return
+        group_keys = [
+            key for key, name in self._tool_to_group.items() if name == group_name
+        ]
+        states = {
+            self._working["tools"].get(key, NO_CHANGE) for key in group_keys
+        }
+        self._syncing_group_controls = True
+        try:
+            if len(states) == 1:
+                control.set_active_name(states.pop())
+            else:
+                control.set_active(Gtk.INVALID_LIST_POSITION)
+        finally:
+            self._syncing_group_controls = False
+
+    # ------------------------------------------------------------------ #
+    # Skills
+    # ------------------------------------------------------------------ #
     def _build_skills_group(self):
-        group = Adw.PreferencesGroup(title=_("Skills"))
-        self.page.add(group)
+        group = Adw.PreferencesGroup(
+            title=_("Skill behavior"),
+            description=_("Override which skills are available in this mode"),
+        )
+        self.skills_page.add(group)
         skills = []
         if hasattr(self.controller, "skill_manager"):
             skills = list(self.controller.skill_manager.skills.values())
         if not skills:
-            group.add(Adw.ActionRow(title=_("No skills available"), subtitle=""))
+            group.add(Adw.ActionRow(title=_("No skills available")))
             return
         for skill in skills:
+            control = self._build_state_control(
+                self._working["skills"].get(skill.name, NO_CHANGE),
+                self._on_item_state_selected,
+                "skills",
+                skill.name,
+            )
             group.add(
                 self._build_state_row(
                     title=skill.name,
                     subtitle=skill.description,
                     icon_name="emoji-actions-symbolic",
-                    key=skill.name,
-                    current=self._working["skills"].get(skill.name, NO_CHANGE),
-                    target="skills",
+                    control=control,
                 )
             )
 
-    def _build_state_row(self, title, subtitle, icon_name, key, current, target):
+    # ------------------------------------------------------------------ #
+    # Shared state controls
+    # ------------------------------------------------------------------ #
+    def _build_state_row(self, title, subtitle, icon_name, control):
         row = Adw.ActionRow(title=title, subtitle=subtitle)
         row.add_prefix(Gtk.Image(icon_name=icon_name))
+        row.add_suffix(control)
+        return row
 
-        # Segmented three-state control: Enable (✓, green) / No change (—, neutral)
-        # / Remove (✗, red). Order is No change | Enable | Remove so the neutral
-        # default sits on the left. Adw.Toggle has no CSS-class API, so the
-        # color is carried by a Gtk.Image child with a semantic style class.
-        group = Adw.ToggleGroup()
-        group.add_css_class("state-toggle-group")
-        group.set_valign(Gtk.Align.CENTER)
-        for value, label, icon_name_t, style_class in (
+    def _build_state_control(
+        self,
+        current,
+        callback,
+        *callback_args,
+        tooltip_prefix="",
+    ):
+        control = Adw.ToggleGroup()
+        control.add_css_class("state-toggle-group")
+        control.set_valign(Gtk.Align.CENTER)
+        for value, label, icon_name, style_class in (
             (NO_CHANGE, _("No change"), "go-jump-symbolic", "dim-label"),
             (ENABLE, _("Enable"), "object-select-symbolic", "success"),
-            (REMOVE, _("Remove"), "user-trash-symbolic", "error"),
+            (REMOVE, _("Disable"), "circle-crossed-symbolic", "error"),
         ):
             toggle = Adw.Toggle()
             toggle.set_name(value)
-            toggle.set_tooltip(label)
-            icon = Gtk.Image(icon_name=icon_name_t)
+            toggle.set_tooltip(tooltip_prefix + label)
+            icon = Gtk.Image(icon_name=icon_name)
             icon.add_css_class(style_class)
             toggle.set_child(icon)
-            group.add(toggle)
-        group.set_active_name(current if current else NO_CHANGE)
-        group.connect("notify::active-name", self._on_state_selected, target, key)
-        row.add_suffix(group)
-        return row
+            control.add(toggle)
+        if current in (NO_CHANGE, ENABLE, REMOVE):
+            control.set_active_name(current)
+        else:
+            control.set_active(Gtk.INVALID_LIST_POSITION)
+        control.connect("notify::active-name", callback, *callback_args)
+        return control
+
+    def _on_item_state_selected(self, toggle_group, _pspec, target, key):
+        value = toggle_group.props.active_name
+        if not value:
+            return
+        self._working[target][key] = value
+        if target == "tools":
+            self._sync_tool_group(key)
 
     # ------------------------------------------------------------------ #
-    # Actions: save / delete
+    # Actions and general handlers
     # ------------------------------------------------------------------ #
-    def _build_actions_group(self):
+    def _build_actions_group(self, page, include_delete=False):
         group = Adw.PreferencesGroup()
-        self.page.add(group)
+        page.add(group)
 
-        save_btn = Gtk.Button(
-            label=_("Save"), css_classes=["suggested-action"], hexpand=True
+        save_button = Gtk.Button(
+            label=_("Save Mode"),
+            css_classes=["suggested-action"],
+            hexpand=True,
         )
-        save_btn.connect("clicked", self._on_save)
-        save_row = Adw.ActionRow(activatable=False)
-        save_row.add_suffix(save_btn)
-        group.add(save_row)
+        save_button.connect("clicked", self._on_save)
+        group.add(save_button)
 
-        if self.editing and not self.is_builtin:
-            delete_btn = Gtk.Button(
+        if include_delete and self.editing and not self.is_builtin:
+            delete_button = Gtk.Button(
                 label=_("Delete Mode"),
                 css_classes=["destructive-action"],
                 hexpand=True,
             )
-            delete_btn.connect("clicked", self._on_delete)
-            delete_row = Adw.ActionRow(activatable=False)
-            delete_row.add_suffix(delete_btn)
-            group.add(delete_row)
+            delete_button.connect("clicked", self._on_delete)
+            group.add(delete_button)
 
-    # ------------------------------------------------------------------ #
-    # Handlers
-    # ------------------------------------------------------------------ #
     def _on_name_changed(self, row):
         self._working["name"] = row.get_text().strip()
+        self.name_row.remove_css_class("error")
 
     def _on_desc_changed(self, row):
         self._working["description"] = row.get_text()
 
-    def _on_prompt_changed(self, _entry):
-        self._working["prompt"] = self.prompt_entry.get_text()
-
-    def _on_icon_toggled(self, btn, icon_name):
-        # The toggle group handles mutual exclusion; we only record the choice
-        # when a button becomes active.
-        if btn.get_active():
+    def _on_icon_toggled(self, button, icon_name):
+        if button.get_active():
             self._working["icon"] = icon_name
-
-    def _on_state_selected(self, toggle_group, _pspec, target, key):
-        value = toggle_group.props.active_name
-        self._working[target][key] = value
 
     def _sync_icon_toggles(self):
         current = self._working["icon"] or DEFAULT_MODE_ICON
-        for btn, icon_name in zip(self.icon_buttons, MODE_ICON_CHOICES):
-            # Block our handler while programmatically setting the active state
-            # so reflecting the initial selection doesn't recurse.
-            handler_id = getattr(btn, "_toggled_hid", None)
+        for button, icon_name in zip(self.icon_buttons, MODE_ICON_CHOICES):
+            handler_id = getattr(button, "_toggled_hid", None)
             if handler_id is not None:
-                btn.handler_block(handler_id)
-            btn.set_active(icon_name == current)
+                button.handler_block(handler_id)
+            button.set_active(icon_name == current)
             if handler_id is not None:
-                btn.handler_unblock(handler_id)
+                button.handler_unblock(handler_id)
 
     # ------------------------------------------------------------------ #
     # Save / delete
@@ -289,76 +533,75 @@ class ModeEditorDialog(Adw.PreferencesDialog):
         if self.is_builtin:
             return DEFAULT_MODE_NAME
         if not self.editing and name in self.mode_manager.get_modes():
-            return None  # name collision on create
+            return None
         return name
+
+    def _clean_working_overrides(self):
+        tools = {
+            key: value
+            for key, value in self._working["tools"].items()
+            if value != NO_CHANGE
+        }
+        skills = {
+            key: value
+            for key, value in self._working["skills"].items()
+            if value != NO_CHANGE
+        }
+        prompts = {}
+        for key, config in self._working["prompts"].items():
+            state = config.get("state", NO_CHANGE)
+            cleaned = {"state": state}
+            if "override" in config:
+                cleaned["override"] = config["override"]
+            if state != NO_CHANGE or "override" in cleaned:
+                prompts[key] = cleaned
+        return tools, skills, prompts
 
     def _on_save(self, _button):
         name = self._resolve_name()
         if name is None:
             self.name_row.add_css_class("error")
+            self.set_visible_page(self.general_page)
             return
-        # Drop neutral ("no_change") entries — they carry no information.
-        tools = {k: v for k, v in self._working["tools"].items() if v != NO_CHANGE}
-        skills = {k: v for k, v in self._working["skills"].items() if v != NO_CHANGE}
+
+        tools, skills, prompts = self._clean_working_overrides()
+        mode_data = {
+            "description": self._working["description"],
+            "icon": self._working["icon"],
+            "tools": tools,
+            "skills": skills,
+            "prompts": prompts,
+        }
 
         if self.editing and (self.is_builtin or name == self.original_name):
-            # Same-name edit (or the non-deletable builtin): update in place.
-            self.mode_manager.update_mode(
-                self.original_name,
-                prompt=self._working["prompt"],
-                description=self._working["description"],
-                icon=self._working["icon"],
-                tools=tools,
-                skills=skills,
-            )
+            self.mode_manager.update_mode(self.original_name, **mode_data)
         elif self.editing:
-            # Rename: create under the new name, preserve active state, drop old.
             was_active = (
                 self.mode_manager.get_active_mode_name() == self.original_name
             )
-            self.mode_manager.create_mode(
-                name,
-                prompt=self._working["prompt"],
-                description=self._working["description"],
-                icon=self._working["icon"],
-                tools=tools,
-                skills=skills,
-            )
+            self.mode_manager.create_mode(name, **mode_data)
             if was_active:
-                # delete_mode() would reset active to Normal, so switch first.
+                # Switch first so deleting the old name does not fall back to Normal.
                 self.mode_manager.set_active_mode(name)
             self.mode_manager.delete_mode(self.original_name)
         else:
-            self.mode_manager.create_mode(
-                name,
-                prompt=self._working["prompt"],
-                description=self._working["description"],
-                icon=self._working["icon"],
-                tools=tools,
-                skills=skills,
-            )
-            self.mode_manager.create_mode(
-                name,
-                prompt=self._working["prompt"],
-                description=self._working["description"],
-                icon=self._working["icon"],
-                tools=tools,
-                skills=skills,
-            )
+            self.mode_manager.create_mode(name, **mode_data)
 
-        # Propagate + reload so {MODEPROMPT} and tool visibility update.
-        active = self.mode_manager.get_active_mode()
-        self.controller.skill_manager.set_mode_overrides(active.get("skills", {}))
-        self.controller.update_settings()
-        self.window.refresh_mode_buttons()
+        self._reload_mode_state()
         self.close()
 
     def _on_delete(self, _button):
         if self.is_builtin or not self.editing:
             return
         self.mode_manager.delete_mode(self.original_name)
+        self._reload_mode_state()
+        self.close()
+
+    def _reload_mode_state(self):
         active = self.mode_manager.get_active_mode()
-        self.controller.skill_manager.set_mode_overrides(active.get("skills", {}))
+        if hasattr(self.controller, "skill_manager"):
+            self.controller.skill_manager.set_mode_overrides(
+                active.get("skills", {})
+            )
         self.controller.update_settings()
         self.window.refresh_mode_buttons()
-        self.close()

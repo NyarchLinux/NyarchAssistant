@@ -3,16 +3,16 @@
 A **Mode** is a named overlay that customizes the assistant's behavior without
 touching the active profile. It is composed of:
 
-- ``prompt``       : free-form text injected into the system prompts via the
-  ``{MODEPROMPT}`` variable (empty string means "nothing to add").
 - ``description``  : short one-line summary shown in the mode switcher popover.
 - ``icon``         : a GTK symbolic icon name (see ``DEFAULT_MODE_ICON``).
 - ``tools``        : mapping ``tool_name -> state`` describing how each tool is
   affected relative to the current profile.
 - ``skills``       : mapping ``skill_name -> state`` describing how each skill is
   affected relative to the current profile.
+- ``prompts``      : mapping ``prompt_key -> {state, override}`` describing whether
+  each prompt is enabled and, optionally, which text replaces its profile value.
 
-Each tool/skill ``state`` is one of three values:
+Each tool, skill, or prompt ``state`` is one of three values:
 
 - ``"enable"``    : force the tool/skill on, regardless of profile settings.
 - ``"remove"``    : force the tool/skill off, regardless of profile settings.
@@ -34,7 +34,7 @@ VALID_STATES = (ENABLE, REMOVE, NO_CHANGE)
 
 # Built-in modes that every installation ships with. They are merged into the
 # stored ``modes`` setting on load if missing; "Normal" can never be deleted.
-PLAN_MODE_PROMPT = """## Plan Mode
+PLAN_ASSISTANT_OVERRIDE = """## Plan Mode
 
 You are operating in **Plan Mode**. In this mode you must NOT make any changes
 to the system: do not execute commands, do not create, edit, or delete files,
@@ -51,14 +51,13 @@ and you will be allowed to execute it."""
 
 DEFAULT_MODES = {
     "Normal": {
-        "prompt": "",
         "description": _("Standard assistant behavior"),
         "icon": "user-available-symbolic",
         "tools": {},
         "skills": {},
+        "prompts": {},
     },
     "Plan": {
-        "prompt": PLAN_MODE_PROMPT,
         "description": _("Plan first, then act — no side effects"),
         "icon": "document-edit-symbolic",
         # The command execution tool is removed so the assistant cannot mutate
@@ -67,6 +66,14 @@ DEFAULT_MODES = {
             "execute_command": REMOVE,
         },
         "skills": {},
+        # Plan Mode uses the same generic prompt override system available to
+        # every other mode; there is no dedicated mode-only prompt anymore.
+        "prompts": {
+            "assistant": {
+                "state": ENABLE,
+                "override": PLAN_ASSISTANT_OVERRIDE,
+            },
+        },
     },
 }
 
@@ -84,11 +91,17 @@ class ModeManager:
 
         {
             "<mode_name>": {
-                "prompt":       "<str>",
                 "description":  "<str>",
                 "icon":         "<str>",
                 "tools":        {"<tool_name>": "<state>", ...},
                 "skills":       {"<skill_name>": "<state>", ...},
+                "prompts":      {
+                    "<prompt_key>": {
+                        "state": "<state>",
+                        "override": "<str>",
+                    },
+                    ...
+                },
             },
             ...
         }
@@ -109,10 +122,18 @@ class ModeManager:
         except (json.JSONDecodeError, TypeError):
             modes = {}
 
-        # Merge built-in defaults on top of whatever is stored: a built-in
-        # missing from storage is added; a user-edited built-in is preserved.
-        merged = dict(DEFAULT_MODES)
-        merged.update(modes)
+        if not isinstance(modes, dict):
+            modes = {}
+
+        # Normalize while merging so legacy modes containing the old singular
+        # ``prompt`` field are migrated and persisted immediately.
+        merged = {
+            name: self._normalize_mode(data)
+            for name, data in DEFAULT_MODES.items()
+        }
+        for name, data in modes.items():
+            if isinstance(name, str) and isinstance(data, dict):
+                merged[name] = self._normalize_mode(data)
         self.modes = merged
 
         # Persist the merged view so the schema always reflects reality.
@@ -175,10 +196,6 @@ class ModeManager:
         data = self.modes.get(self.active_mode) or self.modes[DEFAULT_MODE_NAME]
         return self._normalize_mode(data)
 
-    def get_active_mode_prompt(self) -> str:
-        """Return the active mode's prompt text (empty string if none/empty)."""
-        return self.get_active_mode().get("prompt", "") or ""
-
     def get_tool_override(self, tool_name: str) -> str:
         """Return the active mode's state for a tool (defaults to NO_CHANGE)."""
         tools = self.get_active_mode().get("tools", {})
@@ -188,6 +205,11 @@ class ModeManager:
         """Return the active mode's state for a skill (defaults to NO_CHANGE)."""
         skills = self.get_active_mode().get("skills", {})
         return skills.get(skill_name, NO_CHANGE)
+
+    def get_prompt_override(self, prompt_key: str) -> dict:
+        """Return the active mode's normalized settings for one prompt."""
+        prompts = self.get_active_mode().get("prompts", {})
+        return dict(prompts.get(prompt_key, {"state": NO_CHANGE}))
 
     # ------------------------------------------------------------------ #
     # Resolution helpers (apply the 3-state to a base boolean)
@@ -209,6 +231,22 @@ class ModeManager:
         if override == REMOVE:
             return False
         return base_enabled
+
+    def resolve_prompt_enabled(self, prompt_key: str, base_enabled: bool) -> bool:
+        """Apply the active mode's state to a profile-derived prompt setting."""
+        override = self.get_prompt_override(prompt_key).get("state", NO_CHANGE)
+        if override == ENABLE:
+            return True
+        if override == REMOVE:
+            return False
+        return base_enabled
+
+    def resolve_prompt_text(self, prompt_key: str, base_text: str) -> str:
+        """Return a mode's text override or the profile-derived prompt text."""
+        override = self.get_prompt_override(prompt_key)
+        if "override" in override:
+            return override["override"]
+        return base_text
 
     # ------------------------------------------------------------------ #
     # Mutators
@@ -237,12 +275,14 @@ class ModeManager:
         self.set_active_mode(next_name)
         return next_name
 
-    def create_mode(self, name: str, prompt: str = "", description: str = "", icon: str = DEFAULT_MODE_ICON, tools: dict | None = None, skills: dict | None = None):
+    def create_mode(self, name: str, description: str = "", icon: str = DEFAULT_MODE_ICON, tools: dict | None = None, skills: dict | None = None, prompts: dict | None = None):
         """Create a new mode. Overwrites an existing mode with the same name."""
-        self.modes[name] = self._build_mode(prompt, description, icon, tools, skills)
+        self.modes[name] = self._build_mode(
+            description, icon, tools, skills, prompts
+        )
         self._save_modes()
 
-    def update_mode(self, name: str, prompt: str | None = None, description: str | None = None, icon: str | None = None, tools: dict | None = None, skills: dict | None = None):
+    def update_mode(self, name: str, description: str | None = None, icon: str | None = None, tools: dict | None = None, skills: dict | None = None, prompts: dict | None = None):
         """Update fields of an existing mode. Raises ``ValueError`` if unknown.
 
         ``None`` arguments leave the corresponding field untouched.
@@ -250,8 +290,6 @@ class ModeManager:
         if name not in self.modes:
             raise ValueError(f"Mode '{name}' not found")
         mode = self._normalize_mode(self.modes[name])
-        if prompt is not None:
-            mode["prompt"] = prompt
         if description is not None:
             mode["description"] = description
         if icon is not None:
@@ -260,6 +298,8 @@ class ModeManager:
             mode["tools"] = self._clean_state_map(tools)
         if skills is not None:
             mode["skills"] = self._clean_state_map(skills)
+        if prompts is not None:
+            mode["prompts"] = self._clean_prompt_map(prompts)
         self.modes[name] = mode
         self._save_modes()
 
@@ -283,13 +323,13 @@ class ModeManager:
     # Internal helpers
     # ------------------------------------------------------------------ #
     @staticmethod
-    def _build_mode(prompt, description, icon, tools, skills) -> dict:
+    def _build_mode(description, icon, tools, skills, prompts) -> dict:
         return {
-            "prompt": prompt or "",
             "description": description or "",
             "icon": icon or DEFAULT_MODE_ICON,
             "tools": ModeManager._clean_state_map(tools or {}),
             "skills": ModeManager._clean_state_map(skills or {}),
+            "prompts": ModeManager._clean_prompt_map(prompts or {}),
         }
 
     @staticmethod
@@ -299,17 +339,53 @@ class ModeManager:
         Older stored modes (without ``description``/``icon``) are migrated
         transparently by filling sensible defaults.
         """
+        prompts = data.get("prompts", {})
+        # Migrate the retired singular mode prompt to a generic override. The
+        # assistant prompt is the closest equivalent and keeps existing custom
+        # modes useful without retaining a hidden dedicated-prompt pathway.
+        legacy_prompt = data.get("prompt", "") or ""
+        if legacy_prompt and not prompts:
+            prompts = {
+                "assistant": {
+                    "state": ENABLE,
+                    "override": legacy_prompt,
+                }
+            }
+
         return {
-            "prompt": data.get("prompt", "") or "",
             "description": data.get("description", "") or "",
             "icon": data.get("icon", "") or DEFAULT_MODE_ICON,
             "tools": ModeManager._clean_state_map(data.get("tools", {})),
             "skills": ModeManager._clean_state_map(data.get("skills", {})),
+            "prompts": ModeManager._clean_prompt_map(prompts),
         }
 
     @staticmethod
     def _clean_state_map(state_map) -> dict:
-        """Keep only entries whose value is a valid state."""
+        """Keep actionable valid states; neutral entries carry no information."""
         if not isinstance(state_map, dict):
             return {}
-        return {name: state for name, state in state_map.items() if state in VALID_STATES}
+        return {
+            name: state
+            for name, state in state_map.items()
+            if state in (ENABLE, REMOVE)
+        }
+
+    @staticmethod
+    def _clean_prompt_map(prompt_map) -> dict:
+        """Validate prompt states and optional string text overrides."""
+        if not isinstance(prompt_map, dict):
+            return {}
+        cleaned = {}
+        for key, config in prompt_map.items():
+            if not isinstance(key, str) or not isinstance(config, dict):
+                continue
+            state = config.get("state", NO_CHANGE)
+            if state not in VALID_STATES:
+                state = NO_CHANGE
+            normalized = {"state": state}
+            if isinstance(config.get("override"), str):
+                normalized["override"] = config["override"]
+            if state != NO_CHANGE or "override" in normalized:
+                cleaned[key] = normalized
+        return cleaned

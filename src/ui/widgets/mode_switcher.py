@@ -132,7 +132,7 @@ class ModeButton(Gtk.MenuButton):
         # Propagate skill overrides to the skill manager.
         active = mm.get_active_mode()
         self.controller.skill_manager.set_mode_overrides(active.get("skills", {}))
-        # Reload prompts/tools so {MODEPROMPT} and tool visibility update.
+        # Reload prompt and tool overrides for the newly active mode.
         self.controller.update_settings()
         self.refresh()
         self.popover.popdown()

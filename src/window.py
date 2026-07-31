@@ -1568,7 +1568,7 @@ class MainWindow(Adw.ApplicationWindow):
             groups: List of settings groups that were changed
         """
         # Load new settings and compare with old to determine what actually changed
-        newsettings = NewelleSettings()
+        newsettings = NewelleSettings(self.controller.mode_manager)
         newsettings.load_settings(self.settings)
         actual_reloads = self.controller.newelle_settings.compare_settings(newsettings)
 
