@@ -67,11 +67,17 @@ class ClaudeHandler(LLMHandler):
     def get_extra_requirements() -> list:
         return ["anthropic"]
 
-    def get_models(self):
-        if not self.is_installed() or self.get_setting("api", False) == "" or self.get_setting("endpoint", False) is None:
-            return
+    def _get_client(self):
         import anthropic
-        client = anthropic.Client(api_key=self.get_setting("api"))
+        return anthropic.Client(
+            api_key=self.get_setting("api"),
+            base_url=self.get_setting("endpoint"),
+        )
+
+    def get_models(self):
+        if not self.is_installed() or self.get_setting("api", False) == "":
+            return
+        client = self._get_client()
         result = tuple()
         for model in client.models.list():
             result += ((model.display_name, model.id,), )
@@ -82,6 +88,7 @@ class ClaudeHandler(LLMHandler):
     def get_extra_settings(self) -> list:
         settings = [
             ExtraSettings.EntrySetting("api", _("API Key"), _("The API key to use"), "", password=True),
+            ExtraSettings.EntrySetting("endpoint", _("API Endpoint"), _("API base URL for Anthropic-compatible services"), "https://api.anthropic.com"),
             ExtraSettings.ToggleSetting("custom_model", _("Use a custom model"), _("Use a custom model"), False, update_settings=True),
         ]
         if self.get_setting("custom_model", False):
@@ -99,8 +106,7 @@ class ClaudeHandler(LLMHandler):
         return settings
 
     def generate_text(self, prompt: str, history: list[dict[str, str]] = [], system_prompt: list[str] = []) -> str:
-        import anthropic
-        client = anthropic.Client(api_key=self.get_setting("api"))
+        client = self._get_client()
         history.append({"User": "User", "Message": prompt})
         messages = self.convert_history(history)
         response = client.messages.create(
@@ -113,8 +119,7 @@ class ClaudeHandler(LLMHandler):
         return response.content[0].text
 
     def generate_text_stream(self, prompt: str, history: list[dict[str, str]] = [], system_prompt: list[str] = [], on_update: Callable[[str], Any] = lambda _: None, extra_args: list = []) -> str:
-        import anthropic
-        client = anthropic.Client(api_key=self.get_setting("api"))
+        client = self._get_client()
         history.append({"User": "User", "Message": prompt})
         messages = self.convert_history(history)
         with client.messages.stream(
@@ -132,4 +137,3 @@ class ClaudeHandler(LLMHandler):
                     prev_message = full_message
                 full_message += text
             return full_message.strip()
-
