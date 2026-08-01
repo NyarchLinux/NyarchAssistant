@@ -10,7 +10,6 @@ Each ChatTab owns its own:
 
 from gi.repository import Gtk, Adw, Gio, Gdk, GObject, GLib, GdkPixbuf
 import threading
-import time
 import re
 import gettext
 import subprocess
@@ -34,6 +33,10 @@ from ...utility.media import extract_supported_files
 from ...tools import Command
 
 _ = gettext.gettext
+
+_STREAM_REVEAL_INTERVAL_MS = 30
+_STREAM_REVEAL_TARGET_FRAMES = 4
+_STREAM_REVEAL_MAX_CHARS = 48
 
 
 class ChatTab(Gtk.Box):
@@ -59,12 +62,14 @@ class ChatTab(Gtk.Box):
         self.streaming_pending = False
         self.streaming_lock = threading.Lock()
         self.streamed_content = ""
+        self._stream_target_content = ""
+        self._stream_reveal_source_id = None
+        self._stream_reveal_generation = None
         self.is_thinking = False
         self.thinking_text = ""
         self.main_text = ""
         self.current_streaming_message = None
         self.streaming_box = None
-        self.last_update = 0
         
         # Generation state
         self.active_tool_results = []
@@ -794,9 +799,15 @@ class ChatTab(Gtk.Box):
             self.streamed_message = ""
             self.curr_label = ""
             self.streaming_label = None
-            self.last_update = time.time()
             self.stream_thinking = False
-            GLib.idle_add(self.create_streaming_message_label)
+            with self.streaming_lock:
+                self.streamed_content = ""
+                self._stream_target_content = ""
+                self.streaming_pending = False
+            GLib.idle_add(
+                self.create_streaming_message_label,
+                stream_number_variable,
+            )
             
         def run_generation():
             for status, data in self.controller.generate_response(
@@ -831,6 +842,7 @@ class ChatTab(Gtk.Box):
         
     def _handle_generation_finished(self, data, stream_number_variable):
         """Handle generation completion."""
+        self._cancel_stream_reveal()
         message_label = data['message']
         prompts = data['prompts']
         self.last_generation_time = data['time']
@@ -933,10 +945,10 @@ class ChatTab(Gtk.Box):
         if self.controller.newelle_settings.automatic_stt:
             threading.Thread(target=restart_recording).start()
             
-    def create_streaming_message_label(self):
+    def create_streaming_message_label(self, stream_number_variable):
         """Create a label for message streaming."""
-        self.streamed_content = ""
-        self.streaming_pending = False
+        self._cancel_stream_reveal()
+        self._stream_reveal_generation = stream_number_variable
         
         next_message_id = len(self.chat)
         self.current_streaming_message = Message(
@@ -957,25 +969,112 @@ class ChatTab(Gtk.Box):
         except (AttributeError, IndexError):
             pass
         self.streaming_box.set_overflow(Gtk.Overflow.VISIBLE)
+
+        with self.streaming_lock:
+            has_pending_text = bool(self._stream_target_content)
+        if has_pending_text:
+            self._start_stream_reveal(stream_number_variable)
         
     def update_message(self, message, stream_number_variable, *args):
         """Update message label when streaming (thread-safe)."""
         if self.stream_number_variable != stream_number_variable:
             return
-        
-        if time.time() - self.last_update >= 0.2:
-            self.last_update = time.time()
-            GLib.idle_add(self.refresh_streaming_ui, message, stream_number_variable)
-            
-    def refresh_streaming_ui(self, message, stream_number_variable):
-        """Update the UI with the latest streamed content (main thread)."""
+
+        with self.streaming_lock:
+            self._stream_target_content = message
+            if self.streaming_pending:
+                return
+            self.streaming_pending = True
+        GLib.idle_add(self._queue_stream_reveal, stream_number_variable)
+
+    def _queue_stream_reveal(self, stream_number_variable):
+        """Coalesce producer updates and start the main-thread reveal loop."""
         if self.stream_number_variable != stream_number_variable:
+            with self.streaming_lock:
+                self.streaming_pending = False
             return GLib.SOURCE_REMOVE
-        
-        if hasattr(self, 'current_streaming_message') and self.current_streaming_message:
-            self.current_streaming_message.update_content(message, is_streaming=True)
-        
+
+        self._start_stream_reveal(stream_number_variable)
         return GLib.SOURCE_REMOVE
+
+    def _start_stream_reveal(self, stream_number_variable):
+        if (
+            self._stream_reveal_source_id is not None
+            and self._stream_reveal_generation == stream_number_variable
+        ):
+            return
+
+        self._cancel_stream_reveal()
+        self._stream_reveal_generation = stream_number_variable
+        with self.streaming_lock:
+            self.streaming_pending = True
+        self._stream_reveal_source_id = GLib.timeout_add(
+            _STREAM_REVEAL_INTERVAL_MS,
+            self._reveal_streaming_text,
+            stream_number_variable,
+        )
+
+    def _reveal_streaming_text(self, stream_number_variable):
+        """Reveal a small, adaptive slice of the latest streamed response."""
+        if self.stream_number_variable != stream_number_variable:
+            with self.streaming_lock:
+                self.streaming_pending = False
+            self._stream_reveal_source_id = None
+            return GLib.SOURCE_REMOVE
+
+        if self.current_streaming_message is None:
+            return GLib.SOURCE_CONTINUE
+
+        with self.streaming_lock:
+            target_content = self._stream_target_content
+            visible_content = self.streamed_content
+            if target_content == visible_content:
+                self.streaming_pending = False
+                self._stream_reveal_source_id = None
+                return GLib.SOURCE_REMOVE
+
+        settings = Gtk.Settings.get_default()
+        animations_enabled = (
+            settings is None
+            or settings.get_property("gtk-enable-animations")
+        )
+
+        if not animations_enabled or not self.get_mapped():
+            next_content = target_content
+        elif target_content.startswith(visible_content):
+            remaining = len(target_content) - len(visible_content)
+            reveal_count = max(
+                1,
+                min(
+                    _STREAM_REVEAL_MAX_CHARS,
+                    (remaining + _STREAM_REVEAL_TARGET_FRAMES - 1)
+                    // _STREAM_REVEAL_TARGET_FRAMES,
+                ),
+            )
+            next_content = target_content[:len(visible_content) + reveal_count]
+        else:
+            # Some handlers revise earlier output instead of only appending.
+            # Apply those corrections atomically so the displayed text stays valid.
+            next_content = target_content
+
+        with self.streaming_lock:
+            self.streamed_content = next_content
+
+        if self.current_streaming_message is not None:
+            self.current_streaming_message.update_content(
+                next_content,
+                is_streaming=True,
+            )
+
+        return GLib.SOURCE_CONTINUE
+
+    def _cancel_stream_reveal(self):
+        if self._stream_reveal_source_id is not None:
+            GLib.source_remove(self._stream_reveal_source_id)
+            self._stream_reveal_source_id = None
+        self._stream_reveal_generation = None
+        with self.streaming_lock:
+            self.streaming_pending = False
     
     def add_reading_widget(self, documents):
         """Add document reading widget during streaming."""

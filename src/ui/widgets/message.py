@@ -30,6 +30,11 @@ from .tool import ToolWidget
 from ...tools import ToolResult
 from ...ui import apply_css_to_widget, load_image_with_callback
 
+
+_STREAM_FADE_DURATION_US = 140_000
+_STREAM_FADE_START_ALPHA = 0.32
+
+
 class Message(Gtk.Box):
     def __init__(self, message: str, is_user: bool, parent_window, id_message: int = -1, chunk_uuid = None, restore=False):
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
@@ -151,6 +156,8 @@ class Message(Gtk.Box):
                     self._unregister_execution_copybox(w)
                     self.remove(w)
             else:
+                if w_type == "text":
+                    self._stop_stream_fade(widget_or_list)
                 self._unregister_execution_copybox(widget_or_list)
                 self.remove(widget_or_list)
 
@@ -239,8 +246,10 @@ class Message(Gtk.Box):
 
     def _update_widget(self, widget, w_type, new_chunk):
         if w_type == "text":
+            previous_text = widget.get_text()
             if widget.get_label() != new_chunk.text:
                 widget.set_markup(markwon_to_pango(new_chunk.text, validate=not self.streaming))
+                self._fade_streamed_text(widget, previous_text)
         elif w_type == "codeblock":
             if isinstance(widget, CopyBox):
                 widget.update_code(new_chunk.text)
@@ -317,7 +326,67 @@ class Message(Gtk.Box):
             # Assistant text fills the available row width (left-aligned).
             label_kwargs["halign"] = Gtk.Align.FILL
             label_kwargs["xalign"] = 0
-        box.append(Gtk.Label(**label_kwargs))
+        label = Gtk.Label(**label_kwargs)
+        box.append(label)
+        self._fade_streamed_text(label, "")
+
+    def _fade_streamed_text(self, label, previous_text):
+        """Fade in only the visible text appended by the latest stream update."""
+        self._stop_stream_fade(label)
+        if not self.streaming or self.is_user:
+            return
+
+        settings = Gtk.Settings.get_default()
+        if settings is not None and not settings.get_property("gtk-enable-animations"):
+            return
+
+        current_text = label.get_text()
+        if not current_text.startswith(previous_text):
+            return
+
+        appended_text = current_text[len(previous_text):]
+        if not appended_text.strip():
+            return
+
+        start_index = len(previous_text.encode("utf-8"))
+        end_index = len(current_text.encode("utf-8"))
+        started_at = GLib.get_monotonic_time()
+
+        def set_suffix_alpha(alpha):
+            attributes = Pango.AttrList.new()
+            fade = Pango.attr_foreground_alpha_new(round(65535 * alpha))
+            fade.start_index = start_index
+            fade.end_index = end_index
+            attributes.insert(fade)
+            label.set_attributes(attributes)
+
+        set_suffix_alpha(_STREAM_FADE_START_ALPHA)
+
+        def on_tick(widget, _frame_clock):
+            elapsed = GLib.get_monotonic_time() - started_at
+            progress = min(1.0, elapsed / _STREAM_FADE_DURATION_US)
+            eased_progress = 1.0 - pow(1.0 - progress, 3)
+            alpha = _STREAM_FADE_START_ALPHA + (
+                (1.0 - _STREAM_FADE_START_ALPHA) * eased_progress
+            )
+
+            if progress >= 1.0 or not self.streaming:
+                widget.set_attributes(Pango.AttrList.new())
+                widget._stream_fade_tick_id = None
+                return GLib.SOURCE_REMOVE
+
+            set_suffix_alpha(alpha)
+            return GLib.SOURCE_CONTINUE
+
+        label._stream_fade_tick_id = label.add_tick_callback(on_tick)
+
+    @staticmethod
+    def _stop_stream_fade(label):
+        tick_id = getattr(label, "_stream_fade_tick_id", None)
+        if tick_id is not None:
+            label.remove_tick_callback(tick_id)
+            label._stream_fade_tick_id = None
+        label.set_attributes(Pango.AttrList.new())
 
     def _process_divider(self, box):
         box.append(Gtk.Separator(
@@ -895,6 +964,10 @@ class Message(Gtk.Box):
     def finish_streaming(self):
         """Called when streaming finishes to execute pending side effects."""
         self.streaming = False
+
+        for chunk_type, widget, _chunk in self.widgets_map:
+            if chunk_type == "text" and not isinstance(widget, list):
+                self._stop_stream_fade(widget)
         
         if self.thinking_widget:
             self.thinking_widget.stop_thinking()

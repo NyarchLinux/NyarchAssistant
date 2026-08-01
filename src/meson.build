@@ -245,6 +245,7 @@ utility_sources = [
   'utility/wakeword_detector.py',
   'utility/vad.py',
   'utility/force_sync.py',
+  'utility/file_search.py',
   'utility/context_manager.py',
   'utility/command_permissions.py',
   'utility/command_runner.py',
