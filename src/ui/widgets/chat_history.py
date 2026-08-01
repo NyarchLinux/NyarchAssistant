@@ -40,6 +40,11 @@ class ChatHistory(Gtk.Box):
         self.lazy_loaded_end = 0  # Last loaded message index (exclusive)
         self.lazy_loading_in_progress = False
         self.scroll_handler_id = None  # Store scroll handler ID to disconnect when needed
+        self.scroll_bounds_handler_id = None
+        self._follow_new_content = True
+        self._programmatic_scroll = False
+        self._last_scroll_value = None
+        self._scroll_to_bottom_source_id = None
         self._preamble_row_count = 0  # Number of warning/disclaimer rows at the top
 
         self.messages_box = []
@@ -54,6 +59,11 @@ class ChatHistory(Gtk.Box):
 
         # Add history
         self.chat_scroll = Gtk.ScrolledWindow(vexpand=True)
+        self._user_scroll_controller = Gtk.EventControllerScroll.new(
+            Gtk.EventControllerScrollFlags.VERTICAL
+        )
+        self._user_scroll_controller.connect("scroll", self._on_user_scroll)
+        self.chat_scroll.add_controller(self._user_scroll_controller)
         self.history_block.add_named(self.chat_scroll, "history")
         
         self.chat_scroll_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -123,8 +133,15 @@ class ChatHistory(Gtk.Box):
         if self.scroll_handler_id is not None:
             adjustment = self.chat_scroll.get_vadjustment()
             adjustment.disconnect(self.scroll_handler_id)
+        if self.scroll_bounds_handler_id is not None:
+            adjustment = self.chat_scroll.get_vadjustment()
+            adjustment.disconnect(self.scroll_bounds_handler_id)
         adjustment = self.chat_scroll.get_vadjustment()
         self.scroll_handler_id = adjustment.connect("value-changed", self._on_scroll_changed)
+        self.scroll_bounds_handler_id = adjustment.connect(
+            "notify::upper",
+            self._on_scroll_bounds_changed,
+        )
         # Lazy load if
         if self.lazy_load_enabled and total_messages > self.lazy_load_batch_size:
             # Load only the last batch_size messages initially
@@ -168,19 +185,65 @@ class ChatHistory(Gtk.Box):
         GLib.timeout_add(200, self.scrolled_chat)
         GLib.idle_add(self.update_button_text)
 
-    def scrolled_chat(self):
-        """Scroll at the bottom of the chat"""
+    def begin_streaming_scroll(self, force_follow=False):
+        """Start a stream, preserving a paused scroll during automatic continuations."""
         adjustment = self.chat_scroll.get_vadjustment()
-        # Scroll to the bottom: upper - page_size gives us the maximum value
-        # Queue a resize and scroll in idle to ensure the widget is fully allocated
+        if force_follow or self._is_at_bottom(adjustment):
+            self._follow_new_content = True
+        self.scrolled_chat()
+        return GLib.SOURCE_REMOVE
+
+    def scrolled_chat(self):
+        """Follow new content only while the user has not scrolled away."""
+        if not self._follow_new_content:
+            return GLib.SOURCE_REMOVE
+
         self.chat_scroll.queue_resize()
-        GLib.timeout_add(200, self._do_scroll)
+        if self._scroll_to_bottom_source_id is None:
+            self._scroll_to_bottom_source_id = GLib.idle_add(self._do_scroll)
+        return GLib.SOURCE_REMOVE
 
     def _do_scroll(self):
-        """Actually perform the scroll after widget allocation"""
+        """Move to the exact bottom without treating it as user input."""
+        self._scroll_to_bottom_source_id = None
+        if not self._follow_new_content:
+            return GLib.SOURCE_REMOVE
+
         adjustment = self.chat_scroll.get_vadjustment()
-        adjustment.set_value(100000)
+        bottom = max(
+            adjustment.get_lower(),
+            adjustment.get_upper() - adjustment.get_page_size(),
+        )
+        self._programmatic_scroll = True
+        adjustment.set_value(bottom)
+        self._last_scroll_value = adjustment.get_value()
+        self._programmatic_scroll = False
+        return GLib.SOURCE_REMOVE
+
+    @staticmethod
+    def _is_at_bottom(adjustment, tolerance=2.0):
+        bottom = max(
+            adjustment.get_lower(),
+            adjustment.get_upper() - adjustment.get_page_size(),
+        )
+        return bottom - adjustment.get_value() <= tolerance
+
+    def _on_scroll_bounds_changed(self, adjustment, _pspec):
+        """Keep following as streamed content increases the scrollable height."""
+        if self._follow_new_content:
+            self.scrolled_chat()
+
+    def _on_user_scroll(self, _controller, _dx, dy):
+        """Pause following as soon as the user wheels or swipes upward."""
+        if dy < 0:
+            self._pause_auto_scroll()
         return False
+
+    def _pause_auto_scroll(self):
+        self._follow_new_content = False
+        if self._scroll_to_bottom_source_id is not None:
+            GLib.source_remove(self._scroll_to_bottom_source_id)
+            self._scroll_to_bottom_source_id = None
 
     def update_button_text(self):
         """Update clear chat, regenerate message and continue buttons, add offers"""
@@ -1188,14 +1251,27 @@ class ChatHistory(Gtk.Box):
                 )
     
     def _on_scroll_changed(self, adjustment):
-        """Handle scroll events to trigger lazy loading of messages"""
+        """Track user scroll intent and trigger lazy loading of messages."""
+        value = adjustment.get_value()
+        at_bottom = self._is_at_bottom(adjustment)
+        moved_up = (
+            self._last_scroll_value is not None
+            and value < self._last_scroll_value - 1.0
+        )
+        if self._programmatic_scroll:
+            self._last_scroll_value = value
+        elif moved_up and (not at_bottom or not self._follow_new_content):
+            self._pause_auto_scroll()
+        elif at_bottom:
+            self._follow_new_content = True
+        self._last_scroll_value = value
+
         if not self.lazy_load_enabled or self.lazy_loading_in_progress:
             return
         
         if len(self.chat) <= self.lazy_load_batch_size:
             return  # No lazy loading needed for short chats
         
-        value = adjustment.get_value()
         lower = adjustment.get_lower()
         upper = adjustment.get_upper()
         page_size = adjustment.get_page_size()

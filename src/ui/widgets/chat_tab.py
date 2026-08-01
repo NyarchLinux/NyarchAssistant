@@ -793,6 +793,7 @@ class ChatTab(Gtk.Box):
         self.emit("generation-started")
         GLib.idle_add(self.update_tab_indicator)
         GLib.idle_add(self.chat_history.set_generating, True)
+        GLib.idle_add(self.chat_history.begin_streaming_scroll, manual)
         
         # Start creating the message
         if self.model.stream_enabled():
@@ -1065,6 +1066,7 @@ class ChatTab(Gtk.Box):
                 next_content,
                 is_streaming=True,
             )
+            self.chat_history.scrolled_chat()
 
         return GLib.SOURCE_CONTINUE
 
