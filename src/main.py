@@ -188,6 +188,23 @@ class MyApp(Adw.Application):
           line-height: 1.75;
         }
 
+        .source-chip {
+          min-height: 22px;
+          padding: 1px 7px;
+          margin: 0 2px;
+          color: @accent_color;
+          background-color: alpha(@accent_bg_color, 0.14);
+        }
+
+        .source-chip:hover {
+          background-color: alpha(@accent_bg_color, 0.24);
+        }
+
+        .source-chip label {
+          font-size: 0.95em;
+          font-weight: 600;
+        }
+
         .prompt-drop-target {
           outline: 2px solid @accent_color;
           outline-offset: -2px;

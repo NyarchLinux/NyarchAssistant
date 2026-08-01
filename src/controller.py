@@ -26,6 +26,7 @@ from .handlers.interfaces.interface import Interface
 from .utility.system import is_flatpak
 from .utility.pip import install_module
 from .utility.profile_settings import get_settings_dict_by_groups
+from .utility.source_attribution import format_source_context
 from .constants import AVAILABLE_INTEGRATIONS, AVAILABLE_WEBSEARCH, AVAILABLE_IMAGE_GENERATORS, DIR_NAME, SCHEMA_ID, PROMPTS, AVAILABLE_STT, AVAILABLE_TTS, AVAILABLE_LLMS, AVAILABLE_RAGS, AVAILABLE_PROMPTS, AVAILABLE_MEMORIES, AVAILABLE_EMBEDDINGS, AVAILABLE_INTERFACES, SETTINGS_GROUPS, restore_handlers
 import threading
 import pickle
@@ -1440,9 +1441,14 @@ class NewelleController:
             
         r = []
         if self.newelle_settings.memory_on:
-            r += self.handlers.memory.get_context(
+            memory_contexts = self.handlers.memory.get_context(
                 chat[-1]["Message"], self.get_history(chat=chat)
-            )
+            ) or []
+            r += [
+                format_source_context(context, "Saved memory", source_type="Memory")
+                for context in memory_contexts
+                if context and context.strip()
+            ]
         if self.newelle_settings.rag_on:
             r += self.handlers.rag.get_context(
                 chat[-1]["Message"], self.get_history(chat=chat)

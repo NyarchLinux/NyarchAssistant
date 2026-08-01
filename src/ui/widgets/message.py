@@ -10,6 +10,7 @@ import socket
 from gi.repository import Gtk, GLib, Pango, GdkPixbuf, Gio, Gdk
 
 from ...utility.message_chunk import get_message_chunks, MessageChunk
+from ...utility.source_attribution import CitationSource, extract_source_section
 from ...utility.strings import markwon_to_pango, remove_thinking_blocks, simple_markdown_to_pango, quote_string
 from pylatexenc.latex2text import LatexNodes2Text
 
@@ -27,12 +28,15 @@ def _inline_latex_size(zoom: int) -> int:
 from .barchart import BarChartBox
 from .markuptextview import MarkupTextView
 from .tool import ToolWidget
+from .sources import SourceChip, SourcesButton
 from ...tools import ToolResult
 from ...ui import apply_css_to_widget, load_image_with_callback
 
 
 _STREAM_FADE_DURATION_US = 140_000
 _STREAM_FADE_START_ALPHA = 0.32
+_CITATION_MARKER_PATTERN = re.compile(r'\[(\d+)\](?!\s*\()')
+_CITATION_PROTECTED_MARKDOWN_PATTERN = re.compile(r'(`[^`\n]*`|\[[^\]]+\]\([^)]+\))')
 
 
 class Message(Gtk.Box):
@@ -47,6 +51,9 @@ class Message(Gtk.Box):
         self.restore = restore
         self.thinking_widget = None
         self.pending_execution_copyboxes = set()
+        self.citation_sources = []
+        self.citation_sources_by_number = {}
+        self.sources_button = None
         self._copybox_auto_send_sent = False
         self._tracked_copyboxes_seen = 0
         # State tracking
@@ -94,7 +101,19 @@ class Message(Gtk.Box):
         if not self.get_display(): 
             return False
 
-        chunks = get_message_chunks(message, allow_latex=self.controller.newelle_settings.display_latex)
+        render_message = message
+        sources = []
+        if not self.is_user and not self.streaming:
+            render_message, sources = extract_source_section(message)
+        self.citation_sources = sources
+        self.citation_sources_by_number = {source.number: source for source in sources}
+        if not sources:
+            self.sources_button = None
+
+        chunks = get_message_chunks(render_message, allow_latex=self.controller.newelle_settings.display_latex)
+        if sources:
+            signature = "\n".join(f"{source.number}:{source.raw}" for source in sources)
+            chunks.append(MessageChunk(type="sources", text=signature))
         current_widget_idx = 0
         temp_state = self.state.copy()
         temp_state["codeblock_id"] = -1 
@@ -156,7 +175,7 @@ class Message(Gtk.Box):
                     self._unregister_execution_copybox(w)
                     self.remove(w)
             else:
-                if w_type == "text":
+                if w_type == "text" and isinstance(widget_or_list, Gtk.Label):
                     self._stop_stream_fade(widget_or_list)
                 self._unregister_execution_copybox(widget_or_list)
                 self.remove(widget_or_list)
@@ -230,8 +249,13 @@ class Message(Gtk.Box):
         
         widget = widget_or_list
         if w_type != new_chunk.type: return False
-        if w_type == "text": return True
+        if w_type == "text":
+            needs_citation_widget = self._has_renderable_citation(new_chunk.text)
+            if needs_citation_widget:
+                return False
+            return isinstance(widget, Gtk.Label)
         if w_type == "divider": return True
+        if w_type == "sources": return False
         if w_type == "codeblock":
             if isinstance(widget, CopyBox):
                 codeblocks = {**self.controller.extensionloader.codeblocks, **self.controller.integrationsloader.codeblocks}
@@ -285,6 +309,9 @@ class Message(Gtk.Box):
             self._process_text(chunk, box)
         elif chunk.type == "divider":
             self._process_divider(box)
+        elif chunk.type == "sources":
+            self.sources_button = SourcesButton(self.citation_sources, self._open_citation_source)
+            box.append(self.sources_button)
             
         # Capture added widgets
         end_children = self.observe_children()
@@ -309,6 +336,12 @@ class Message(Gtk.Box):
 
     def _process_text(self, chunk, box):
         text = re.sub(r'\n{2,}', '\n', chunk.text)
+        if self._has_renderable_citation(text):
+            widgets = {}
+            markdown = self._inject_source_widgets(text, widgets)
+            box.append(self._build_markup_overlay(markdown, widgets, text))
+            return
+
         label_kwargs = dict(
             label=markwon_to_pango(text, validate=not self.streaming),
             wrap=True,
@@ -329,6 +362,78 @@ class Message(Gtk.Box):
         label = Gtk.Label(**label_kwargs)
         box.append(label)
         self._fade_streamed_text(label, "")
+
+    def _has_renderable_citation(self, text: str) -> bool:
+        return any(
+            int(match.group(1)) in self.citation_sources_by_number
+            for match in _CITATION_MARKER_PATTERN.finditer(text)
+        )
+
+    def _inject_source_widgets(self, markdown: str, widgets: dict, start_index: int = 0) -> str:
+        widget_index = start_index
+
+        def replace_segment(segment: str) -> str:
+            nonlocal widget_index
+
+            def replace_marker(match):
+                nonlocal widget_index
+                source = self.citation_sources_by_number.get(int(match.group(1)))
+                if source is None:
+                    return match.group(0)
+                widget_id = str(widget_index)
+                widget_index += 1
+                widgets[widget_id] = SourceChip(source, self._open_citation_source)
+                return f"WZIDZW{widget_id}WZIDZW"
+
+            return _CITATION_MARKER_PATTERN.sub(replace_marker, segment)
+
+        parts = _CITATION_PROTECTED_MARKDOWN_PATTERN.split(markdown)
+        for index in range(0, len(parts), 2):
+            parts[index] = replace_segment(parts[index])
+        return "".join(parts)
+
+    def _build_markup_overlay(self, markdown: str, widgets: dict, measure_text: str) -> Gtk.Widget:
+        overlay = Gtk.Overlay(hexpand=True)
+        measure = Gtk.Label(
+            label=measure_text,
+            wrap=True,
+            wrap_mode=Pango.WrapMode.WORD_CHAR,
+            width_chars=1,
+            hexpand=True,
+            xalign=0,
+        )
+        measure.set_opacity(0)
+        overlay.set_child(measure)
+
+        textview = MarkupTextView(hexpand=True, valign=Gtk.Align.START)
+        overlay.add_overlay(textview)
+        overlay.set_measure_overlay(textview, True)
+
+        markup = markwon_to_pango(markdown, validate=not self.streaming)
+        markup = re.sub(r'WZIDZW(\d+)WZIDZW', r'<widget id="\1"/>', markup)
+        textview.add_markup_text(textview.get_buffer().get_start_iter(), markup, widgets=widgets)
+        return overlay
+
+    def _open_citation_source(self, source: CitationSource):
+        if not source.target:
+            if self.sources_button is not None:
+                self.sources_button.popup()
+            return
+        try:
+            if source.kind == "file":
+                path = os.path.abspath(os.path.expanduser(source.target))
+                Gio.AppInfo.launch_default_for_uri(Gio.File.new_for_path(path).get_uri(), None)
+                return
+
+            main_window = self._get_main_window()
+            ui_controller = getattr(main_window, "ui_controller", None)
+            if ui_controller is not None:
+                use_integrated = not self.controller.settings.get_boolean("external-browser")
+                ui_controller.open_link(source.target, False, use_integrated)
+            else:
+                Gio.AppInfo.launch_default_for_uri(source.target, None)
+        except Exception as error:
+            print(f"Failed to open citation source: {error}")
 
     def _fade_streamed_text(self, label, previous_text):
         """Fade in only the visible text appended by the latest stream update."""
@@ -676,6 +781,12 @@ class Message(Gtk.Box):
                     # We remove the placeholder and just add the text representation
                     full_markdown = full_markdown[:-len(placeholder)]
                     full_markdown += LatexNodes2Text().latex_to_text(subchunk.text)
+
+        full_markdown = self._inject_source_widgets(
+            full_markdown,
+            widgets_dict,
+            start_index=len(chunk.subchunks),
+        )
         
         full_markup = markwon_to_pango(full_markdown, validate=not self.streaming)
         

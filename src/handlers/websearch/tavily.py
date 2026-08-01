@@ -65,12 +65,18 @@ class TavilyHandler(WebSearchHandler):
                 return "No results found", []
 
 
-        text = ""
+        text_parts = []
         urls = []
+        remaining_content = 5000
         for result in results:
+            content = str(result.get('content', ''))
+            if not content.strip():
+                continue
+            if text_parts and remaining_content <= 0:
+                break
+            content = content[:remaining_content]
             add_website(result['title'],result['url'], None)
-            text += f"## {result['title']}\n{result['content']}\n\n"
+            text_parts.append(self.format_source(result['title'], result['url'], content))
             urls.append(result['url'])
-        text = text[:5000]
-        return text, urls
-
+            remaining_content -= len(content)
+        return "\n\n".join(text_parts), urls

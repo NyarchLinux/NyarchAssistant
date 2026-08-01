@@ -5,6 +5,7 @@ import threading
 from ..utility.message_chunk import get_message_chunks
 from ..ui import load_image_with_callback
 from ..utility.website_scraper import WebsiteScraper
+from ..utility.source_attribution import format_source_context
 from ..tools import Tool, ToolResult
 
 CHUNK_SIZE = 512 
@@ -73,7 +74,12 @@ class WebsiteReader(NewelleExtension):
         docs = []
         for website in websites:
             article = self.get_article_content(website)
-            docs.append("-----\nSource: " + website + "\n" + article.get_text())
+            docs.append(format_source_context(
+                article.get_text(),
+                website,
+                title=article.get_title() or None,
+                source_type="Web",
+            ))
         if sum(len(doc) for doc in docs) < MAX_CONTEXT:
             prompts += docs
         elif self.rag is not None:
@@ -119,5 +125,4 @@ class WebsiteReader(NewelleExtension):
             button.description.set_text(description) 
         GLib.idle_add(update_button)
         load_image_with_callback(favicon, lambda pixbuf_loader : button.icon.set_from_pixbuf(pixbuf_loader.get_pixbuf()))
-
 

@@ -1,6 +1,14 @@
 from os import wait
 import requests
 from newspaper import Article
+from urllib.parse import urljoin
+
+
+def resolve_favicon_url(page_url, favicon_url=None):
+    """Return an absolute favicon URL for a page."""
+    favicon_url = favicon_url.strip() if favicon_url else "/favicon.ico"
+    return urljoin(page_url, favicon_url or "/favicon.ico")
+
 
 class WebsiteScraper:
     def __init__(self, url, fallback_word_threshold=100) -> None:
@@ -32,12 +40,7 @@ class WebsiteScraper:
         self.parse_article()
         if self.article is None:
             return ""
-        favicon = self.article.meta_favicon
-        if not favicon.startswith("http") and not favicon.startswith("https"):
-            from urllib.parse import urlparse, urljoin
-            base_url = urlparse(self.url).scheme + "://" + urlparse(self.url).netloc
-            favicon = urljoin(base_url, favicon)
-        return favicon
+        return resolve_favicon_url(self.url, self.article.meta_favicon)
 
     def get_description(self):
         self.parse_article()

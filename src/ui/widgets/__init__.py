@@ -14,6 +14,7 @@ from .latex import DisplayLatex, LatexCanvas, InlineLatex
 from .mermaid import MermaidWidget
 from .markuptextview import MarkupTextView
 from .website import WebsiteButton
+from .sources import SourceChip, SourcesButton
 from .websearch import WebSearchWidget
 from .thinking import ThinkingWidget
 from .documents_reader import DocumentReaderWidget
@@ -54,6 +55,8 @@ __all__ = [
     "MarkupTextView",
     "InlineLatex",
     "WebsiteButton",
+    "SourceChip",
+    "SourcesButton",
     "WebSearchWidget",
     "ThinkingWidget",
     "DocumentReaderWidget",
