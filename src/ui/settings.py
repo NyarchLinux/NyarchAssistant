@@ -459,6 +459,15 @@ class Settings(Adw.Window):
         self.settings.bind("expand-reasoning", switch, 'active', Gio.SettingsBindFlags.DEFAULT)
         self.interface.add(row)
 
+        row = Adw.ActionRow(
+            title=_("Compact mode"),
+            subtitle=_("Group tool calls from each agent iteration into one expandable box"),
+        )
+        switch = Gtk.Switch(valign=Gtk.Align.CENTER)
+        row.add_suffix(switch)
+        self.settings.bind("compact-mode", switch, 'active', Gio.SettingsBindFlags.DEFAULT)
+        self.interface.add(row)
+
         row = Adw.ActionRow(title=_("Reverse Chat Order"), subtitle=_("Show most recent chats on top in chat list (change chat to apply)"))
         switch = Gtk.Switch(valign=Gtk.Align.CENTER)
         row.add_suffix(switch)

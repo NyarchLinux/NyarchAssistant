@@ -733,6 +733,36 @@ class MainWindow(Adw.ApplicationWindow):
             for box in chat_history.messages_box:
                 walk(box)
 
+    def _refresh_compact_mode(self):
+        """Apply the compact tool-call layout to every open chat tab."""
+        chat_tabs = getattr(self, "chat_tabs", None)
+        if chat_tabs is None:
+            return
+
+        enabled = self.controller.newelle_settings.compact_mode
+
+        def walk(widget):
+            if isinstance(widget, Message):
+                widget.set_compact_mode(enabled)
+                return
+            child = widget.get_first_child()
+            while child is not None:
+                nxt = child.get_next_sibling()
+                walk(child)
+                child = nxt
+
+        for i in range(chat_tabs.get_n_pages()):
+            page = chat_tabs.get_nth_page(i)
+            child = page.get_child() if page is not None else None
+            if child is not None:
+                chat_history = getattr(child, "chat_history", None)
+                if chat_history is not None:
+                    if enabled and hasattr(chat_history, "refresh_compact_groups"):
+                        chat_history.refresh_compact_groups()
+                    elif not enabled and hasattr(chat_history, "restore_hidden_compact_rows"):
+                        chat_history.restore_hidden_compact_rows()
+                walk(child)
+
     def update_font_settings(self):
         ns = self.controller.newelle_settings
         parts = []
@@ -825,6 +855,8 @@ class MainWindow(Adw.ApplicationWindow):
         self.memory_handler = self.controller.handlers.memory
         self.rag_handler = self.controller.handlers.rag
         self.extensionloader = self.controller.extensionloader
+        if ReloadType.COMPACT_MODE in reloads:
+            self._refresh_compact_mode()
         if ReloadType.RELOAD_CHAT in reloads:
             self.show_chat()
         if ReloadType.RELOAD_CHAT_LIST in reloads:
@@ -1633,6 +1665,9 @@ class MainWindow(Adw.ApplicationWindow):
         self.rag_handler = self.controller.handlers.rag
         self.extensionloader = self.controller.extensionloader
 
+        if ReloadType.COMPACT_MODE in reload_types:
+            self._refresh_compact_mode()
+
         # Update LLM UI - label first for responsiveness, delay expensive popup rebuild
         if ReloadType.LLM in reload_types:
             self.update_model_popup()
@@ -1728,6 +1763,7 @@ class MainWindow(Adw.ApplicationWindow):
         # Handle any remaining reload types
         for reload_type in reload_types:
             if reload_type not in {ReloadType.RELOAD_CHAT, ReloadType.RELOAD_CHAT_LIST,
+                                  ReloadType.COMPACT_MODE,
                                   ReloadType.PROMPTS, ReloadType.OFFERS, ReloadType.TOOLS}:
                 self.controller.reload(reload_type)
 

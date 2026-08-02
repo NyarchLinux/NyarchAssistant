@@ -1,10 +1,15 @@
 import gettext
 
-from gi.repository import Gtk, Pango
+from gi.repository import Gtk, Pango, GdkPixbuf
 
+from ...ui import load_image_with_callback
 from ...utility.source_attribution import CitationSource
+from ...utility.website_scraper import resolve_favicon_url
 
 _ = gettext.gettext
+
+_favicon_cache = {}
+_favicon_waiters = {}
 
 
 def source_icon_name(source: CitationSource) -> str:
@@ -15,6 +20,51 @@ def source_icon_name(source: CitationSource) -> str:
         "memory": "document-open-recent-symbolic",
         "tool": "applications-utilities-symbolic",
     }.get(source.kind, "dialog-information-symbolic")
+
+
+def _set_favicon(image: Gtk.Image, pixbuf, size: int):
+    if pixbuf is None:
+        return
+    scaled = pixbuf.scale_simple(size, size, GdkPixbuf.InterpType.BILINEAR)
+    if scaled is not None:
+        image.set_from_pixbuf(scaled)
+
+
+def _load_source_favicon(image: Gtk.Image, source: CitationSource, size: int):
+    if source.kind != "web" or not source.target:
+        return
+
+    favicon_url = resolve_favicon_url(source.target)
+    cached = _favicon_cache.get(favicon_url)
+    if cached is not None:
+        _set_favicon(image, cached, size)
+        return
+
+    waiter = (image, size)
+    if favicon_url in _favicon_waiters:
+        _favicon_waiters[favicon_url].append(waiter)
+        return
+    _favicon_waiters[favicon_url] = [waiter]
+
+    def loaded(loader):
+        pixbuf = loader.get_pixbuf()
+        if pixbuf is None:
+            _favicon_waiters.pop(favicon_url, None)
+            return
+        _favicon_cache[favicon_url] = pixbuf
+        for waiting_image, waiting_size in _favicon_waiters.pop(favicon_url, []):
+            _set_favicon(waiting_image, pixbuf, waiting_size)
+
+    def failed(_error):
+        _favicon_waiters.pop(favicon_url, None)
+
+    load_image_with_callback(favicon_url, loaded, failed)
+
+
+def create_source_icon(source: CitationSource, size: int) -> Gtk.Image:
+    icon = Gtk.Image(icon_name=source_icon_name(source), pixel_size=size)
+    _load_source_favicon(icon, source, size)
+    return icon
 
 
 class SourceChip(Gtk.Button):
@@ -30,7 +80,7 @@ class SourceChip(Gtk.Button):
             spacing=4,
             valign=Gtk.Align.BASELINE,
         )
-        icon = Gtk.Image(icon_name=source_icon_name(source), pixel_size=14)
+        icon = create_source_icon(source, 14)
         icon.set_valign(Gtk.Align.CENTER)
         content.append(icon)
         label_width = min(max(len(source.label), 10), 20)
@@ -49,7 +99,7 @@ class SourcesButton(Gtk.MenuButton):
     """Bottom-of-message button whose popover lists every cited source."""
 
     def __init__(self, sources: list[CitationSource], on_open):
-        super().__init__(css_classes=["flat", "pill"], halign=Gtk.Align.START)
+        super().__init__(css_classes=["flat", "pill", "sources-button"], halign=Gtk.Align.START)
         self.sources = sources
         self.on_open = on_open
         self.set_always_show_arrow(False)
@@ -57,7 +107,7 @@ class SourcesButton(Gtk.MenuButton):
 
         content = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
         for source in sources[:3]:
-            content.append(Gtk.Image(icon_name=source_icon_name(source), pixel_size=14))
+            content.append(create_source_icon(source, 14))
         content.append(Gtk.Label(label=_("Sources")))
         content.append(Gtk.Image(icon_name="pan-down-symbolic", pixel_size=12))
         self.set_child(content)
@@ -112,7 +162,7 @@ class SourcesButton(Gtk.MenuButton):
 
     def _build_source_row(self, source: CitationSource) -> Gtk.Widget:
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
-        row.append(Gtk.Image(icon_name=source_icon_name(source), pixel_size=18))
+        row.append(create_source_icon(source, 18))
 
         labels = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2, hexpand=True)
         title = Gtk.Label(

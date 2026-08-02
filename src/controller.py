@@ -79,6 +79,7 @@ EXTENSIONS: Reload EXTENSIONS
     TOOLS = 14
     WAKEWORD = 15
     IMAGE_GENERATOR = 16 
+    COMPACT_MODE = 17
 
 class NewelleController:
     """Main controller, manages the application
@@ -1951,6 +1952,7 @@ class NewelleSettings:
         self.main_path = settings.get_string("path")
         self.auto_run = settings.get_boolean("auto-run")
         self.display_latex = settings.get_boolean("display-latex")
+        self.compact_mode = settings.get_boolean("compact-mode")
         self.tts_enabled = settings.get_boolean("tts-on")
         self.tts_program = settings.get_string("tts")
         self.tts_voice = settings.get_string("tts-voice")
@@ -2148,6 +2150,8 @@ class NewelleSettings:
             reloads.append(ReloadType.IMAGE_GENERATOR)
         if self.hide_warning != new_settings.hide_warning:
             reloads.append(ReloadType.RELOAD_CHAT)
+        if self.compact_mode != new_settings.compact_mode:
+            reloads.append(ReloadType.COMPACT_MODE)
 
         return reloads
 

@@ -869,6 +869,17 @@ class ChatTab(Gtk.Box):
             def finalize_stream():
                 streaming_widget.update_content(final_message, is_streaming=False)
                 streaming_widget.finish_streaming()
+                remove_streaming_row = self.chat_history.finish_compact_message(
+                    streaming_widget
+                )
+                if remove_streaming_row:
+                    self.chat_history.remove_message_widget(streaming_widget)
+                # Let the final Message render settle, then reconcile this
+                # continuation row without rescanning the entire history.
+                GLib.idle_add(
+                    self.chat_history.prune_compact_message_row,
+                    streaming_widget,
+                )
                 self.chat_history._finalize_message_display()
                 self.save_chat()
                 
@@ -952,11 +963,16 @@ class ChatTab(Gtk.Box):
         self._stream_reveal_generation = stream_number_variable
         
         next_message_id = len(self.chat)
+        tool_group = self.chat_history.get_compact_tool_group(
+            next_message_id,
+            streaming=True,
+        )
         self.current_streaming_message = Message(
             "",
             is_user=False,
             parent_window=self,
             id_message=next_message_id,
+            tool_group=tool_group,
         )
         self.streaming_box = self.chat_history.add_message(
             "Assistant",

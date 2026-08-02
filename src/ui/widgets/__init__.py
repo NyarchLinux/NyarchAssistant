@@ -22,7 +22,7 @@ from .tipscarousel import TipsCarousel
 from .browser import BrowserWidget
 from .terminal_dialog import Terminal, TerminalDialog
 from .code_editor import CodeEditorWidget
-from .tool import ToolWidget
+from .tool import ToolWidget, ToolCallSlot, ToolCallsGroupWidget
 from .skill import SkillWidget
 from .subagent import SubagentWidget
 from .scheduled_task import ScheduledTaskWidget
@@ -66,6 +66,8 @@ __all__ = [
     "TerminalDialog",
     "CodeEditorWidget",
     "ToolWidget",
+    "ToolCallSlot",
+    "ToolCallsGroupWidget",
     "SkillWidget",
     "SubagentWidget",
     "ScheduledTaskWidget",

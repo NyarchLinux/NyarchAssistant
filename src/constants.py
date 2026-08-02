@@ -811,7 +811,7 @@ SETTINGS_GROUPS = {
         },
         "interface": {
             "title": _("Inteface"),
-            "settings": ["hidden-files", "reverse-order", "display-latex", "expand-reasoning", "external-terminal-on", "external-terminal", "zoom","send-on-enter", "initial-browser-page", "external-browser", "browser-search-string", "browser-session-persist", "edit-color-scheme", "hide-history-on-launch"],
+            "settings": ["hidden-files", "reverse-order", "display-latex", "expand-reasoning", "compact-mode", "external-terminal-on", "external-terminal", "zoom","send-on-enter", "initial-browser-page", "external-browser", "browser-search-string", "browser-session-persist", "edit-color-scheme", "hide-history-on-launch"],
             "description": _("Interface settings, hidden files, reverse order, zoom..."),
         },
         "general": {

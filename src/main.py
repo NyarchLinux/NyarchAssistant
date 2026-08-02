@@ -200,6 +200,17 @@ class MyApp(Adw.Application):
           background-color: alpha(@accent_bg_color, 0.24);
         }
 
+        .sources-button {
+          color: @accent_color;
+          background-color: alpha(@accent_bg_color, 0.14);
+          border-radius: 999px;
+        }
+
+        .sources-button:hover,
+        .sources-button:checked {
+          background-color: alpha(@accent_bg_color, 0.24);
+        }
+
         .source-chip label {
           font-size: 0.95em;
           font-weight: 600;

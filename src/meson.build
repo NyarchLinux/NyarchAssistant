@@ -253,6 +253,7 @@ utility_sources = [
   'utility/command_runner.py',
   'utility/command_sessions.py',
   'utility/background_process.py',
+  'utility/tool_call_group.py',
 ]
 
 install_data(newelle_sources, install_dir: moduledir)
