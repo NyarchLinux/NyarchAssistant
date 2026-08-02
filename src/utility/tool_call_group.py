@@ -22,6 +22,7 @@ class ToolGroupSummary:
     """Derived state used by the compact group header."""
 
     count: int
+    active_entry_id: int | None
     active_tool_name: str | None
     running_count: int
     failed_count: int
@@ -109,7 +110,7 @@ class ToolCallGroupState:
     def summary(self) -> ToolGroupSummary:
         active = next(
             (
-                entry.name
+                entry
                 for entry in self._entries
                 if entry.status in {"pending", "running"}
             ),
@@ -117,7 +118,8 @@ class ToolCallGroupState:
         )
         return ToolGroupSummary(
             count=len(self._entries),
-            active_tool_name=active,
+            active_entry_id=active.entry_id if active is not None else None,
+            active_tool_name=active.name if active is not None else None,
             running_count=sum(
                 entry.status in {"pending", "running"}
                 for entry in self._entries

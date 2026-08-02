@@ -842,7 +842,7 @@ class ChatTab(Gtk.Box):
         threading.Thread(target=run_generation).start()
         
     def _handle_generation_finished(self, data, stream_number_variable):
-        """Handle generation completion."""
+        """Handle completion of one model turn in the generation chain."""
         self._cancel_stream_reveal()
         message_label = data['message']
         prompts = data['prompts']
@@ -852,6 +852,7 @@ class ChatTab(Gtk.Box):
         if trim_result is not None and hasattr(self, 'context_indicator'):
             self.context_indicator.update_stats(trim_result)
         
+        waiting_for_tools = False
         if hasattr(self, "current_streaming_message") and self.current_streaming_message:
             # Streaming was active, finalize the existing widget
             streaming_widget = self.current_streaming_message
@@ -867,8 +868,12 @@ class ChatTab(Gtk.Box):
             final_message = message_label
             
             def finalize_stream():
+                nonlocal waiting_for_tools
                 streaming_widget.update_content(final_message, is_streaming=False)
                 streaming_widget.finish_streaming()
+                waiting_for_tools = streaming_widget.state.get(
+                    "has_terminal_command", False
+                )
                 remove_streaming_row = self.chat_history.finish_compact_message(
                     streaming_widget
                 )
@@ -880,11 +885,13 @@ class ChatTab(Gtk.Box):
                     self.chat_history.prune_compact_message_row,
                     streaming_widget,
                 )
-                self.chat_history._finalize_message_display()
+                self.chat_history._finalize_message_display(
+                    generation_finished=not waiting_for_tools
+                )
                 self.save_chat()
                 
                 # Handle deferred tool execution and continuation
-                if streaming_widget.state.get("has_terminal_command", False):
+                if waiting_for_tools:
                     threads = streaming_widget.state.get("running_threads", [])
                     parallel = self.controller.newelle_settings.parallel_tool_execution
                     current_stream = self.stream_number_variable
@@ -904,7 +911,11 @@ class ChatTab(Gtk.Box):
                         if threads and streaming_widget.state.get("should_continue", False):
                             self.send_message(manual=False)
                         else:
-                            GLib.idle_add(self.chat_history.scrolled_chat)
+                            GLib.idle_add(
+                                self._finish_generation_chain,
+                                message_label,
+                                current_stream,
+                            )
                     
                     threading.Thread(target=wait_and_continue).start()
                 else:
@@ -924,11 +935,21 @@ class ChatTab(Gtk.Box):
                 "\n".join(prompts),
             )
         
-        GLib.idle_add(self.chat_history.set_generating, False)
-        GLib.idle_add(self.remove_send_button_spinner)
-        GLib.idle_add(self.update_tab_indicator)
+        if waiting_for_tools:
+            return
+
+        self._finish_generation_chain(message_label, stream_number_variable)
+
+    def _finish_generation_chain(self, message_label, stream_number_variable):
+        """Mark the full response chain done after all tool continuations."""
+        if self.stream_number_variable != stream_number_variable:
+            return GLib.SOURCE_REMOVE
+
+        self.chat_history.set_generating(False)
+        self.remove_send_button_spinner()
+        self.update_tab_indicator()
         self.emit("generation-stopped")
-        
+
         # Generate suggestions
         self.generate_suggestions()
 
@@ -956,6 +977,8 @@ class ChatTab(Gtk.Box):
         
         if self.controller.newelle_settings.automatic_stt:
             threading.Thread(target=restart_recording).start()
+
+        return GLib.SOURCE_REMOVE
             
     def create_streaming_message_label(self, stream_number_variable):
         """Create a label for message streaming."""

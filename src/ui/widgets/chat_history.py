@@ -731,11 +731,17 @@ class ChatHistory(Gtk.Box):
         placeholder_layout.append(self.offers_entry_block_placeholder)
         self.empty_chat_placeholder.set_child(placeholder_layout)
 
-    def _finalize_message_display(self):
-        """Update UI state after message display."""
+    def _finalize_message_display(self, generation_finished=True):
+        """Update UI state after message display.
+
+        A model turn can finish rendering while its tool calls are still
+        running.  In that case the overall generation is still active and the
+        stop controls must remain visible until the tool chain has completed.
+        """
         GLib.idle_add(self.update_button_text)
-        self.status = True
-        self.chat_stop_button.set_visible(False)
+        if generation_finished:
+            self.status = True
+            self.chat_stop_button.set_visible(False)
     
     # Message display functions 
     def show_message(

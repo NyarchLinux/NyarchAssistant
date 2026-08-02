@@ -7,6 +7,7 @@ from ...utility.tool_call_group import ToolCallGroupState
 
 _ = gettext.gettext
 _n = gettext.ngettext
+_DEFAULT_TOOL_ICON = "tools-symbolic"
 
 
 class ToolCallSlot(Gtk.Box):
@@ -16,11 +17,20 @@ class ToolCallSlot(Gtk.Box):
     same call between the normal message layout and the shared expander.
     """
 
-    def __init__(self, entry_id, tool_name, tool_title, chunk, widget):
+    def __init__(
+        self,
+        entry_id,
+        tool_name,
+        tool_title,
+        tool_icon_name,
+        chunk,
+        widget,
+    ):
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
         self.entry_id = entry_id
         self.tool_name = tool_name
         self.tool_title = tool_title
+        self.tool_icon_name = tool_icon_name or _DEFAULT_TOOL_ICON
         self.chunk = chunk
         self.widget = None
         self.active = True
@@ -66,9 +76,12 @@ class ToolCallsGroupWidget(Gtk.ListBox):
         self.expander_row = Adw.ExpanderRow(
             title=_("Tool calls"),
             subtitle=_("No tool calls"),
-            icon_name="tools-symbolic",
             expanded=False,
         )
+        self.running_spinner = Gtk.Spinner(spinning=False, visible=False)
+        self.active_tool_icon = Gtk.Image(icon_name=_DEFAULT_TOOL_ICON)
+        self.expander_row.add_prefix(self.running_spinner)
+        self.expander_row.add_prefix(self.active_tool_icon)
 
         self.content_box = Gtk.Box(
             orientation=Gtk.Orientation.VERTICAL,
@@ -85,9 +98,23 @@ class ToolCallsGroupWidget(Gtk.ListBox):
         self.expander_row.add_row(scrolled)
         self.append(self.expander_row)
 
-    def register_call(self, tool_name, tool_title, chunk, widget):
+    def register_call(
+        self,
+        tool_name,
+        tool_title,
+        chunk,
+        widget,
+        tool_icon_name=None,
+    ):
         entry_id = self.state.add(tool_title or tool_name)
-        slot = ToolCallSlot(entry_id, tool_name, tool_title or tool_name, chunk, widget)
+        slot = ToolCallSlot(
+            entry_id,
+            tool_name,
+            tool_title or tool_name,
+            tool_icon_name,
+            chunk,
+            widget,
+        )
         slot.group = self
         self.slots.append(slot)
         self.content_box.append(slot)
@@ -161,6 +188,7 @@ class ToolCallsGroupWidget(Gtk.ListBox):
             self.content_box.append(slot)
         self.state.reorder([slot.entry_id for _index, slot in ordered])
         self._reorder_content()
+        self._update_header()
 
     def detach_slot(self, slot):
         """Remove a slot from this group without invalidating the slot."""
@@ -173,6 +201,7 @@ class ToolCallsGroupWidget(Gtk.ListBox):
             self.content_box.remove(slot)
         slot.group = None
         slot.active = True
+        self._update_header()
         return status
 
     def adopt_slot(self, slot, status=None):
@@ -235,6 +264,25 @@ class ToolCallsGroupWidget(Gtk.ListBox):
     def _update_header(self):
         summary = self.state.summary()
         count = summary.count
+        active_slot = next(
+            (
+                slot
+                for slot in self.slots
+                if slot.entry_id == summary.active_entry_id
+            ),
+            None,
+        )
+        if active_slot is not None:
+            self.running_spinner.set_visible(True)
+            self.running_spinner.start()
+            self.active_tool_icon.set_from_icon_name(
+                active_slot.tool_icon_name or _DEFAULT_TOOL_ICON
+            )
+        else:
+            self.running_spinner.stop()
+            self.running_spinner.set_visible(False)
+            self.active_tool_icon.set_from_icon_name(_DEFAULT_TOOL_ICON)
+
         if count == 0:
             self.expander_row.set_title(_("Tool calls"))
             self.expander_row.set_subtitle(_("No tool calls"))

@@ -1094,7 +1094,13 @@ class Message(Gtk.Box):
         group = self._get_tool_group()
         if tool is None:
             placeholder = self._create_copybox(chunk.text, "tool_call")
-            slot = group.register_call(tool_name, tool_name, chunk, placeholder)
+            slot = group.register_call(
+                tool_name,
+                tool_name,
+                chunk,
+                placeholder,
+                tool_icon_name="tools-symbolic",
+            )
             slot.message_id = self.id_message
             slot._compact_order = (self.id_message, slot.entry_id)
             self._place_tool_slot(slot, box)
@@ -1115,7 +1121,13 @@ class Message(Gtk.Box):
         slot = None
         try:
             placeholder = ToolWidget(tool.name, chunk.text)
-            slot = group.register_call(tool.name, tool.title, chunk, placeholder)
+            slot = group.register_call(
+                tool.name,
+                tool.title,
+                chunk,
+                placeholder,
+                tool_icon_name=tool.icon_name,
+            )
             slot.message_id = self.id_message
             slot._compact_order = (self.id_message, slot.entry_id)
             self._place_tool_slot(slot, box)
