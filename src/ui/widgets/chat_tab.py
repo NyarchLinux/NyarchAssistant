@@ -198,7 +198,7 @@ class ChatTab(Gtk.Box):
         )
         self.screen_record_button.connect("clicked", self.start_screen_recording)
         left_cluster.append(self.screen_record_button)
-        if not self.model.supports_video_vision():
+        if not self.vision_model.supports_video_vision():
             self.screen_record_button.set_visible(False)
 
         # Quick toggles popover button
@@ -573,11 +573,12 @@ class ChatTab(Gtk.Box):
     def _update_attach_visibility(self):
         """Update attach button visibility based on model capabilities."""
         model = self.model
+        vision_model = self.vision_model
         rag_handler = self.window.rag_handler
         
         if (
-            not model.supports_vision()
-            and not model.supports_video_vision()
+            not vision_model.supports_vision()
+            and not vision_model.supports_video_vision()
             and (
                 len(model.get_supported_files())
                 + (len(rag_handler.get_supported_files()) if rag_handler is not None else 0)
@@ -628,6 +629,11 @@ class ChatTab(Gtk.Box):
     def model(self):
         """Get the LLM model from handlers."""
         return self.controller.handlers.llm
+
+    @property
+    def vision_model(self):
+        """Get the LLM configured for image and video chats."""
+        return self.controller.get_vision_model()
     
     @property
     def tts(self):
@@ -796,7 +802,8 @@ class ChatTab(Gtk.Box):
         GLib.idle_add(self.chat_history.begin_streaming_scroll, manual)
         
         # Start creating the message
-        if self.model.stream_enabled():
+        self.active_generation_model = self.controller.get_model_for_chat(self.chat)
+        if self.active_generation_model.stream_enabled():
             self.streamed_message = ""
             self.curr_label = ""
             self.streaming_label = None
@@ -1121,7 +1128,8 @@ class ChatTab(Gtk.Box):
         """Add document reading widget during streaming."""
         d = [doc.replace("file:", "") for doc in documents if doc.startswith("file:")]
         documents = d
-        if self.model.stream_enabled() and hasattr(self, "current_streaming_message"):
+        model = getattr(self, "active_generation_model", self.model)
+        if model.stream_enabled() and hasattr(self, "current_streaming_message"):
             if self.current_streaming_message is not None:
                 self.reading = DocumentReaderWidget()
                 for document in documents:
@@ -1206,7 +1214,7 @@ class ChatTab(Gtk.Box):
         
     def stop_chat(self):
         """Stop the current generation."""
-        self.model.stop()
+        getattr(self, "active_generation_model", self.model).stop()
         for tool_result in self.active_tool_results:
             tool_result.cancel()
         self.active_tool_results = []
@@ -1327,7 +1335,7 @@ class ChatTab(Gtk.Box):
         self.attach_button.disconnect_by_func(self.delete_attachment)
         self.attach_button.connect("clicked", self.attach_file)
         self.attached_image.set_visible(False)
-        self.screen_record_button.set_visible(self.window.model.supports_video_vision())
+        self.screen_record_button.set_visible(self.vision_model.supports_video_vision())
         
     def add_file(self, file_path=None, file_data=None):
         """Add a file attachment and update the UI, also generates thumbnail for videos

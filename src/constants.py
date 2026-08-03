@@ -766,7 +766,7 @@ def restore_handlers():
 SETTINGS_GROUPS = {
         "LLM": {
             "title": _("LLM"),
-            "settings": ["secondary-llm-on", "secondary-language-model", "language-model", "llm-settings", "llm-secondary-settings"],
+            "settings": ["secondary-llm-on", "secondary-llm-vision", "secondary-language-model", "language-model", "llm-settings", "llm-secondary-settings"],
             "description": _("LLM and Secondary LLM settings"),
         },
         "TTS": {

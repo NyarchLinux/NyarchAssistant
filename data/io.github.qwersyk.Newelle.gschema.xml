@@ -50,6 +50,9 @@
 	      <key name="secondary-llm-on" type="b">
             <default>false</default>
         </key>
+	      <key name="secondary-llm-vision" type="b">
+            <default>false</default>
+        </key>
 	      <key name="secondary-language-model" type="s">
             <default>"newelle"</default>
         </key>

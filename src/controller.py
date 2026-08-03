@@ -9,7 +9,7 @@ import copy
 from .tools import ToolRegistry, ToolResult
 from .skills import SkillManager
 from .modes import ModeManager
-from .utility.media import get_image_base64, get_image_path, extract_supported_files
+from .utility.media import chat_contains_vision, get_image_base64, get_image_path, extract_supported_files
 from .utility.message_chunk import get_message_chunks
 
 from .extensions import NewelleExtension
@@ -1525,6 +1525,21 @@ class NewelleController:
                 args=(bot_response, chat),
             ).start()
 
+    def get_vision_model(self) -> LLMHandler:
+        """Return the model configured to handle image and video chats."""
+        if (
+            self.newelle_settings.use_secondary_language_model
+            and self.newelle_settings.use_secondary_language_model_for_vision
+        ):
+            return self.handlers.secondary_llm
+        return self.handlers.llm
+
+    def get_model_for_chat(self, chat: list[dict]) -> LLMHandler:
+        """Return the model that should generate the next response for a chat."""
+        if chat_contains_vision(chat):
+            return self.get_vision_model()
+        return self.handlers.llm
+
     def prepare_generation(self, chat_id=None):
         """Prepare contexts and prompts for generation.
 
@@ -1613,8 +1628,9 @@ class NewelleController:
         message_label = ""
         try:
             t1 = time.time()
-            if self.handlers.llm.stream_enabled():
-                message_label = self.handlers.llm.send_message_stream(
+            model = self.get_model_for_chat(chat)
+            if model.stream_enabled():
+                message_label = model.send_message_stream(
                     chat[-1]["Message"],
                     new_history,
                     prompts,
@@ -1622,7 +1638,7 @@ class NewelleController:
                     [stream_number_variable], 
                 )
             else:
-                 message_label = self.handlers.llm.send_message(chat[-1]["Message"], new_history, prompts)
+                message_label = model.send_message(chat[-1]["Message"], new_history, prompts)
             
             # Post-generation logic
             last_generation_time = time.time() - t1
@@ -1727,6 +1743,7 @@ class NewelleController:
             system_prompt += self.get_memory_prompt(chat_id=effective_chat_id)
         
         current_history = history.copy()
+        model = self.get_model_for_chat(self.chats[chat_id]["chat"])
         cont = True
         try:
             for iteration in range(max_tool_calls):
@@ -1757,15 +1774,15 @@ class NewelleController:
 
                 send_history, _ = self._trim_context(current_history, system_prompt, message)
 
-                if self.handlers.llm.stream_enabled():
-                    response = self.handlers.llm.send_message_stream(
+                if model.stream_enabled():
+                    response = model.send_message_stream(
                         prompt,
                         send_history,
                         system_prompt,
                         stream_callback
                     )
                 else:
-                    response = self.handlers.llm.send_message(
+                    response = model.send_message(
                         prompt,
                         send_history,
                         system_prompt
@@ -2002,6 +2019,7 @@ class NewelleSettings:
         self.secondary_language_model = self.settings.get_string("secondary-language-model")
         self.secondary_language_model_settings = self.settings.get_string("llm-secondary-settings")
         self.use_secondary_language_model = self.settings.get_boolean("secondary-llm-on")
+        self.use_secondary_language_model_for_vision = self.settings.get_boolean("secondary-llm-vision")
         self.custom_prompts = json.loads(self.settings.get_string("custom-prompts"))
         self.prompts_settings = json.loads(self.settings.get_string("prompts-settings")) 
         self.extensions_settings = self.settings.get_string("extensions-settings")
@@ -2119,7 +2137,7 @@ class NewelleSettings:
         reloads = []
         if self.language_model != new_settings.language_model or self.llm_settings != new_settings.llm_settings:
             reloads.append(ReloadType.LLM)
-        if self.secondary_language_model != new_settings.secondary_language_model or self.use_secondary_language_model != new_settings.use_secondary_language_model or self.secondary_language_model_settings != new_settings.secondary_language_model_settings:
+        if self.secondary_language_model != new_settings.secondary_language_model or self.use_secondary_language_model != new_settings.use_secondary_language_model or self.use_secondary_language_model_for_vision != new_settings.use_secondary_language_model_for_vision or self.secondary_language_model_settings != new_settings.secondary_language_model_settings:
             reloads.append(ReloadType.SECONDARY_LLM)
         
         if self.tts_program != new_settings.tts_program:

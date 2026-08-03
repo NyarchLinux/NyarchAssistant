@@ -267,3 +267,15 @@ def extract_supported_files(history: list, supported_extensions: list, blacklist
                         documents.append("file:" + file) 
 
     return documents
+
+
+def chat_contains_vision(history: list[dict]) -> bool:
+    """Return whether a chat contains an image or video attachment."""
+    for message in history:
+        chunks = get_message_chunks(message.get("Message", ""))
+        if any(
+            chunk.type == "codeblock" and chunk.lang.lower() in ("image", "video")
+            for chunk in chunks
+        ):
+            return True
+    return False

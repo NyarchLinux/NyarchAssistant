@@ -886,7 +886,7 @@ class MainWindow(Adw.ApplicationWindow):
 
             if should_be_listening:
                 self.start_wakeword_detection()
-        if ReloadType.LLM in reloads:
+        if ReloadType.LLM in reloads or ReloadType.SECONDARY_LLM in reloads:
             self.reload_buttons() 
             self.update_model_popup()
         if ReloadType.TOOLS in reloads:
@@ -900,18 +900,19 @@ class MainWindow(Adw.ApplicationWindow):
 
     def _update_chat_tab_llm_buttons(self):
         """Update chat tab buttons that depend on LLM capabilities"""
+        vision_model = self.controller.get_vision_model()
         n_pages = self.chat_tabs.get_n_pages()
         for i in range(n_pages):
             page = self.chat_tabs.get_nth_page(i)
             child = page.get_child()
             if isinstance(child, ChatTab):
                 child._update_attach_visibility()
-                if not self.model.supports_video_vision():
+                if not vision_model.supports_video_vision():
                     if child.video_recorder is not None:
                         child.video_recorder.stop()
                         child.video_recorder = None
                 child.screen_record_button.set_visible(
-                    self.model.supports_video_vision() and not child.attached_image_data
+                    vision_model.supports_video_vision() and not child.attached_image_data
                 )
                 # Refresh the Mode switcher label and the thinking control so
                 # they follow the active LLM's capabilities.
@@ -1669,7 +1670,7 @@ class MainWindow(Adw.ApplicationWindow):
             self._refresh_compact_mode()
 
         # Update LLM UI - label first for responsiveness, delay expensive popup rebuild
-        if ReloadType.LLM in reload_types:
+        if ReloadType.LLM in reload_types or ReloadType.SECONDARY_LLM in reload_types:
             self.update_model_popup()
             self._update_chat_tab_llm_buttons()
         GLib.idle_add(lambda: self.chat_header.set_title_widget(self.build_model_popup()) and False)
@@ -1882,6 +1883,7 @@ class MainWindow(Adw.ApplicationWindow):
     def attach_file(self, button):
         """Show attach file dialog to add a file"""
         filters = Gio.ListStore.new(Gtk.FileFilter)
+        vision_model = self.controller.get_vision_model()
         image_patterns = ["*.png", "*.jpg", "*.jpeg", "*.webp"]
         video_patterns = ["*.mp4"]
         file_patterns = self.model.get_supported_files()
@@ -1909,13 +1911,13 @@ class MainWindow(Adw.ApplicationWindow):
         
         if second_file_filter is not None:
             filters.append(second_file_filter)
-        if self.model.supports_video_vision():
+        if vision_model.supports_video_vision():
             filters.append(video_filter)
             supported_patterns += video_patterns
         if len(self.model.get_supported_files()) > 0:
             filters.append(file_filter)
             supported_patterns += file_patterns
-        if self.model.supports_vision():
+        if vision_model.supports_vision():
             supported_patterns += image_patterns
             filters.append(image_filter)
         default_filter = Gtk.FileFilter(

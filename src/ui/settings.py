@@ -90,15 +90,16 @@ class Settings(Adw.Window):
            else:
                 self.LLM.add(row)
         self.LLM.add(others_row)
-        # Secondary LLM
-        self.SECONDARY_LLM = Adw.PreferencesGroup(title=_('Advanced LLM Settings'))
-        # Create row
+        # Secondary LLM settings
+        self.SECONDARY_LLM = Adw.PreferencesGroup(title=_('Secondary LLM'))
+        self.LLMPage.add(self.SECONDARY_LLM)
+
         secondary_LLM_enabled = Gtk.Switch(valign=Gtk.Align.CENTER)
         self.settings.bind("secondary-llm-on", secondary_LLM_enabled, 'active', Gio.SettingsBindFlags.DEFAULT)
         secondary_LLM = Adw.ExpanderRow(title=_('Secondary Language Model'), subtitle=_("Model used for secondary tasks, like offer, chat name and memory generation"))
         secondary_LLM.add_action(secondary_LLM_enabled)
+        # Add the secondary model selector as its own expander.
         # Add LLMs
-        self.MemoryPage.add(self.SECONDARY_LLM)
         group = Gtk.CheckButton()
         selected = self.settings.get_string("secondary-language-model")
         others_row = Adw.ExpanderRow(title=_('Other LLMs'), subtitle=_("Other available LLM providers"))
@@ -110,10 +111,23 @@ class Settings(Adw.Window):
                secondary_LLM.add_row(row)
         secondary_LLM.add_row(others_row)
         self.SECONDARY_LLM.add(secondary_LLM)
+
+        # Vision routing is a separate action row in the same group.
+        vision_row = Adw.ActionRow(
+            title=_("Use secondary LLM for vision"),
+            subtitle=_("Use the secondary model for chats containing images or videos"),
+        )
+        vision_switch = Gtk.Switch(valign=Gtk.Align.CENTER)
+        vision_row.add_suffix(vision_switch)
+        self.settings.bind("secondary-llm-vision", vision_switch, 'active', Gio.SettingsBindFlags.DEFAULT)
+        self.SECONDARY_LLM.add(vision_row)
+
+        self.KNOWLEDGE = Adw.PreferencesGroup(title=_('Advanced LLM Settings'))
+        self.MemoryPage.add(self.KNOWLEDGE)
         
         # Build the Embedding settings
         embedding_row = Adw.ExpanderRow(title=_('Embedding Model'), subtitle=_("Embedding is used to trasform text into vectors. Used by Long Term Memory and RAG. Changing it might require you to re-index documents or reset memory."))
-        self.SECONDARY_LLM.add(embedding_row)
+        self.KNOWLEDGE.add(embedding_row)
         group = Gtk.CheckButton()
         selected = self.settings.get_string("embedding-model")
         for key in AVAILABLE_EMBEDDINGS:
@@ -125,7 +139,7 @@ class Settings(Adw.Window):
         self.settings.bind("memory-on", memory_enabled, 'active', Gio.SettingsBindFlags.DEFAULT)
         tts_program = Adw.ExpanderRow(title=_('Long Term Memory'), subtitle=_("Keep memory of old conversations"))
         tts_program.add_action(memory_enabled)
-        self.SECONDARY_LLM.add(tts_program)
+        self.KNOWLEDGE.add(tts_program)
         group = Gtk.CheckButton()
         selected = self.settings.get_string("memory-model")
         for key in AVAILABLE_MEMORIES:
@@ -137,7 +151,7 @@ class Settings(Adw.Window):
         self.settings.bind("websearch-on", web_enabled, 'active', Gio.SettingsBindFlags.DEFAULT)
         tts_program = Adw.ExpanderRow(title=_('Web Search'), subtitle=_("Search information on the Web"))
         tts_program.add_action(web_enabled)
-        self.SECONDARY_LLM.add(tts_program)
+        self.KNOWLEDGE.add(tts_program)
         group = Gtk.CheckButton()
         selected = self.settings.get_string("websearch-model")
         for key in AVAILABLE_WEBSEARCH:
@@ -145,7 +159,7 @@ class Settings(Adw.Window):
            tts_program.add_row(row)
         # Build the Image Generator settings
         image_generator_row = Adw.ExpanderRow(title=_('Image Generator'), subtitle=_("Choose which image generation engine to use"))
-        self.SECONDARY_LLM.add(image_generator_row)
+        self.KNOWLEDGE.add(image_generator_row)
         group = Gtk.CheckButton()
         selected = self.settings.get_string("image-generator")
         for key in AVAILABLE_IMAGE_GENERATORS:
@@ -649,7 +663,7 @@ class Settings(Adw.Window):
         for r in self.context_fixed_rows:
             r.set_visible(not is_cm)
 
-        self.SECONDARY_LLM.add(context_expander)
+        self.KNOWLEDGE.add(context_expander)
         # Developer settings
         self.developer = Adw.PreferencesGroup(title=_('Developer'))
         self.general_page.add(self.developer)
