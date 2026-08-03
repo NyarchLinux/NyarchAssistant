@@ -52,7 +52,7 @@ and you will be allowed to execute it."""
 DEFAULT_MODES = {
     "Normal": {
         "description": _("Standard assistant behavior"),
-        "icon": "user-available-symbolic",
+        "icon": "chat-bubbles-text-symbolic",
         "tools": {},
         "skills": {},
         "prompts": {},
@@ -75,6 +75,17 @@ DEFAULT_MODES = {
             },
         },
     },
+    "No Tools": {
+        "description": _("Disable tools"),
+        "icon": "system-run-symbolic",
+        "prompts": {
+            "tools":
+            {
+                "state": REMOVE,
+                "todolist": REMOVE
+            }
+            }
+        }
 }
 
 # Name of the built-in mode that is always present and cannot be removed.
