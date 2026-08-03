@@ -10,6 +10,7 @@ import re
 import shlex
 import shutil
 import socket
+import stat
 import subprocess
 import tempfile
 import threading
@@ -21,7 +22,7 @@ import requests
 from gi.repository import Adw, Gdk, GdkPixbuf, Gio, GLib, Gtk
 
 from . import _IMAGE_REQUEST_HEADERS, _pixbuf_from_image_data
-from ..utility.system import can_escape_sandbox, is_flatpak, open_website
+from ..utility.system import can_escape_sandbox, get_spawn_command, is_flatpak, open_website
 
 
 _ = gettext.gettext
@@ -40,6 +41,17 @@ RESERVED_TEMPLATE_VALUES = {"setup_dir"}
 ALLOWED_FIELD_TYPES = {"text", "secret", "url", "file", "directory"}
 ALLOWED_AUTH_TYPES = {"none", "bearer", "oauth"}
 ALLOWED_AUTH_PARAMS = {"access_type", "prompt", "login_hint", "include_granted_scopes"}
+FEATURED_APPLICATION_IDS = (
+    "notion",
+    "huggingface",
+    "canva",
+    "gnome_mcp",
+    "hyprmcp",
+    "kwin_mcp",
+    "gimp_mcp",
+    "blender_mcp",
+)
+REMOVED_APPLICATION_IDS = {"fetch", "filesystem", "memory"}
 LOGO_EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="mcp-catalog-logo")
 
 
@@ -103,6 +115,92 @@ def _walk_strings(value, path=()):
     elif isinstance(value, dict):
         for key, item in value.items():
             yield from _walk_strings(item, path + (key,))
+
+
+def _validate_server(server, prefix, field_ids, secret_fields):
+    if not isinstance(server, dict):
+        raise CatalogValidationError(f"{prefix} must be an object")
+    server_type = server.get("type")
+    if server_type not in {"http", "stdio"}:
+        raise CatalogValidationError(f"{prefix}.type is unsupported")
+    _optional_string(server.get("title"), f"{prefix}.title", 120)
+
+    if server_type == "http":
+        _validate_http_endpoint(server.get("url"), f"{prefix}.url")
+        headers = server.get("headers", {})
+        if not isinstance(headers, dict) or len(headers) > 30:
+            raise CatalogValidationError(f"{prefix}.headers must be an object")
+        for key, value in headers.items():
+            _required_string(key, f"{prefix}.headers key", 200)
+            if not isinstance(value, str):
+                raise CatalogValidationError(f"{prefix}.headers.{key} must be a string")
+            _optional_string(value, f"{prefix}.headers.{key}", 4000)
+
+        auth = server.get("auth", {"type": "none"})
+        if not isinstance(auth, dict) or auth.get("type", "none") not in ALLOWED_AUTH_TYPES:
+            raise CatalogValidationError(f"{prefix}.auth is unsupported")
+        auth_type = auth.get("type", "none")
+        if auth_type == "bearer":
+            _required_string(auth.get("token"), f"{prefix}.auth.token", 4000)
+        elif auth_type == "oauth":
+            for key in ("client_id", "client_secret"):
+                _optional_string(auth.get(key), f"{prefix}.auth.{key}", 4000)
+            redirect_port = auth.get("redirect_port")
+            if redirect_port is not None and (
+                not isinstance(redirect_port, int) or not 1024 <= redirect_port <= 65535
+            ):
+                raise CatalogValidationError(f"{prefix}.auth.redirect_port is invalid")
+            scopes = auth.get("scopes")
+            if scopes is not None and (
+                not isinstance(scopes, list)
+                or not scopes
+                or any(not isinstance(scope, str) or not scope for scope in scopes)
+            ):
+                raise CatalogValidationError(f"{prefix}.auth.scopes is invalid")
+            method = auth.get("token_endpoint_auth_method")
+            if method not in {None, "client_secret_basic", "client_secret_post", "none"}:
+                raise CatalogValidationError(f"{prefix}.auth.token_endpoint_auth_method is invalid")
+            params = auth.get("authorization_params", {})
+            if not isinstance(params, dict) or any(
+                key not in ALLOWED_AUTH_PARAMS or not isinstance(value, str)
+                for key, value in params.items()
+            ):
+                raise CatalogValidationError(f"{prefix}.auth.authorization_params is invalid")
+    else:
+        _required_string(server.get("command"), f"{prefix}.command", 1000)
+        args = server.get("args", [])
+        env = server.get("env", {})
+        if not isinstance(args, list) or len(args) > 100 or any(
+            not isinstance(arg, str) or "\x00" in arg or len(arg) > 4000 for arg in args
+        ):
+            raise CatalogValidationError(f"{prefix}.args must be a string list")
+        if not isinstance(env, dict) or len(env) > 100:
+            raise CatalogValidationError(f"{prefix}.env must be an object")
+        for key, value in env.items():
+            if not isinstance(key, str) or not ENV_KEY_RE.fullmatch(key):
+                raise CatalogValidationError(f"{prefix}.env contains an invalid key")
+            if not isinstance(value, str):
+                raise CatalogValidationError(f"{prefix}.env.{key} must be a string")
+            _optional_string(value, f"{prefix}.env.{key}", 4000)
+
+    used_fields = set()
+    for path, string in _walk_strings(server):
+        placeholders = set(PLACEHOLDER_RE.findall(string))
+        used_fields.update(placeholders)
+        for secret_field in placeholders & secret_fields:
+            is_allowed_secret_sink = (
+                path in {("auth", "token"), ("auth", "client_secret")}
+                or (len(path) == 2 and path[0] in {"headers", "env"})
+            )
+            if not is_allowed_secret_sink:
+                raise CatalogValidationError(
+                    f"{prefix} uses secret field {secret_field} in an unsafe location"
+                )
+    unknown_fields = used_fields - field_ids - RESERVED_TEMPLATE_VALUES
+    if unknown_fields:
+        raise CatalogValidationError(
+            f"{prefix} references undeclared fields: {', '.join(sorted(unknown_fields))}"
+        )
 
 
 def validate_catalog(payload):
@@ -188,6 +286,35 @@ def validate_catalog(payload):
                 f"{prefix}.setup.additional_setup.instructions",
                 2000,
             )
+            if "enabled_by_default" in additional_setup and not isinstance(
+                additional_setup["enabled_by_default"], bool
+            ):
+                raise CatalogValidationError(
+                    f"{prefix}.setup.additional_setup.enabled_by_default must be a boolean"
+                )
+            if "server" in additional_setup and not isinstance(additional_setup["server"], dict):
+                raise CatalogValidationError(
+                    f"{prefix}.setup.additional_setup.server must be an object"
+                )
+            post_setup = additional_setup.get("post_setup")
+            if post_setup is not None:
+                if not isinstance(post_setup, dict):
+                    raise CatalogValidationError(
+                        f"{prefix}.setup.additional_setup.post_setup must be an object"
+                    )
+                post_setup_type = _required_string(
+                    post_setup.get("type"),
+                    f"{prefix}.setup.additional_setup.post_setup.type",
+                    64,
+                )
+                if post_setup_type != "gimp_plugin":
+                    raise CatalogValidationError(
+                        f"{prefix}.setup.additional_setup.post_setup.type is unsupported"
+                    )
+                _validate_relative_setup_path(
+                    post_setup.get("source"),
+                    f"{prefix}.setup.additional_setup.post_setup.source",
+                )
 
         fields = setup.get("fields", [])
         if not isinstance(fields, list) or len(fields) > 20:
@@ -219,94 +346,13 @@ def validate_catalog(payload):
                 raise CatalogValidationError(f"{field_prefix}.required must be a boolean")
 
         server = application.get("server")
-        if not isinstance(server, dict):
-            raise CatalogValidationError(f"{prefix}.server must be an object")
-        server_type = server.get("type")
-        if server_type not in {"http", "stdio"}:
-            raise CatalogValidationError(f"{prefix}.server.type is unsupported")
-        _optional_string(server.get("title"), f"{prefix}.server.title", 120)
-
-        if server_type == "http":
-            _validate_http_endpoint(server.get("url"), f"{prefix}.server.url")
-            headers = server.get("headers", {})
-            if not isinstance(headers, dict) or len(headers) > 30:
-                raise CatalogValidationError(f"{prefix}.server.headers must be an object")
-            for key, value in headers.items():
-                _required_string(key, f"{prefix}.server.headers key", 200)
-                if not isinstance(value, str):
-                    raise CatalogValidationError(
-                        f"{prefix}.server.headers.{key} must be a string"
-                    )
-                _optional_string(value, f"{prefix}.server.headers.{key}", 4000)
-
-            auth = server.get("auth", {"type": "none"})
-            if not isinstance(auth, dict) or auth.get("type", "none") not in ALLOWED_AUTH_TYPES:
-                raise CatalogValidationError(f"{prefix}.server.auth is unsupported")
-            auth_type = auth.get("type", "none")
-            if auth_type == "bearer":
-                _required_string(auth.get("token"), f"{prefix}.server.auth.token", 4000)
-            elif auth_type == "oauth":
-                for key in ("client_id", "client_secret"):
-                    _optional_string(auth.get(key), f"{prefix}.server.auth.{key}", 4000)
-                redirect_port = auth.get("redirect_port")
-                if redirect_port is not None and (
-                    not isinstance(redirect_port, int) or not 1024 <= redirect_port <= 65535
-                ):
-                    raise CatalogValidationError(f"{prefix}.server.auth.redirect_port is invalid")
-                scopes = auth.get("scopes")
-                if scopes is not None and (
-                    not isinstance(scopes, list)
-                    or not scopes
-                    or any(not isinstance(scope, str) or not scope for scope in scopes)
-                ):
-                    raise CatalogValidationError(f"{prefix}.server.auth.scopes is invalid")
-                method = auth.get("token_endpoint_auth_method")
-                if method not in {None, "client_secret_basic", "client_secret_post", "none"}:
-                    raise CatalogValidationError(
-                        f"{prefix}.server.auth.token_endpoint_auth_method is invalid"
-                    )
-                params = auth.get("authorization_params", {})
-                if not isinstance(params, dict) or any(
-                    key not in ALLOWED_AUTH_PARAMS or not isinstance(value, str)
-                    for key, value in params.items()
-                ):
-                    raise CatalogValidationError(
-                        f"{prefix}.server.auth.authorization_params is invalid"
-                    )
-        else:
-            _required_string(server.get("command"), f"{prefix}.server.command", 1000)
-            args = server.get("args", [])
-            env = server.get("env", {})
-            if not isinstance(args, list) or len(args) > 100 or any(
-                not isinstance(arg, str) or "\x00" in arg or len(arg) > 4000 for arg in args
-            ):
-                raise CatalogValidationError(f"{prefix}.server.args must be a string list")
-            if not isinstance(env, dict) or len(env) > 100:
-                raise CatalogValidationError(f"{prefix}.server.env must be an object")
-            for key, value in env.items():
-                if not isinstance(key, str) or not ENV_KEY_RE.fullmatch(key):
-                    raise CatalogValidationError(f"{prefix}.server.env contains an invalid key")
-                if not isinstance(value, str):
-                    raise CatalogValidationError(f"{prefix}.server.env.{key} must be a string")
-                _optional_string(value, f"{prefix}.server.env.{key}", 4000)
-
-        used_fields = set()
-        for path, string in _walk_strings(server):
-            placeholders = set(PLACEHOLDER_RE.findall(string))
-            used_fields.update(placeholders)
-            for secret_field in placeholders & secret_fields:
-                is_allowed_secret_sink = (
-                    path in {("auth", "token"), ("auth", "client_secret")}
-                    or (len(path) == 2 and path[0] in {"headers", "env"})
-                )
-                if not is_allowed_secret_sink:
-                    raise CatalogValidationError(
-                        f"{prefix} uses secret field {secret_field} in an unsafe location"
-                    )
-        unknown_fields = used_fields - field_ids - RESERVED_TEMPLATE_VALUES
-        if unknown_fields:
-            raise CatalogValidationError(
-                f"{prefix} references undeclared fields: {', '.join(sorted(unknown_fields))}"
+        _validate_server(server, f"{prefix}.server", field_ids, secret_fields)
+        if additional_setup is not None and additional_setup.get("server") is not None:
+            _validate_server(
+                additional_setup["server"],
+                f"{prefix}.setup.additional_setup.server",
+                field_ids,
+                secret_fields,
             )
 
     return payload
@@ -326,6 +372,94 @@ def _render_templates(value, values):
     if isinstance(value, dict):
         return {key: _render_templates(item, values) for key, item in value.items()}
     return value
+
+
+def _select_server_template(application, automatic_setup_enabled):
+    setup = application.get("setup", {})
+    additional_setup = setup.get("additional_setup") or {}
+    if automatic_setup_enabled and additional_setup.get("server") is not None:
+        return additional_setup["server"]
+    return application["server"]
+
+
+def _missing_command_name(error, fallback):
+    seen = set()
+
+    def find(current):
+        if current is None or id(current) in seen:
+            return None
+        seen.add(id(current))
+
+        filename = getattr(current, "filename", None)
+        if filename:
+            return Path(os.fsdecode(filename)).name
+
+        text = str(current)
+        if any(
+            marker in text.casefold()
+            for marker in ("no such file or directory", "command not found")
+        ):
+            match = re.search(
+                r"[\"'“‘]?([A-Za-z0-9_./~+-]+)[\"'”’]?\s*:\s*command\s+not\s+found",
+                text,
+                flags=re.IGNORECASE,
+            ) or re.search(
+                r"command\s+not\s+found\s*[:：]?\s*[\"'“‘]?([A-Za-z0-9_./~+-]+)",
+                text,
+                flags=re.IGNORECASE,
+            ) or re.search(
+                r"(?:child process|command)\s*[\"'“‘]?([A-Za-z0-9_./~+-]+)",
+                text,
+                flags=re.IGNORECASE,
+            )
+            if match:
+                return Path(os.path.expanduser(match.group(1))).name
+
+        nested = getattr(current, "exceptions", None)
+        if nested:
+            for child in nested:
+                command = find(child)
+                if command:
+                    return command
+        for child in (getattr(current, "__cause__", None), getattr(current, "__context__", None)):
+            command = find(child)
+            if command:
+                return command
+        return None
+
+    return find(error) or Path(os.path.expanduser(fallback)).name or fallback
+
+
+def _is_missing_command_error(error):
+    seen = set()
+
+    def find(current):
+        if current is None or id(current) in seen:
+            return False
+        seen.add(id(current))
+        if isinstance(current, FileNotFoundError):
+            return True
+        text = str(current).casefold()
+        if "no such file or directory" in text or "command not found" in text:
+            return True
+        nested = getattr(current, "exceptions", None)
+        if nested and any(find(child) for child in nested):
+            return True
+        return find(getattr(current, "__cause__", None)) or find(
+            getattr(current, "__context__", None)
+        )
+
+    return find(error)
+
+
+def _missing_command_warning(server, error):
+    if not _is_missing_command_error(error):
+        return None
+    command = _missing_command_name(error, server.get("command", "the MCP server command"))
+    return _(
+        "The MCP server could not start because the command '{}' was not found. "
+        "Install it or add it to PATH, then try again."
+    ).format(command)
 
 
 def _catalog_text(value):
@@ -366,7 +500,8 @@ def _setup_directory_path(config_dir, additional_setup):
 def _ensure_git_repository(additional_setup, setup_dir):
     """Clone a catalog repository once and verify its expected files."""
     setup_path = Path(setup_dir)
-    required_paths = [setup_path / path for path in additional_setup["required_paths"]]
+    required_relative_paths = additional_setup["required_paths"]
+    required_paths = [setup_path / path for path in required_relative_paths]
     if setup_path.exists():
         if setup_path.is_dir() and all(path.exists() for path in required_paths):
             return
@@ -383,7 +518,15 @@ def _ensure_git_repository(additional_setup, setup_dir):
     )
     try:
         result = subprocess.run(
-            ["git", "clone", "--depth", "1", additional_setup["repository"], str(staging_path)],
+            get_spawn_command()
+            + [
+                "git",
+                "clone",
+                "--depth",
+                "1",
+                additional_setup["repository"],
+                str(staging_path),
+            ],
             check=False,
             capture_output=True,
             text=True,
@@ -396,7 +539,10 @@ def _ensure_git_repository(additional_setup, setup_dir):
                     f": {detail[-500:]}" if detail else ""
                 )
             )
-        if not all(path.exists() for path in required_paths):
+        staging_required_paths = [
+            staging_path / path for path in required_relative_paths
+        ]
+        if not all(path.exists() for path in staging_required_paths):
             raise RuntimeError(
                 _(
                     "The downloaded repository is missing one or more expected files."
@@ -405,7 +551,16 @@ def _ensure_git_repository(additional_setup, setup_dir):
         os.replace(staging_path, setup_path)
         staging_path = None
     except FileNotFoundError as exc:
-        raise RuntimeError(_("Git is required for automatic MCP setup.")) from exc
+        missing_command = _missing_command_name(exc, "git")
+        if missing_command == "flatpak-spawn":
+            raise RuntimeError(
+                _("Flatpak host access is required for automatic MCP setup.")
+            ) from exc
+        raise RuntimeError(
+            _("Git is required for automatic MCP setup; '{}' was not found.").format(
+                missing_command
+            )
+        ) from exc
     except subprocess.TimeoutExpired as exc:
         raise RuntimeError(_("Automatic MCP setup timed out while downloading the repository.")) from exc
     finally:
@@ -413,9 +568,107 @@ def _ensure_git_repository(additional_setup, setup_dir):
             shutil.rmtree(staging_path, ignore_errors=True)
 
 
+def _gimp_version_key(path):
+    return tuple(int(part) for part in path.name.split(".")[1:])
+
+
+def _find_gimp_plugin_directory():
+    config_home = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
+    roots = [config_home / "GIMP"]
+    roots.append(Path.home() / ".var" / "app" / "org.gimp.GIMP" / "config" / "GIMP")
+    version_directories = []
+    for root in roots:
+        if not root.is_dir():
+            continue
+        version_directories.extend(
+            path
+            for path in root.iterdir()
+            if path.is_dir() and re.fullmatch(r"3(?:\.\d+)+", path.name)
+        )
+    if not version_directories:
+        raise RuntimeError(
+            _(
+                "Could not find a GIMP 3.x configuration directory. Launch GIMP once, "
+                "then enable automatic setup again."
+            )
+        )
+    return max(version_directories, key=_gimp_version_key) / "plug-ins" / "gimp-mcp-plugin"
+
+
+_FLATPAK_GIMP_PLUGIN_INSTALLER = """set -eu
+source_path=$1
+selected=""
+for root in "$HOME/.config/GIMP" "$HOME/.var/app/org.gimp.GIMP/config/GIMP"; do
+    if [ -d "$root" ]; then
+        candidate=$(find "$root" -mindepth 1 -maxdepth 1 -type d -name '3.*' | sort -V | tail -n 1)
+        if [ -n "$candidate" ]; then
+            selected=$candidate
+            break
+        fi
+    fi
+done
+if [ -z "$selected" ]; then
+    echo "Could not find a GIMP 3.x configuration directory. Launch GIMP once, then enable automatic setup again." >&2
+    exit 2
+fi
+target="$selected/plug-ins/gimp-mcp-plugin"
+mkdir -p "$target"
+cp "$source_path" "$target/gimp-mcp-plugin.py"
+chmod +x "$target/gimp-mcp-plugin.py"
+"""
+
+
+def _install_gimp_plugin(additional_setup, setup_dir):
+    post_setup = additional_setup.get("post_setup") or {}
+    source_path = (Path(setup_dir) / post_setup["source"]).resolve()
+    setup_path = Path(setup_dir).resolve()
+    try:
+        source_path.relative_to(setup_path)
+    except ValueError as exc:
+        raise CatalogValidationError("GIMP plug-in source escapes the setup directory") from exc
+    if not source_path.is_file():
+        raise RuntimeError(_("The downloaded GIMP plug-in file is missing."))
+
+    if is_flatpak():
+        result = subprocess.run(
+            get_spawn_command()
+            + [
+                "sh",
+                "-c",
+                _FLATPAK_GIMP_PLUGIN_INSTALLER,
+                "newelle-gimp-plugin-installer",
+                str(source_path),
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode != 0:
+            detail = (result.stderr or result.stdout or "").strip()
+            raise RuntimeError(
+                _("Could not install the GIMP plug-in{}.").format(
+                    f": {detail[-500:]}" if detail else ""
+                )
+            )
+        return
+
+    target_directory = _find_gimp_plugin_directory()
+    target_directory.mkdir(parents=True, exist_ok=True)
+    target_path = target_directory / "gimp-mcp-plugin.py"
+    shutil.copy2(source_path, target_path)
+    target_path.chmod(target_path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+
 def _load_json_bytes(raw):
     try:
-        return validate_catalog(json.loads(raw.decode("utf-8")))
+        catalog = validate_catalog(json.loads(raw.decode("utf-8")))
+        catalog["applications"] = [
+            application
+            for application in catalog["applications"]
+            if application["id"] not in REMOVED_APPLICATION_IDS
+        ]
+        return catalog
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise CatalogValidationError("catalog is not valid UTF-8 JSON") from exc
 
@@ -579,6 +832,8 @@ class ConnectApplicationView(Gtk.Box):
         self.logo_waiters = {}
         self.selected_application = None
         self.setup_page = None
+        self.automatic_setup_enabled = False
+        self.automatic_setup_switch = None
         self.connecting = False
         self.closed = False
 
@@ -678,6 +933,15 @@ class ConnectApplicationView(Gtk.Box):
             or query in _catalog_text(application["name"]).casefold()
             or query in _catalog_text(application["description"]).casefold()
         ]
+        featured_order = {
+            application_id: index
+            for index, application_id in enumerate(FEATURED_APPLICATION_IDS)
+        }
+        applications.sort(
+            key=lambda application: featured_order.get(
+                application["id"], len(FEATURED_APPLICATION_IDS)
+            )
+        )
 
         for application in applications:
             card = Gtk.Button(
@@ -831,6 +1095,12 @@ class ConnectApplicationView(Gtk.Box):
         self.field_definitions = {
             field["id"]: field for field in application.get("setup", {}).get("fields", [])
         }
+        additional_setup = application.get("setup", {}).get("additional_setup") or {}
+        self.automatic_setup_enabled = bool(
+            additional_setup
+            and additional_setup.get("enabled_by_default", True)
+        )
+        self.automatic_setup_switch = None
 
         if self.setup_page is not None:
             self.stack.remove(self.setup_page)
@@ -888,6 +1158,7 @@ class ConnectApplicationView(Gtk.Box):
             or setup.get("help_url")
             or additional_setup.get("description")
             or additional_setup.get("instructions")
+            or additional_setup.get("server") is not None
         ):
             setup_group = Adw.PreferencesGroup(title=_("Setup"))
             if setup.get("instructions"):
@@ -923,6 +1194,23 @@ class ConnectApplicationView(Gtk.Box):
                         icon_name="system-run-symbolic",
                     )
                 )
+            if additional_setup.get("server") is not None:
+                automatic_setup_row = Adw.ActionRow(
+                    title=_("Use automatic setup"),
+                    subtitle=_(
+                        "Clone the server into Newelle's MCP folder and run it from there"
+                    ),
+                    icon_name="system-run-symbolic",
+                )
+                self.automatic_setup_switch = Gtk.Switch(
+                    active=self.automatic_setup_enabled,
+                    valign=Gtk.Align.CENTER,
+                )
+                self.automatic_setup_switch.connect(
+                    "notify::active", self._on_automatic_setup_toggled
+                )
+                automatic_setup_row.add_suffix(self.automatic_setup_switch)
+                setup_group.add(automatic_setup_row)
             content.append(setup_group)
 
         fields = setup.get("fields", [])
@@ -935,7 +1223,7 @@ class ConnectApplicationView(Gtk.Box):
             content.append(fields_group)
 
         connection_group = Adw.PreferencesGroup(title=_("Connection"))
-        server = application["server"]
+        server = self._get_selected_server_template()
         if server["type"] == "http":
             self.connection_preview_row = Adw.ActionRow(
                 title=_("HTTP endpoint"), subtitle=server["url"]
@@ -1151,11 +1439,22 @@ class ConnectApplicationView(Gtk.Box):
                 for field_id, entry in self.field_entries.items()
             },
         }
-        server = _render_templates(self.selected_application["server"], values)
+        server = _render_templates(self._get_selected_server_template(), values)
         if server["type"] == "stdio":
             self.connection_preview_row.set_subtitle(self._command_preview(server))
         else:
             self.connection_preview_row.set_subtitle(server["url"])
+
+    def _get_selected_server_template(self):
+        if self.selected_application is None:
+            return {}
+        return _select_server_template(
+            self.selected_application, self.automatic_setup_enabled
+        )
+
+    def _on_automatic_setup_toggled(self, switch, _param):
+        self.automatic_setup_enabled = switch.get_active()
+        self._update_connection_preview()
 
     @staticmethod
     def _command_preview(server):
@@ -1175,12 +1474,12 @@ class ConnectApplicationView(Gtk.Box):
             additional_setup = self.selected_application.get("setup", {}).get(
                 "additional_setup"
             )
-            if additional_setup is not None:
+            if additional_setup is not None and self.automatic_setup_enabled:
                 values["setup_dir"] = str(
                     _setup_directory_path(self.controller.config_dir, additional_setup)
                 )
             server = _validate_rendered_server(
-                _render_templates(self.selected_application["server"], values)
+                _render_templates(self._get_selected_server_template(), values)
             )
         except CatalogValidationError as exc:
             self.toast_overlay.add_toast(Adw.Toast(title=str(exc)))
@@ -1191,11 +1490,11 @@ class ConnectApplicationView(Gtk.Box):
             return
 
         if server["type"] == "stdio":
-            self._confirm_stdio_connection(server)
+            self._confirm_stdio_connection(server, self.automatic_setup_enabled)
             return
-        self._start_connection(server)
+        self._start_connection(server, self.automatic_setup_enabled)
 
-    def _confirm_stdio_connection(self, server):
+    def _confirm_stdio_connection(self, server, automatic_setup_enabled):
         dialog = Adw.MessageDialog(
             transient_for=self.parent_window,
             modal=True,
@@ -1230,12 +1529,12 @@ class ConnectApplicationView(Gtk.Box):
         def responded(current_dialog, response_id):
             current_dialog.destroy()
             if response_id == "run":
-                self._start_connection(server)
+                self._start_connection(server, automatic_setup_enabled)
 
         dialog.connect("response", responded)
         dialog.present()
 
-    def _start_connection(self, server):
+    def _start_connection(self, server, automatic_setup_enabled=False):
         self.connecting = True
         self.connect_button.set_sensitive(False)
         self.connect_spinner.set_visible(True)
@@ -1259,11 +1558,17 @@ class ConnectApplicationView(Gtk.Box):
                 additional_setup = self.selected_application.get("setup", {}).get(
                     "additional_setup"
                 )
-                if additional_setup is not None:
+                if additional_setup is not None and automatic_setup_enabled:
+                    setup_directory = _setup_directory_path(
+                        self.controller.config_dir, additional_setup
+                    )
                     _ensure_git_repository(
                         additional_setup,
-                        _setup_directory_path(self.controller.config_dir, additional_setup),
+                        setup_directory,
                     )
+                    post_setup = additional_setup.get("post_setup")
+                    if post_setup is not None and post_setup.get("type") == "gimp_plugin":
+                        _install_gimp_plugin(additional_setup, setup_directory)
 
                 if server["type"] == "http" and auth.get("type") == "oauth":
                     from ..integrations.mcp_oauth import run_oauth_flow
@@ -1325,13 +1630,18 @@ class ConnectApplicationView(Gtk.Box):
 
                     clear_oauth_credentials(server["url"], self.controller.config_dir)
                 if not self.closed:
+                    error = (
+                        _missing_command_warning(server, exc)
+                        if isinstance(exc, FileNotFoundError)
+                        else str(exc)
+                    )
                     GLib.idle_add(
                         self._finish_connection,
                         None,
                         None,
                         server,
                         False,
-                        str(exc),
+                        error,
                         original_label,
                         application_name,
                     )

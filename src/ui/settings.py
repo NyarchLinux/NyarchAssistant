@@ -2015,6 +2015,18 @@ class Settings(Adw.Window):
             text = str(e).strip()
             if not text:
                 text = type(e).__name__
+            missing_command_text = text.casefold()
+            if isinstance(e, FileNotFoundError) or any(
+                marker in missing_command_text
+                for marker in ("no such file or directory", "command not found")
+            ):
+                from .mcp_catalog import _missing_command_name
+
+                command = _missing_command_name(e, "the configured command")
+                text = _(
+                    "The MCP server could not start because the command '{}' was not found. "
+                    "Install it or add it to PATH, then try again."
+                ).format(command)
             if text not in messages:
                 messages.append(text)
 
