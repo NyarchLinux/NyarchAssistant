@@ -30,6 +30,7 @@ from .utility.source_attribution import format_source_context
 from .constants import AVAILABLE_INTEGRATIONS, AVAILABLE_WEBSEARCH, AVAILABLE_IMAGE_GENERATORS, DIR_NAME, SCHEMA_ID, PROMPTS, AVAILABLE_STT, AVAILABLE_TTS, AVAILABLE_LLMS, AVAILABLE_RAGS, AVAILABLE_PROMPTS, AVAILABLE_MEMORIES, AVAILABLE_EMBEDDINGS, AVAILABLE_INTERFACES, SETTINGS_GROUPS, restore_handlers
 import threading
 import pickle
+import tempfile
 import json
 import datetime
 import uuid as uuid_lib
@@ -336,15 +337,37 @@ class NewelleController:
                 self.newelle_settings.chat_id = min(self.chats.keys())
 
     def save_chats(self):
-        """Save chats"""
+        """Save chats without exposing a partially written storage file."""
         with self.save_lock:
-            with open(self.chats_path, 'wb') as f:
-                pickle.dump({
-                    "chats": self.chats,
-                    "next_chat_id": self.next_chat_id,
-                    "folders": self.folders,
-                    "next_folder_id": self.next_folder_id,
-                }, f)
+            storage_dir = os.path.dirname(self.chats_path) or "."
+            storage_name = os.path.basename(self.chats_path)
+            temporary_path = None
+            try:
+                with tempfile.NamedTemporaryFile(
+                    mode="wb",
+                    dir=storage_dir,
+                    prefix=f".{storage_name}.",
+                    suffix=".tmp",
+                    delete=False,
+                ) as temporary_file:
+                    temporary_path = temporary_file.name
+                    pickle.dump({
+                        "chats": self.chats,
+                        "next_chat_id": self.next_chat_id,
+                        "folders": self.folders,
+                        "next_folder_id": self.next_folder_id,
+                    }, temporary_file)
+                    temporary_file.flush()
+                    os.fsync(temporary_file.fileno())
+
+                os.replace(temporary_path, self.chats_path)
+                temporary_path = None
+            finally:
+                if temporary_path is not None:
+                    try:
+                        os.unlink(temporary_path)
+                    except FileNotFoundError:
+                        pass
 
     def create_call_chat(self):
         """Create a new call chat that won't be displayed in the chat list"""
