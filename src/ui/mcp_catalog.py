@@ -1,4 +1,4 @@
-"""Catalog-driven setup window for MCP applications."""
+"""Catalog-driven setup view for MCP applications."""
 
 from __future__ import annotations
 
@@ -8,7 +8,10 @@ import json
 import os
 import re
 import shlex
+import shutil
 import socket
+import subprocess
+import tempfile
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -17,6 +20,7 @@ from urllib.parse import urljoin, urlparse
 import requests
 from gi.repository import Adw, Gdk, GdkPixbuf, Gio, GLib, Gtk
 
+from . import _IMAGE_REQUEST_HEADERS, _pixbuf_from_image_data
 from ..utility.system import can_escape_sandbox, is_flatpak, open_website
 
 
@@ -32,6 +36,7 @@ MAX_LOGO_BYTES = 512 * 1024
 PLACEHOLDER_RE = re.compile(r"\$\{([A-Za-z][A-Za-z0-9_]*)\}")
 FIELD_ID_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,63}$")
 ENV_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+RESERVED_TEMPLATE_VALUES = {"setup_dir"}
 ALLOWED_FIELD_TYPES = {"text", "secret", "url", "file", "directory"}
 ALLOWED_AUTH_TYPES = {"none", "bearer", "oauth"}
 ALLOWED_AUTH_PARAMS = {"access_type", "prompt", "login_hint", "include_granted_scopes"}
@@ -63,6 +68,16 @@ def _validate_https_url(value, label):
     parsed = urlparse(value)
     if parsed.scheme != "https" or not parsed.netloc:
         raise CatalogValidationError(f"{label} must use HTTPS")
+
+
+def _validate_relative_setup_path(value, label):
+    value = _required_string(value, label, 512)
+    normalized = value.replace("\\", "/")
+    if normalized.startswith("/") or any(
+        part in {"", ".", ".."} for part in normalized.split("/")
+    ):
+        raise CatalogValidationError(f"{label} must be a relative path")
+    return value
 
 
 def _validate_http_endpoint(value, label):
@@ -128,6 +143,52 @@ def validate_catalog(payload):
         if setup.get("help_url") is not None:
             _validate_https_url(setup["help_url"], f"{prefix}.setup.help_url")
 
+        additional_setup = setup.get("additional_setup")
+        if additional_setup is not None:
+            if not isinstance(additional_setup, dict):
+                raise CatalogValidationError(f"{prefix}.setup.additional_setup must be an object")
+            setup_type = _required_string(
+                additional_setup.get("type"),
+                f"{prefix}.setup.additional_setup.type",
+                64,
+            )
+            if setup_type != "git_repository":
+                raise CatalogValidationError(
+                    f"{prefix}.setup.additional_setup.type is unsupported"
+                )
+            _validate_https_url(
+                additional_setup.get("repository"),
+                f"{prefix}.setup.additional_setup.repository",
+            )
+            _validate_relative_setup_path(
+                additional_setup.get("directory"),
+                f"{prefix}.setup.additional_setup.directory",
+            )
+            required_paths = additional_setup.get("required_paths")
+            if (
+                not isinstance(required_paths, list)
+                or not required_paths
+                or len(required_paths) > 100
+            ):
+                raise CatalogValidationError(
+                    f"{prefix}.setup.additional_setup.required_paths must be a non-empty list"
+                )
+            for path_index, required_path in enumerate(required_paths):
+                _validate_relative_setup_path(
+                    required_path,
+                    f"{prefix}.setup.additional_setup.required_paths[{path_index}]",
+                )
+            _optional_string(
+                additional_setup.get("description"),
+                f"{prefix}.setup.additional_setup.description",
+                500,
+            )
+            _optional_string(
+                additional_setup.get("instructions"),
+                f"{prefix}.setup.additional_setup.instructions",
+                2000,
+            )
+
         fields = setup.get("fields", [])
         if not isinstance(fields, list) or len(fields) > 20:
             raise CatalogValidationError(f"{prefix}.setup.fields must be a list")
@@ -138,7 +199,11 @@ def validate_catalog(payload):
             if not isinstance(field, dict):
                 raise CatalogValidationError(f"{field_prefix} must be an object")
             field_id = _required_string(field.get("id"), f"{field_prefix}.id", 64)
-            if not FIELD_ID_RE.fullmatch(field_id) or field_id in field_ids:
+            if (
+                not FIELD_ID_RE.fullmatch(field_id)
+                or field_id in field_ids
+                or field_id in RESERVED_TEMPLATE_VALUES
+            ):
                 raise CatalogValidationError(f"{field_prefix}.id is invalid or duplicated")
             field_ids.add(field_id)
             field_type = field.get("type", "text")
@@ -238,7 +303,7 @@ def validate_catalog(payload):
                     raise CatalogValidationError(
                         f"{prefix} uses secret field {secret_field} in an unsafe location"
                     )
-        unknown_fields = used_fields - field_ids
+        unknown_fields = used_fields - field_ids - RESERVED_TEMPLATE_VALUES
         if unknown_fields:
             raise CatalogValidationError(
                 f"{prefix} references undeclared fields: {', '.join(sorted(unknown_fields))}"
@@ -286,6 +351,66 @@ def _validate_rendered_server(server):
         }
     )
     return server
+
+
+def _setup_directory_path(config_dir, additional_setup):
+    base_path = Path(config_dir).expanduser().resolve() / "mcp"
+    setup_path = (base_path / additional_setup["directory"]).resolve()
+    try:
+        setup_path.relative_to(base_path)
+    except ValueError as exc:
+        raise CatalogValidationError("automatic setup directory escapes the MCP folder") from exc
+    return setup_path
+
+
+def _ensure_git_repository(additional_setup, setup_dir):
+    """Clone a catalog repository once and verify its expected files."""
+    setup_path = Path(setup_dir)
+    required_paths = [setup_path / path for path in additional_setup["required_paths"]]
+    if setup_path.exists():
+        if setup_path.is_dir() and all(path.exists() for path in required_paths):
+            return
+        raise RuntimeError(
+            _(
+                "The automatic setup directory already exists but does not contain "
+                "the expected repository files."
+            )
+        )
+
+    setup_path.parent.mkdir(parents=True, exist_ok=True)
+    staging_path = Path(
+        tempfile.mkdtemp(prefix=f".{setup_path.name}.", dir=setup_path.parent)
+    )
+    try:
+        result = subprocess.run(
+            ["git", "clone", "--depth", "1", additional_setup["repository"], str(staging_path)],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=180,
+        )
+        if result.returncode != 0:
+            detail = (result.stderr or result.stdout or "").strip()
+            raise RuntimeError(
+                _("Could not download the automatic setup repository{}.").format(
+                    f": {detail[-500:]}" if detail else ""
+                )
+            )
+        if not all(path.exists() for path in required_paths):
+            raise RuntimeError(
+                _(
+                    "The downloaded repository is missing one or more expected files."
+                )
+            )
+        os.replace(staging_path, setup_path)
+        staging_path = None
+    except FileNotFoundError as exc:
+        raise RuntimeError(_("Git is required for automatic MCP setup.")) from exc
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(_("Automatic MCP setup timed out while downloading the repository.")) from exc
+    finally:
+        if staging_path is not None:
+            shutil.rmtree(staging_path, ignore_errors=True)
 
 
 def _load_json_bytes(raw):
@@ -344,74 +469,82 @@ def _save_cached_catalog(path, catalog):
     os.replace(temporary_path, path)
 
 
+def _validate_logo_target(target):
+    parsed = urlparse(target)
+    if (
+        parsed.scheme != "https"
+        or not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+    ):
+        raise CatalogValidationError("logo URL must be a public HTTPS URL")
+    addresses = socket.getaddrinfo(parsed.hostname, parsed.port or 443)
+    if not addresses or any(
+        not ipaddress.ip_address(address[4][0]).is_global for address in addresses
+    ):
+        raise CatalogValidationError("logo URL must resolve to a public address")
+
+
+def _download_logo(url):
+    """Download and decode a catalog logo after validating every redirect."""
+    current_url = url
+    response = None
+    chunks = []
+    size = 0
+    for _redirect in range(4):
+        _validate_logo_target(current_url)
+        response = requests.get(
+            current_url,
+            headers=_IMAGE_REQUEST_HEADERS,
+            stream=True,
+            timeout=(5, 15),
+            allow_redirects=False,
+        )
+        if response.is_redirect or response.is_permanent_redirect:
+            location = response.headers.get("location")
+            response.close()
+            if not location:
+                return None
+            current_url = urljoin(current_url, location)
+            continue
+        break
+    else:
+        return None
+
+    with response:
+        response.raise_for_status()
+        content_type = response.headers.get("content-type", "")
+        if content_type and not content_type.lower().startswith("image/"):
+            return None
+        for chunk in response.iter_content(8 * 1024):
+            if not chunk:
+                continue
+            size += len(chunk)
+            if size > MAX_LOGO_BYTES:
+                return None
+            chunks.append(chunk)
+
+    pixbuf = _pixbuf_from_image_data(b"".join(chunks), content_type)
+    width = max(pixbuf.get_width(), 1)
+    height = max(pixbuf.get_height(), 1)
+    if width <= 256 and height <= 256:
+        return pixbuf
+
+    scale = min(256 / width, 256 / height)
+    return pixbuf.scale_simple(
+        max(1, int(width * scale)),
+        max(1, int(height * scale)),
+        GdkPixbuf.InterpType.BILINEAR,
+    )
+
+
 def _load_logo(url, callback):
     """Load a small remote logo without allowing an unbounded image download."""
-    def validate_target(target):
-        parsed = urlparse(target)
-        if (
-            parsed.scheme != "https"
-            or not parsed.hostname
-            or parsed.username is not None
-            or parsed.password is not None
-        ):
-            raise CatalogValidationError("logo URL must be a public HTTPS URL")
-        addresses = socket.getaddrinfo(parsed.hostname, parsed.port or 443)
-        if not addresses or any(
-            not ipaddress.ip_address(address[4][0]).is_global for address in addresses
-        ):
-            raise CatalogValidationError("logo URL must resolve to a public address")
 
     def worker():
         pixbuf = None
         try:
-            current_url = url
-            response = None
-            chunks = []
-            size = 0
-            for _redirect in range(4):
-                validate_target(current_url)
-                response = requests.get(
-                    current_url,
-                    stream=True,
-                    timeout=(5, 15),
-                    allow_redirects=False,
-                )
-                if response.is_redirect or response.is_permanent_redirect:
-                    location = response.headers.get("location")
-                    response.close()
-                    if not location:
-                        return
-                    current_url = urljoin(current_url, location)
-                    continue
-                break
-            else:
-                return
-
-            with response:
-                response.raise_for_status()
-                content_type = response.headers.get("content-type", "").split(";", 1)[0]
-                if content_type and not content_type.startswith("image/"):
-                    return
-                for chunk in response.iter_content(8 * 1024):
-                    if not chunk:
-                        continue
-                    size += len(chunk)
-                    if size > MAX_LOGO_BYTES:
-                        return
-                    chunks.append(chunk)
-            loader = GdkPixbuf.PixbufLoader()
-
-            def size_prepared(current_loader, width, height):
-                if width > 256 or height > 256:
-                    scale = min(256 / max(width, 1), 256 / max(height, 1))
-                    current_loader.set_size(
-                        max(1, int(width * scale)), max(1, int(height * scale))
-                    )
-
-            loader.connect("size-prepared", size_prepared)
-            loader.write(b"".join(chunks))
-            loader.close()
-            pixbuf = loader.get_pixbuf()
+            pixbuf = _download_logo(url)
         except (
             CatalogValidationError,
             OSError,
@@ -426,11 +559,12 @@ def _load_logo(url, callback):
     LOGO_EXECUTOR.submit(worker)
 
 
-class ConnectApplicationWindow(Adw.Window):
-    """Browse a catalog and connect a guided HTTP or STDIO MCP server."""
+class ConnectApplicationView(Gtk.Box):
+    """Browse and connect catalog applications inside the MCP settings page."""
 
     def __init__(self, parent, controller, on_connected=None, catalog_url=None):
-        super().__init__()
+        super().__init__(orientation=Gtk.Orientation.VERTICAL)
+        self.parent_window = parent
         self.controller = controller
         self.on_connected = on_connected
         self.catalog_url = catalog_url or os.environ.get(
@@ -448,19 +582,16 @@ class ConnectApplicationWindow(Adw.Window):
         self.connecting = False
         self.closed = False
 
-        self.set_title(_("Connect Application"))
-        self.set_default_size(720, 640)
-        self.set_modal(True)
-        self.set_transient_for(parent)
-        self.connect("close-request", self._on_close_request)
+        self.connect("unrealize", self._on_unrealize)
 
         self.toast_overlay = Adw.ToastOverlay()
         self.stack = Gtk.Stack(
             transition_type=Gtk.StackTransitionType.SLIDE_LEFT_RIGHT,
             transition_duration=200,
+            vhomogeneous=False,
         )
         self.toast_overlay.set_child(self.stack)
-        self.set_content(self.toast_overlay)
+        self.append(self.toast_overlay)
 
         self._build_catalog_page()
         self._populate_catalog()
@@ -468,39 +599,37 @@ class ConnectApplicationWindow(Adw.Window):
 
     def _build_catalog_page(self):
         page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        header = Adw.HeaderBar()
-        self.catalog_title = Adw.WindowTitle(
-            title=_("Connect Application"),
-            subtitle=_("Choose an application from the MCP catalog"),
+        controls = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL,
+            spacing=6,
+            margin_top=12,
+            margin_bottom=6,
+            margin_start=12,
+            margin_end=12,
         )
-        header.set_title_widget(self.catalog_title)
+        self.search_entry = Gtk.SearchEntry(
+            placeholder_text=_("Search applications"),
+            hexpand=True,
+        )
+        self.search_entry.connect("search-changed", lambda _entry: self._populate_catalog())
+        controls.append(self.search_entry)
 
-        self.refresh_spinner = Gtk.Spinner()
-        header.pack_end(self.refresh_spinner)
+        self.refresh_spinner = Gtk.Spinner(valign=Gtk.Align.CENTER)
+        controls.append(self.refresh_spinner)
         self.refresh_button = Gtk.Button(
             icon_name="view-refresh-symbolic",
             tooltip_text=_("Refresh application catalog"),
             css_classes=["flat"],
+            valign=Gtk.Align.CENTER,
         )
         self.refresh_button.connect(
             "clicked", lambda _button: self._refresh_remote_catalog(show_error=True)
         )
-        header.pack_end(self.refresh_button)
-        page.append(header)
-
-        self.search_entry = Gtk.SearchEntry(
-            placeholder_text=_("Search applications"),
-            margin_top=12,
-            margin_bottom=6,
-            margin_start=18,
-            margin_end=18,
-        )
-        self.search_entry.connect("search-changed", lambda _entry: self._populate_catalog())
-        page.append(self.search_entry)
+        controls.append(self.refresh_button)
+        page.append(controls)
 
         self.results_stack = Gtk.Stack()
-        self.results_stack.set_vexpand(True)
-        scroll = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER)
+        self.results_stack.set_vhomogeneous(False)
         clamp = Adw.Clamp(maximum_size=1400, tightening_threshold=1000)
         catalog_box = Gtk.Box(
             orientation=Gtk.Orientation.VERTICAL,
@@ -520,8 +649,7 @@ class ConnectApplicationWindow(Adw.Window):
         )
         catalog_box.append(self.catalog_flow)
         clamp.set_child(catalog_box)
-        scroll.set_child(clamp)
-        self.results_stack.add_named(scroll, "results")
+        self.results_stack.add_named(clamp, "results")
 
         empty = Adw.StatusPage(
             icon_name="system-search-symbolic",
@@ -656,10 +784,9 @@ class ConnectApplicationWindow(Adw.Window):
             avatar.set_custom_image(texture)
         return False
 
-    def _on_close_request(self, _window):
+    def _on_unrealize(self, _widget):
         self.closed = True
         self.logo_waiters.clear()
-        return False
 
     def _refresh_remote_catalog(self, show_error):
         if not self.catalog_url or self.refresh_spinner.get_spinning():
@@ -709,20 +836,31 @@ class ConnectApplicationWindow(Adw.Window):
             self.stack.remove(self.setup_page)
         self.setup_page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
 
-        header = Adw.HeaderBar()
+        header = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL,
+            spacing=12,
+            margin_top=12,
+            margin_bottom=6,
+            margin_start=12,
+            margin_end=12,
+        )
         back_button = Gtk.Button(
             icon_name="go-previous-symbolic",
             tooltip_text=_("Back to applications"),
             css_classes=["flat"],
         )
         back_button.connect("clicked", lambda _button: self._show_catalog())
-        header.pack_start(back_button)
-        header.set_title_widget(
-            Adw.WindowTitle(title=_catalog_text(application["name"]))
+        header.append(back_button)
+        setup_title = Gtk.Label(
+            label=_catalog_text(application["name"]),
+            xalign=0,
+            hexpand=True,
+            valign=Gtk.Align.CENTER,
         )
+        setup_title.add_css_class("title-3")
+        header.append(setup_title)
         self.setup_page.append(header)
 
-        scroll = Gtk.ScrolledWindow(vexpand=True, hscrollbar_policy=Gtk.PolicyType.NEVER)
         clamp = Adw.Clamp(maximum_size=720, tightening_threshold=600)
         content = Gtk.Box(
             orientation=Gtk.Orientation.VERTICAL,
@@ -733,7 +871,6 @@ class ConnectApplicationWindow(Adw.Window):
             margin_end=18,
         )
         clamp.set_child(content)
-        scroll.set_child(clamp)
 
         application_group = Adw.PreferencesGroup()
         application_row = Adw.ActionRow(
@@ -745,7 +882,13 @@ class ConnectApplicationWindow(Adw.Window):
         content.append(application_group)
 
         setup = application.get("setup", {})
-        if setup.get("instructions") or setup.get("help_url"):
+        additional_setup = setup.get("additional_setup") or {}
+        if (
+            setup.get("instructions")
+            or setup.get("help_url")
+            or additional_setup.get("description")
+            or additional_setup.get("instructions")
+        ):
             setup_group = Adw.PreferencesGroup(title=_("Setup"))
             if setup.get("instructions"):
                 setup_group.add(
@@ -767,6 +910,19 @@ class ConnectApplicationWindow(Adw.Window):
                 )
                 help_row.add_suffix(help_button)
                 setup_group.add(help_row)
+            if additional_setup.get("description") or additional_setup.get("instructions"):
+                automatic_setup_text = additional_setup.get("description", "")
+                if additional_setup.get("instructions"):
+                    if automatic_setup_text:
+                        automatic_setup_text += " "
+                    automatic_setup_text += additional_setup["instructions"]
+                setup_group.add(
+                    Adw.ActionRow(
+                        title=_("Automatic setup"),
+                        subtitle=_catalog_text(automatic_setup_text),
+                        icon_name="system-run-symbolic",
+                    )
+                )
             content.append(setup_group)
 
         fields = setup.get("fields", [])
@@ -862,9 +1018,40 @@ class ConnectApplicationWindow(Adw.Window):
         for entry in self.field_entries.values():
             entry.connect("changed", lambda _entry: self._update_connection_preview())
 
-        self.setup_page.append(scroll)
+        self.setup_page.append(clamp)
         self.stack.add_named(self.setup_page, "setup")
         self.stack.set_visible_child_name("setup")
+        self._queue_scroll_to_catalog()
+
+    def _queue_scroll_to_catalog(self):
+        GLib.timeout_add(
+            self.stack.get_transition_duration() + 16,
+            self._scroll_settings_to_catalog,
+        )
+
+    def _scroll_settings_to_catalog(self):
+        scrolled_window = self.get_ancestor(Gtk.ScrolledWindow)
+        catalog_group = self.get_ancestor(Adw.PreferencesGroup)
+        if scrolled_window is None or catalog_group is None:
+            return False
+
+        scroll_child = scrolled_window.get_child()
+        if scroll_child is None:
+            return False
+        success, bounds = catalog_group.compute_bounds(scroll_child)
+        if not success:
+            return False
+
+        adjustment = scrolled_window.get_vadjustment()
+        page_size = adjustment.get_page_size()
+        group_height = bounds.get_height()
+        top_padding = max(24, (page_size - min(group_height, page_size)) / 2)
+        target = bounds.get_y() - top_padding
+        maximum = max(adjustment.get_lower(), adjustment.get_upper() - page_size)
+        adjustment.set_value(
+            min(max(target, adjustment.get_lower()), maximum)
+        )
+        return False
 
     def _build_field_row(self, field):
         row = Adw.ActionRow(
@@ -923,9 +1110,9 @@ class ConnectApplicationWindow(Adw.Window):
                 entry.set_text(selected_file.get_path())
 
         if field_type == "file":
-            dialog.open(self, None, selected)
+            dialog.open(self.parent_window, None, selected)
         else:
-            dialog.select_folder(self, None, selected)
+            dialog.select_folder(self.parent_window, None, selected)
 
     def _collect_values(self):
         values = {}
@@ -958,8 +1145,11 @@ class ConnectApplicationWindow(Adw.Window):
         if not self.selected_application:
             return
         values = {
-            field_id: entry.get_text().strip() or f"${{{field_id}}}"
-            for field_id, entry in self.field_entries.items()
+            **{name: f"${{{name}}}" for name in RESERVED_TEMPLATE_VALUES},
+            **{
+                field_id: entry.get_text().strip() or f"${{{field_id}}}"
+                for field_id, entry in self.field_entries.items()
+            },
         }
         server = _render_templates(self.selected_application["server"], values)
         if server["type"] == "stdio":
@@ -982,6 +1172,13 @@ class ConnectApplicationWindow(Adw.Window):
             return
         try:
             values = self._collect_values()
+            additional_setup = self.selected_application.get("setup", {}).get(
+                "additional_setup"
+            )
+            if additional_setup is not None:
+                values["setup_dir"] = str(
+                    _setup_directory_path(self.controller.config_dir, additional_setup)
+                )
             server = _validate_rendered_server(
                 _render_templates(self.selected_application["server"], values)
             )
@@ -1000,7 +1197,7 @@ class ConnectApplicationWindow(Adw.Window):
 
     def _confirm_stdio_connection(self, server):
         dialog = Adw.MessageDialog(
-            transient_for=self,
+            transient_for=self.parent_window,
             modal=True,
             destroy_with_parent=True,
         )
@@ -1058,6 +1255,15 @@ class ConnectApplicationWindow(Adw.Window):
                 handler = self.controller.get_mcp_integration()
                 if handler is None:
                     raise RuntimeError(_("The MCP integration is not available"))
+
+                additional_setup = self.selected_application.get("setup", {}).get(
+                    "additional_setup"
+                )
+                if additional_setup is not None:
+                    _ensure_git_repository(
+                        additional_setup,
+                        _setup_directory_path(self.controller.config_dir, additional_setup),
+                    )
 
                 if server["type"] == "http" and auth.get("type") == "oauth":
                     from ..integrations.mcp_oauth import run_oauth_flow
