@@ -21,7 +21,7 @@ class ExtensionPage(Adw.PreferencesPage):
         toast_callback=None,
     ):
         super().__init__(
-            icon_name="branch-symbolic",
+            icon_name="extension-symbolic",
             title=_("Extensions"),
         )
         self.app = app
@@ -99,7 +99,7 @@ class ExtensionPage(Adw.PreferencesPage):
             row.add_suffix(toggle)
 
         row.add_prefix(
-            Gtk.Image(icon_name="branch-symbolic", css_classes=["dim-label"])
+            Gtk.Image(icon_name="extension-symbolic", css_classes=["dim-label"])
         )
 
         delete_button = Gtk.Button(

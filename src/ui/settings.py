@@ -58,8 +58,8 @@ class Settings(Adw.Window):
         self.PromptsPage = Adw.PreferencesPage(icon_name="question-round-outline-symbolic", title=_("Prompts"))
         self.ToolsPage = Adw.PreferencesPage(icon_name="tools-symbolic", title=_("Tools"))
         self.PermissionsPage = Adw.PreferencesPage(
-            icon_name="security-high-symbolic",
-            title=_("Custom Permissions"),
+            icon_name="key-symbolic",
+            title=_("Permissions"),
         )
         self.MemoryPage = Adw.PreferencesPage(icon_name="vcard-symbolic", title=_("Knowledge"))
         self.VoicePage = Adw.PreferencesPage(icon_name="audio-input-microphone-symbolic", title=_("Voice"))
@@ -701,7 +701,7 @@ class Settings(Adw.Window):
                 title=_("Interfaces"),
             )
             self.ExtensionsPage = Adw.PreferencesPage(
-                icon_name="branch-symbolic",
+                icon_name="extension-symbolic",
                 title=_("Extensions"),
             )
         else:
@@ -738,11 +738,11 @@ class Settings(Adw.Window):
             ("Voice", _("Voice"), "audio-input-microphone-symbolic", self.VoicePage),
             ("Prompts", _("Prompts"), "question-round-outline-symbolic", self.PromptsPage),
             ("Tools", _("Tools"), "tools-symbolic", self.ToolsPage),
-            ("Permissions", _("Custom Permissions"), "security-high-symbolic", self.PermissionsPage),
+            ("Permissions", _("Permissions"), "key-symbolic", self.PermissionsPage),
             ("Skills", _("Skills"), "skills-symbolic", self.SkillsPage),
             ("MCP", _("MCP Servers"), "internet-symbolic", self.MCPPage),
             ("Interfaces", _("Interfaces"), "controls-big-symbolic", self.InterfacesPage),
-            ("Extensions", _("Extensions"), "branch-symbolic", self.ExtensionsPage),
+            ("Extensions", _("Extensions"), "extension-symbolic", self.ExtensionsPage),
         ]
         self.navigation_pages = {
             key: (title, page)
