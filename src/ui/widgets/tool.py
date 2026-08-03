@@ -91,7 +91,8 @@ class ToolCallsGroupWidget(Gtk.ListBox):
             hscrollbar_policy=Gtk.PolicyType.NEVER,
             vscrollbar_policy=Gtk.PolicyType.AUTOMATIC,
             propagate_natural_height=True,
-            max_content_height=600,
+            min_content_height=400,
+            max_content_height=800,
             child=self.content_box,
         )
         scrolled.add_css_class("expander-inset-content")
