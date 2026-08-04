@@ -1,9 +1,9 @@
 pkgdatadir = join_paths(get_option('prefix'), get_option('datadir'), meson.project_name())
-moduledir = join_paths(pkgdatadir, 'newelle')
+moduledir = join_paths(pkgdatadir, 'nyarchassistant')
 gnome = import('gnome')
 
-gnome.compile_resources('newelle',
-  'newelle.gresource.xml',
+gnome.compile_resources('nyarchassistant',
+  'nyarchassistant.gresource.xml',
   gresource_bundle: true,
   install: true,
   install_dir: pkgdatadir,
@@ -22,15 +22,15 @@ conf.set('localedir', join_paths(get_option('prefix'), get_option('localedir')))
 conf.set('pkgdatadir', pkgdatadir)
 
 configure_file(
-  input: 'newelle.in',
-  output: 'newelle',
+  input: 'nyarchassistant.in',
+  output: 'nyarchassistant',
   configuration: conf,
   install: true,
   install_dir: get_option('bindir'),
   install_mode: 'r-xr--r--'
 )
 
-newelle_sources = [
+nyarchassistant_sources = [
   '__init__.py',
   'main.py',
   'constants.py',
@@ -54,7 +54,8 @@ integrations_sources = [
   'integrations/skills.py',
   'integrations/agent_tools.py',
   'integrations/file_editing.py',
-  'integrations/todo_list.py'
+  'integrations/todo_list.py',
+  'integrations/arch.py',
 ]
 
 ui_sources = [
@@ -119,6 +120,7 @@ widgets_sources = [
   'ui/widgets/question.py',
   'ui/widgets/image_generator.py',
   'ui/widgets/image_generator_mini_app.py',
+  'ui/widgets/avatar_call.py',
 ]
 
 handler_sources = [
@@ -145,6 +147,7 @@ llm_sources = [
   'handlers/llm/openrouter_handler.py',
   'handlers/llm/deepseek_handler.py',
   'handlers/llm/llama_cpp_handler.py',
+  'handlers/llm/nyarch_handler.py',
   ]
 
 tts_sources = [
@@ -158,6 +161,8 @@ tts_sources = [
   'handlers/tts/openai_tts_handler.py',
   'handlers/tts/custom_openai_tts.py',
   'handlers/tts/groq_tts_handler.py',
+  'handlers/tts/vits_handler.py',
+  'handlers/tts/voicevox_handler.py',
   'handlers/tts/edge_handler.py',
 ]
 
@@ -256,7 +261,25 @@ utility_sources = [
   'utility/tool_call_group.py',
 ]
 
-install_data(newelle_sources, install_dir: moduledir)
+avatar_sources = [
+ 'handlers/avatar/__init__.py',
+ 'handlers/avatar/avatar.py',
+ 'handlers/avatar/live2d_handler.py',
+ 'handlers/avatar/livepng_handler.py',
+ 'handlers/avatar/vrm_handler.py'
+]
+
+translator_sources = [
+ 'handlers/translator/__init__.py',
+ 'handlers/translator/translator.py',
+ 'handlers/translator/customtr_handler.py',
+ 'handlers/translator/googletr_handler.py',
+ 'handlers/translator/libretranslate_handler.py',
+ 'handlers/translator/ligva_handler.py',
+]
+
+
+install_data(nyarchassistant_sources, install_dir: moduledir)
 install_data(ui_sources, install_dir: moduledir / 'ui')
 install_data(widgets_sources, install_dir: moduledir / 'ui' / 'widgets')
 install_data(handler_sources, install_dir: moduledir / 'handlers')
@@ -273,3 +296,7 @@ install_data(interface_sources, install_dir: moduledir / 'handlers' / 'interface
 install_data(utility_sources, install_dir: moduledir / 'utility')
 install_data(integrations_sources, install_dir: moduledir / 'integrations')
 install_data(image_generator_sources, install_dir: moduledir / 'handlers' / 'image_generator')
+
+install_data(translator_sources, install_dir: moduledir / 'handlers' / 'translator')
+install_data(avatar_sources, install_dir: moduledir / 'handlers' / 'avatar')
+install_data(utility_sources, install_dir: moduledir / 'utility')

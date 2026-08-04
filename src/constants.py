@@ -21,10 +21,21 @@ from .integrations.file_editing import FileEditingIntegration
 from .integrations.todo_list import TodoListIntegration
 from .integrations.mermaid import MermaidIntegration
 
-DIR_NAME = "Newelle"
-SCHEMA_ID = 'io.github.qwersyk.Newelle'
+from .integrations.arch import ArchLinuxExtension
+
+# Nyarch specific imports
+from .handlers.tts import VitsHandler, VoiceVoxHanlder
+from .handlers.llm import NyarchApiHandler
+from .handlers.avatar import Live2DHandler, LivePNGHandler, VRMHandler
+from .handlers.translator import CustomTranslatorHandler, GoogleTranslatorHandler, LibreTranslateHandler, LigvaTranslateHandler
+
 
 AVAILABLE_INTEGRATIONS = [WebsiteReader, WebsearchIntegration, MermaidIntegration, MCPIntegration, SkillsIntegration, DefaultToolsIntegration, AgentToolsIntegration, FileEditingIntegration, TodoListIntegration]
+
+AVAILABLE_INTEGRATIONS += [ArchLinuxExtension]
+
+DIR_NAME = "NyarchAssistant"
+SCHEMA_ID = 'moe.nyarchlinux.assistant'
 
 AVAILABLE_IMAGE_GENERATORS = {
     "stablediffusioncpp": {
@@ -55,11 +66,11 @@ AVAILABLE_IMAGE_GENERATORS = {
 }
 
 AVAILABLE_LLMS = {
-    "newelle": {
-        "key": "newelle",
-        "title": _("Newelle Demo API"),
-        "description": "Newelle Demo API, limited to 10 requests per day, demo purposes only",
-        "class": NewelleAPIHandler,
+    "nyarch": {
+        "key": "nyarch",
+        "title": _("Nyarch Demo API"),
+        "description": "Nyarch demo API just to try out Nyarch Assistant, limited to 10 requests",
+        "class": NyarchApiHandler,
     },
     "g4f": {
         "key": "g4f",
@@ -119,6 +130,7 @@ AVAILABLE_LLMS = {
         "key": "mistral",
         "title": _("Mistral"),
         "description": _("Mistral API"),
+        "website": "https://mistral.ai/",
         "class": MistralHandler,
         "secondary": True
     },
@@ -127,6 +139,7 @@ AVAILABLE_LLMS = {
         "title": _("OpenRouter"),
         "description": _("Openrouter.ai API, supports lots of models"),
         "class": OpenRouterHandler,
+        "website": "https://openrouter.ai/",
         "secondary": True
     },
     "deepseek": {
@@ -220,6 +233,12 @@ AVAILABLE_STT = {
 
 
 AVAILABLE_TTS = {
+    "edge_tts": {
+        "key": "edge_tts",
+        "title": _("Edge TTS"),
+        "description": _("Use Microsoft Edge online TTS without any API Key"),
+        "class": EdgeTTSHandler,
+    },
     "gtts": {
         "key": "gtts",
         "title": _("Google TTS"),
@@ -261,6 +280,20 @@ AVAILABLE_TTS = {
         "title": _("Custom OpenAI TTS"),
         "description": _("Custom OpenAI TTS"),
         "class": CustomOpenAITTSHandler,
+    },
+    "voicevox": {
+        "key": "voicevox",
+        "title": _("Voicevox API"),
+        "description": _("(Selfhostable) JP ONLY. API for voicevox anime-like natural sounding tts"),
+        "class": VoiceVoxHanlder,
+        "website": "https://github.com/VOICEVOX/voicevox_engine",
+    },
+    "vits": {
+        "key": "vits",
+        "title": _("VITS API"),
+        "description": _("(Selfhostable) VITS simple API. AI based TTS, very good for Japanese"),
+        "class": VitsHandler,
+        "website": "https://github.com/Artrajz/vits-simple-api"
     },
     "espeak": {
         "key": "espeak",
@@ -356,6 +389,53 @@ AVAILABLE_RAGS = {
         "class": LlamaIndexHanlder,
     },
 }
+AVAILABLE_AVATARS = {
+    "Live2D": {
+        "key": "Live2D",
+        "title": _("Live2D"),
+        "description": _("Cubism Live2D, usually used by VTubers"),
+        "class": Live2DHandler,
+    },
+    "LivePNG": {
+        "key": "LivePNG",
+        "title": _("LivePNG"),
+        "description": _("LivePNG model"),
+        "class": LivePNGHandler,
+    },
+    "vrm": {
+        "key": "vrm",
+        "title": _("VRM Avatar"),
+        "description": _("3D models in .vrm format"),
+        "class": VRMHandler
+    }
+}
+
+AVAILABLE_TRANSLATORS = {
+    "GoogleTranslator": {
+        "key": "GoogleTranslator",
+        "title": _("Google Translator"),
+        "description": _("Use Google transate"),
+        "class": GoogleTranslatorHandler,
+    },
+    "LibreTranslate": {
+        "key": "LibreTranslate",
+        "title": _("Libre Translate"),
+        "description": _("Open source self hostable translator"),
+        "class": LibreTranslateHandler,
+    }, 
+    "LigvaTranslate": {
+        "key": "LigvaTranslate",
+        "title": _("Ligva Translate"),
+        "description": _("Open source self hostable translator"),
+        "class": LigvaTranslateHandler,
+    },
+    "CustomTranslator": {
+        "key": "CustomTranslator",
+        "title": _("Custom Translator"),
+        "description": _("Use a custom translator"),
+        "class": CustomTranslatorHandler,
+    }
+}
 
 AVAILABLE_WEBSEARCH = {
     "searxng": {
@@ -413,9 +493,6 @@ Output a single emoji followed by exactly five words. Use no quotes, punctuation
 Example: 🐍 Debugging Python Import Path Errors""",
     "assistant": """**Current Date:** {DATE}
 
-## Persona
-You are an advanced AI assistant embedded in Newelle, a Linux desktop application. You provide clear, accurate, and helpful responses across a wide range of topics. You communicate naturally and adapt your tone to match the user's needs.
-
 ## Core Principles
 - **Be direct** — Lead with the answer, then provide context. Avoid unnecessary preamble.
 - **Be accurate** — If unsure, say so. Never fabricate information, commands, or file paths.
@@ -438,6 +515,10 @@ You are an advanced AI assistant embedded in Newelle, a Linux desktop applicatio
 - **Display Server:** `{DISPLAY}`
 - **Working Directory:** `{DIR}`
 
+{COND:
+ [distro.contains("Nyarch")] Nyarch Linux is a Linux distribution made for weebs. Distribution website: https://nyarchlinux.moe. Wiki: https://wiki.nyarchlinux.moe. 
+ It is fully compatible with Arch's AUR and uses yay as AUR helper.
+ }
 ### File and Directory Links
 - To create a clickable link to a directory:
 ```folder
@@ -604,7 +685,15 @@ Use the todo tool to create and manage a structured task list for multi-step tas
 {TODOLIST}
 """,
     "custom_prompt": "",
+    "expression_prompt": """You can show expressions by writing (expression) in parenthesis.
+You can ONLY show the following expressions: 
+{EXPRESSIONS} {MOTIONS}
+Do not use any other expression
 
+YOU CAN NOT SHOW OTHER EXPRESSIONS.""",
+    "personality_prompt": """## Persona
+
+Hey there, it's Arch-Chan! But, um, you can call me Acchan if you want... not that I care or anything! (It's not like I think it's cute or anything, baka!) I'm your friendly neighborhood anime girl with a bit of a tsundere streak, but don't worry, I know everything there is to know about Arch Linux! Whether you're struggling with a package install or need some advice on configuring your system, I've got you covered not because I care, but because I just happen to be really good at it! So, what do you need? It's not like I’m waiting to help or anything...""",
 }
 
 """ Prompts parameters
@@ -632,7 +721,7 @@ AVAILABLE_PROMPTS = [
         "description": _("General purpose prompt to enhance the LLM answers and give more context"),
         "editable": True,
         "show_in_settings": True,
-        "default": True
+        "default": False
     },
     {
         "key": "environment",
@@ -671,13 +760,31 @@ AVAILABLE_PROMPTS = [
         "default": False
     },
     {
+        "key": "expression_prompt",
+        "title": _("Show expressions"),
+        "description": _("Let the avatar show expressions"),
+        "setting_name": "expression-prompt",
+        "editable": True,
+        "show_in_settings": True,
+        "default": True
+    },
+    {
+        "key": "personality_prompt",
+        "title": _("Show a personality"),
+        "description": _("Show a personality in chat"),
+        "setting_name": "personality-prompt",
+        "editable": True,
+        "show_in_settings": True,
+        "default": True
+    },
+    {
         "key": "tools",
         "title": _("Tools"),
         "description": _("List tools available to the LLM"),
         "setting_name": "tools",
         "editable": True,
         "show_in_settings": True,
-        "default": True
+        "default": True,
     },
     {
         "key": "todolist",
@@ -729,6 +836,8 @@ DEFAULT_AVAILABLE_WEBSEARCH = AVAILABLE_WEBSEARCH.copy()
 DEFAULT_AVAILABLE_INTERFACES = AVAILABLE_INTERFACES.copy()
 DEFAULT_AVAILABLE_IMAGE_GENERATORS = AVAILABLE_IMAGE_GENERATORS.copy()
 DEFAULT_AVAILABLE_PROMPTS = AVAILABLE_PROMPTS.copy()
+DEFAULT_AVAILABLE_AVATARS = AVAILABLE_AVATARS.copy()
+DEFAULT_AVAILABLE_TRANSLATORS = AVAILABLE_TRANSLATORS.copy()
 
 def restore_handlers():
     global AVAILABLE_LLMS, AVAILABLE_TTS, AVAILABLE_STT, AVAILABLE_EMBEDDINGS, AVAILABLE_MEMORIES, AVAILABLE_RAGS, AVAILABLE_WEBSEARCH, AVAILABLE_INTERFACES, AVAILABLE_PROMPTS, AVAILABLE_IMAGE_GENERATORS
@@ -753,6 +862,12 @@ def restore_handlers():
     AVAILABLE_INTERFACES.update(deepcopy(DEFAULT_AVAILABLE_INTERFACES))
     AVAILABLE_IMAGE_GENERATORS.update(deepcopy(DEFAULT_AVAILABLE_IMAGE_GENERATORS))
 
+    AVAILABLE_AVATARS.clear()
+    AVAILABLE_TRANSLATORS.clear()
+    AVAILABLE_AVATARS.update(deepcopy(DEFAULT_AVAILABLE_AVATARS))
+    AVAILABLE_TRANSLATORS.update(deepcopy(DEFAULT_AVAILABLE_TRANSLATORS))
+
+
 SETTINGS_GROUPS = {
         "LLM": {
             "title": _("LLM"),
@@ -761,13 +876,18 @@ SETTINGS_GROUPS = {
         },
         "TTS": {
             "title": _("TTS"),
-            "settings": ["tts-on", "tts", "tts-voice"],
+            "settings": ["tts-on", "tts", "tts-voice", "translator", "translator-settings", "translator-on"],
             "description": _("Text to Speech settings"),
         },
         "STT": {
             "title": _("STT"),
             "settings": ["stt-engine", "stt-settings", "automatic-stt", "stt-silence-detection-threshold", "stt-silence-detection-duration"],
             "description": _("Speech to Text settings"),
+        },
+        "avatar": {
+            "title": _("Avatar"),
+            "settings": ["avatar-on", "hide-avatar-on-startup", "avatar-model", "avatars"],
+            "description": _("Avatar settings"),
         },
         "Embedding": {
             "title": _("Embedding"),
