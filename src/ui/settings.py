@@ -37,6 +37,7 @@ class Settings(Adw.Window):
         self.set_title(_("Settings"))
         self.set_default_size(950, 720)
         self.set_modal(True)
+        self.set_resizable(False)
         self.downloading = {}
         self.slider_labels = {}
         self.directory = GLib.get_user_config_dir()
