@@ -286,6 +286,7 @@ class ChatInterface(Interface):
             "🤖 /models - List available models\n"
             "🔀 /model [provider:]model - Switch model\n"
             "👤 /profile <name> - Switch profile\n"
+            "🎨 /mode [name] - View/switch modes\n"
             "📝 /prompts - View prompts\n"
             "🔧 /tools - View/toggle tools\n"
             "⏰ /scheduled - View scheduled tasks\n"
@@ -393,6 +394,32 @@ class ChatInterface(Interface):
             restore_settings_from_dict(self.controller.settings, profile_data.get("settings", {}))
         self.controller.update_settings()
         return f"✅ Switched to profile: {name}"
+
+    def _cmd_mode(self, user_id, args):
+        mm = getattr(self.controller, "mode_manager", None)
+        if mm is None:
+            return "ℹ️ Modes are not available."
+        if not args:
+            active = mm.get_active_mode_name()
+            lines = [f"🎨 *Modes* (active: *{active}*):\n"]
+            for name, mode in mm.get_modes().items():
+                marker = "▶" if name == active else " "
+                desc = mode.get("description", "") or ""
+                lines.append(f"{marker} *{name}*" + (f" — {desc}" if desc else ""))
+            lines.append("\n💡 Use /mode <name> to switch the active mode")
+            return "\n".join(lines)[:4000]
+        name = " ".join(args)
+        try:
+            mm.set_active_mode(name)
+        except ValueError:
+            available = ", ".join(mm.get_modes().keys())
+            return f"❌ Mode '{name}' not found. Available: {available}"
+        # Mirror ModeButton._on_mode_activated: propagate skill overrides to the
+        # skill manager and rebuild prompts/tools so the next run uses the mode.
+        active = mm.get_active_mode()
+        self.controller.skill_manager.set_mode_overrides(active.get("skills", {}))
+        self.controller.update_settings()
+        return f"✅ Switched to mode: {name}"
 
     def _cmd_prompts(self, user_id, args):
         from ...constants import PROMPTS, AVAILABLE_PROMPTS
@@ -609,6 +636,7 @@ class ChatInterface(Interface):
         "models": _cmd_models,
         "model": _cmd_model,
         "profile": _cmd_profile,
+        "mode": _cmd_mode,
         "prompts": _cmd_prompts,
         "tools": _cmd_tools,
         "scheduled": _cmd_scheduled,

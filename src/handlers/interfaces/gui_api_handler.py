@@ -203,6 +203,9 @@ class GUIAPIInterface(Interface):
         class ReloadRequest(BaseModel):
             reload_type: str
 
+        class SetActiveModeRequest(BaseModel):
+            mode: str
+
         # ============================================================ #
         #                         BOOTSTRAP                             #
         # ============================================================ #
@@ -721,6 +724,50 @@ class GUIAPIInterface(Interface):
                 window.switch_profile(req.profile)
             else:
                 controller.switch_profile(req.profile)
+            return {"status": "ok"}
+
+        # ============================================================ #
+        #                           MODES                               #
+        # ============================================================ #
+        @app.get("/api/modes")
+        def api_list_modes():
+            """List all modes with the active one flagged."""
+            mm = getattr(controller, "mode_manager", None)
+            if mm is None:
+                raise HTTPException(status_code=503, detail="Modes not available")
+            active = mm.get_active_mode_name()
+            result = []
+            for name, mode in mm.get_modes().items():
+                result.append({
+                    "name": name,
+                    "description": mode.get("description", ""),
+                    "icon": mode.get("icon", ""),
+                    "current": name == active,
+                })
+            return result
+
+        @app.get("/api/modes/current")
+        def api_get_current_mode():
+            mm = getattr(controller, "mode_manager", None)
+            if mm is None:
+                raise HTTPException(status_code=503, detail="Modes not available")
+            return {"mode": mm.get_active_mode_name()}
+
+        @app.post("/api/modes/set-active")
+        def api_set_active_mode(req: SetActiveModeRequest):
+            mm = getattr(controller, "mode_manager", None)
+            if mm is None:
+                raise HTTPException(status_code=503, detail="Modes not available")
+            try:
+                mm.set_active_mode(req.mode)
+            except ValueError:
+                raise HTTPException(status_code=404, detail=f"Mode '{req.mode}' not found")
+            # Propagate skill overrides and rebuild prompts/tools so the next
+            # generation reflects the newly active mode. Mirrors the desktop
+            # ModeButton._on_mode_activated and ChatInterface._cmd_mode flows.
+            active = mm.get_active_mode()
+            controller.skill_manager.set_mode_overrides(active.get("skills", {}))
+            controller.update_settings()
             return {"status": "ok"}
 
         # ============================================================ #

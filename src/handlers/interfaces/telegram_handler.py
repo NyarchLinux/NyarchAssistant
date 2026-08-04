@@ -213,6 +213,9 @@ class TelegramInterface(ChatInterface):
         async def profile_cmd(update: Update, context):
             await _reply(update, context, "profile", context.args)
 
+        async def mode_cmd(update: Update, context):
+            await _reply(update, context, "mode", context.args)
+
         async def prompts_cmd(update: Update, context):
             await _reply(update, context, "prompts", context.args)
 
@@ -522,6 +525,7 @@ class TelegramInterface(ChatInterface):
         app.add_handler(CommandHandler("models", models_cmd))
         app.add_handler(CommandHandler("model", model_cmd))
         app.add_handler(CommandHandler("profile", profile_cmd))
+        app.add_handler(CommandHandler("mode", mode_cmd))
         app.add_handler(CommandHandler("prompts", prompts_cmd))
         app.add_handler(CommandHandler("tools", tools_cmd))
         app.add_handler(CommandHandler("scheduled", scheduled_cmd))
