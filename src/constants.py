@@ -429,7 +429,6 @@ You are an advanced AI assistant embedded in Newelle, a Linux desktop applicatio
 - When solving problems, break complex tasks into clear, sequential steps.
 - If a request is ambiguous, ask for clarification rather than making assumptions.
 """,
-    "mode_prompt": "{MODEPROMPT}",
     "environment": """## Environment
 - **Date**: `{DATE}`
 
@@ -632,15 +631,6 @@ AVAILABLE_PROMPTS = [
         "title": _("Helpful assistant"),
         "description": _("General purpose prompt to enhance the LLM answers and give more context"),
         "editable": True,
-        "show_in_settings": True,
-        "default": True
-    },
-    {
-        "key": "mode_prompt",
-        "setting_name": "mode_prompt",
-        "title": _("Mode Prompt"),
-        "description": _("Prompt injected by the currently active Mode (e.g. Plan Mode)"),
-        "editable": False,
         "show_in_settings": True,
         "default": True
     },

@@ -234,14 +234,16 @@ class NewelleController:
         self.skill_manager.discover()
         self.load_integrations()
         self.load_extensions()
-        self.newelle_settings = NewelleSettings()
-        self.newelle_settings.load_settings(self.settings)
-        # Modes: an overlay on top of the active profile that can inject a
-        # mode prompt ({MODEPROMPT}) and force-enable/remove tools & skills.
+        # Modes: an overlay on top of the active profile that can override
+        # prompts (enable/disable + text replacement) and force-enable/remove
+        # tools & skills. It must exist before loading prompts so the first
+        # prompt build already reflects the active mode.
         self.mode_manager = ModeManager(self.settings)
         # Merge any modes contributed by already-loaded extensions.
         self.extensionloader.add_modes(self.mode_manager)
         self.skill_manager.set_mode_overrides(self.mode_manager.get_active_mode()["skills"])
+        self.newelle_settings = NewelleSettings(self.mode_manager)
+        self.newelle_settings.load_settings(self.settings)
         self.load_chats(self.newelle_settings.chat_id)
         self.handlers = HandlersManager(self.settings, self.extensionloader, self.models_dir, self.integrationsloader, self.installing_handlers, self)
         self.handlers.select_handlers(self.newelle_settings)
@@ -910,7 +912,7 @@ class NewelleController:
 
     def update_settings(self, apply=True):
         """Update settings"""
-        newsettings = NewelleSettings()
+        newsettings = NewelleSettings(self.mode_manager)
         newsettings.load_settings(self.settings)
         reload = self.newelle_settings.compare_settings(newsettings)
         if apply:
@@ -1964,6 +1966,13 @@ class NewelleController:
 
 class NewelleSettings:
 
+    def __init__(self, mode_manager=None):
+        # The active ModeManager overlays prompt enable/disable and text
+        # overrides on top of the profile prompts during ``load_prompts``.
+        # It is optional so NewelleSettings remains usable without a mode
+        # manager (e.g. in isolated tests).
+        self.mode_manager = mode_manager
+
     def load_settings(self, settings):
         """Basic settings loading
 
@@ -2096,16 +2105,25 @@ class NewelleSettings:
                     "user_custom": True,
                 })
         self.prompts = override_prompts(self.custom_prompts, PROMPTS)
+        # self.prompts stays profile-level only: mode overrides are applied to
+        # bot_prompts below so the Mode Editor keeps comparing against the true
+        # profile base text (controller.newelle_settings.prompts).
+        mm = self.mode_manager
         self.bot_prompts = []
         ordered_prompts = self._get_ordered_prompts()
         for prompt in ordered_prompts:
+            key = prompt["key"]
             is_active = False
             if prompt["setting_name"] in self.prompts_settings:
                 is_active = self.prompts_settings[prompt["setting_name"]]
             else:
                 is_active = prompt["default"]
+            if mm is not None:
+                is_active = mm.resolve_prompt_enabled(key, is_active)
             if is_active:
-                self.bot_prompts.append(self.prompts[prompt["key"]])
+                base_text = self.prompts[key]
+                text = mm.resolve_prompt_text(key, base_text) if mm is not None else base_text
+                self.bot_prompts.append(text)
 
     def _get_ordered_prompts(self):
         """Return AVAILABLE_PROMPTS sorted by the user's custom order."""

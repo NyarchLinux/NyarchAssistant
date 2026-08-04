@@ -78,14 +78,17 @@ DEFAULT_MODES = {
     "No Tools": {
         "description": _("Disable tools"),
         "icon": "system-run-symbolic",
+        "tools": {},
+        "skills": {},
         "prompts": {
-            "tools":
-            {
+            "tools": {
                 "state": REMOVE,
-                "todolist": REMOVE
-            }
-            }
-        }
+            },
+            "todolist": {
+                "state": REMOVE,
+            },
+        },
+    },
 }
 
 # Name of the built-in mode that is always present and cannot be removed.
