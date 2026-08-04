@@ -10,8 +10,8 @@ _DIM_CACHE = {}
 
 
 def _color_rgb(color):
-    # Matches the historical (red, blue, green) ordering.
-    return (color.red, color.blue, color.green)
+    # matplotlib expects an (r, g, b) tuple; Gdk.RGBA exposes .red/.green/.blue.
+    return (color.red, color.green, color.blue)
 
 
 def measure_latex(latex: str, size: int, color) -> tuple[int, int]:
@@ -71,16 +71,20 @@ class _LazyLatexMixin:
     must implement `_attach_canvas(canvas)` and `_detach_canvas()`.
     """
 
-    def _lazy_init(self, latex: str, size: int, color, inline: bool) -> None:
+    def _lazy_init(self, latex: str, size: int, inline: bool) -> None:
         self.latex = latex
         self.size = size
-        self.color = color
         self.inline = inline
         self.picture = None
         self._build_id = None
+        # This color is used only to size the placeholder synchronously — text
+        # extents don't depend on color. The actual render color is re-read in
+        # _idle_build, because get_color() returns a default white/black until
+        # the widget is parented and its theme context is available.
+        self.color = self.get_style_context().get_color()
         # dims are known synchronously from the (cached) measurement, so layout
         # works immediately even before the canvas widget exists.
-        self.dims = measure_latex(latex, size, color)
+        self.dims = measure_latex(latex, size, self.color)
 
     def _schedule_build(self) -> None:
         if self._build_id is not None:
@@ -97,6 +101,10 @@ class _LazyLatexMixin:
         # Widget was torn down (chat switched) before we got to build it.
         if self.get_root() is None:
             return False
+        # Re-read the foreground now that the widget is parented/realized, so
+        # the rendered equation matches the theme's actual text color instead
+        # of the default white/black captured at construction time.
+        self.color = self.get_style_context().get_color()
         try:
             canvas = LatexCanvas(self.latex, self.size, self.color, inline=self.inline)
         except Exception:
@@ -131,8 +139,7 @@ class _LazyLatexMixin:
 class InlineLatex(_LazyLatexMixin, Gtk.Box):
     def __init__(self, latex: str, size: int) -> None:
         super().__init__()
-        color = self.get_style_context().get_color()
-        self._lazy_init(latex, size, color, inline=True)
+        self._lazy_init(latex, size, inline=True)
         self.placeholder = Gtk.Box()
         self.append(self.placeholder)
         self._schedule_build()
@@ -167,8 +174,7 @@ class DisplayLatex(_LazyLatexMixin, Gtk.Box):
         self.cachedir = cache_dir
         self.base_size = base_size
         self._manual_offset = 0
-        color = self.get_style_context().get_color()
-        self._lazy_init(latex, base_size, color, inline)
+        self._lazy_init(latex, base_size, inline=inline)
         self.scroll = None
         if not inline:
             self.scroll = Gtk.ScrolledWindow(
