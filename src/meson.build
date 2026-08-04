@@ -159,6 +159,7 @@ tts_sources = [
   'handlers/tts/custom_openai_tts.py',
   'handlers/tts/groq_tts_handler.py',
   'handlers/tts/edge_handler.py',
+  'handlers/tts/mistral_tts_handler.py',
 ]
 
 stt_sources = [  
@@ -174,6 +175,7 @@ stt_sources = [
   'handlers/stt/custom_handler.py',
   'handlers/stt/vosk_handler.py',
   'handlers/stt/openwakeword_handler.py',
+  'handlers/stt/mistral_stt_handler.py',
 ]
 
 embedding_sources = [  

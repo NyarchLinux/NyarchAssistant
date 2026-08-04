@@ -8,6 +8,7 @@ from .openai_tts_handler import OpenAITTSHandler
 from .custom_openai_tts import CustomOpenAITTSHandler
 from .groq_tts_handler import GroqTTSHandler
 from .edge_handler import EdgeTTSHandler
+from .mistral_tts_handler import MistralTTSHandler
 
 __all__ = [
     "TTSHandler",
@@ -19,6 +20,7 @@ __all__ = [
     "OpenAITTSHandler",
     "CustomOpenAITTSHandler",
     "GroqTTSHandler",
-    "EdgeTTSHandler"
+    "EdgeTTSHandler",
+    "MistralTTSHandler",
 ]
 

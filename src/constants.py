@@ -1,7 +1,7 @@
 from copy import deepcopy
 from .handlers.llm import ClaudeHandler, DeepseekHandler, GroqHandler, OllamaHandler, OllamaCloudHandler, OpenAIHandler, CustomLLMHandler, GeminiHandler, MistralHandler, OpenRouterHandler, NewelleAPIHandler, G4FHandler, LlamaCPPHandler
-from .handlers.tts import ElevenLabs, gTTSHandler, EspeakHandler, CustomTTSHandler, KokoroTTSHandler, CustomOpenAITTSHandler, OpenAITTSHandler, GroqTTSHandler, EdgeTTSHandler
-from .handlers.stt import GroqSRHandler, OpenAISRHandler, SphinxHandler, GoogleSRHandler, WhisperCPPHandler, WitAIHandler, VoskHandler, CustomSRHandler, OpenWakeWordHandler
+from .handlers.tts import ElevenLabs, gTTSHandler, EspeakHandler, CustomTTSHandler, KokoroTTSHandler, CustomOpenAITTSHandler, OpenAITTSHandler, GroqTTSHandler, EdgeTTSHandler, MistralTTSHandler
+from .handlers.stt import GroqSRHandler, OpenAISRHandler, SphinxHandler, GoogleSRHandler, WhisperCPPHandler, WitAIHandler, VoskHandler, CustomSRHandler, OpenWakeWordHandler, MistralSTTHandler
 from .handlers.embeddings import WordLlamaHandler, OpenAIEmbeddingHandler, GeminiEmbeddingHanlder, OllamaEmbeddingHandler, Model2VecHandler, LlamaCPPEmbeddingHandler
 from .handlers.memory import MemoripyHandler, UserSummaryHandler, SummaryMemoripyHanlder, LlamaIndexMemoryHandler, AgenticMemoryHandler
 from .handlers.rag import LlamaIndexHanlder
@@ -209,6 +209,14 @@ AVAILABLE_STT = {
         "class": OpenAISRHandler,
         "secondary": True,
     },
+    "mistral_sr": {
+        "key": "mistral_sr",
+        "title": _("Mistral Speech Recognition"),
+        "description": _("Uses Mistral's Voxtral speech recognition API"),
+        "website": "https://docs.mistral.ai/studio-api/audio/speech_to_text",
+        "class": MistralSTTHandler,
+        "secondary": True,
+    },
    "custom_command": {
         "key": "custom_command",
         "title": _("Custom command"),
@@ -255,6 +263,13 @@ AVAILABLE_TTS = {
         "title": _("Groq TTS"),
         "description": _("Groq TTS API"),
         "class": GroqTTSHandler,
+    },
+    "mistral_tts": {
+        "key": "mistral_tts",
+        "title": _("Mistral Voxtral TTS"),
+        "description": _("Mistral's Voxtral text-to-speech with zero-shot voice cloning"),
+        "website": "https://docs.mistral.ai/studio-api/audio/text_to_speech",
+        "class": MistralTTSHandler,
     },
     "custom_openai_tts": {
         "key": "custom_openai_tts",
