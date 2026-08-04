@@ -10,7 +10,6 @@ Each ChatTab owns its own:
 
 from gi.repository import Gtk, Adw, Gio, Gdk, GObject, GLib, GdkPixbuf
 import threading
-import time
 import re
 import gettext
 import subprocess
@@ -18,8 +17,11 @@ import base64
 
 from .chat_history import ChatHistory
 from .multiline import MultilineEntry
+from .mode_switcher import ModeButton
+from .context_indicator import ContextIndicator
 from .documents_reader import DocumentReaderWidget
 from .message import Message
+from .. import apply_css_to_widget
 from ...utility.strings import (
     clean_message_tts,
     convert_think_codeblocks,
@@ -31,6 +33,10 @@ from ...utility.media import extract_supported_files
 from ...tools import Command
 
 _ = gettext.gettext
+
+_STREAM_REVEAL_INTERVAL_MS = 30
+_STREAM_REVEAL_TARGET_FRAMES = 4
+_STREAM_REVEAL_MAX_CHARS = 48
 
 
 class ChatTab(Gtk.Box):
@@ -56,12 +62,14 @@ class ChatTab(Gtk.Box):
         self.streaming_pending = False
         self.streaming_lock = threading.Lock()
         self.streamed_content = ""
+        self._stream_target_content = ""
+        self._stream_reveal_source_id = None
+        self._stream_reveal_generation = None
         self.is_thinking = False
         self.thinking_text = ""
         self.main_text = ""
         self.current_streaming_message = None
         self.streaming_box = None
-        self.last_update = 0
         
         # Generation state
         self.active_tool_results = []
@@ -122,8 +130,10 @@ class ChatTab(Gtk.Box):
         self._build_input_box()
         
     def _build_input_box(self):
-        """Build the input box with attach, record, text entry, and send buttons."""
+        """Build the stacked-card input box.
+        """
         self.input_box = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
             halign=Gtk.Align.FILL,
             margin_start=6,
             margin_end=6,
@@ -131,78 +141,136 @@ class ChatTab(Gtk.Box):
             margin_bottom=6,
             spacing=6,
         )
+        # Frame the whole composer as a single rounded card. We reuse Adwaita's
+        # `card` class for the themed surface + border, then round the corners.
+        # The inner MultilineEntry has its own .card/.frame stripped so it
+        # blends into this outer card instead of drawing a second frame.
+        self.input_box.add_css_class("card")
+        self.input_box.add_css_class("input-card")
+        apply_css_to_widget(self.input_box, """
+            .card.input-card {
+                border-radius: 14px;
+                padding: 6px 10px;
+            }
+            /* Ensure the inner text view inherits the card background. */
+            .input-card scrolledwindow,
+            .input-card text {
+                background-color: transparent;
+            }
+        """)
         self.input_box.set_valign(Gtk.Align.CENTER)
-        
-        # Quick toggles
-        self._build_quick_toggles()
-        
-        # Attach button
-        self.attach_button = Gtk.Button(
-            css_classes=["flat", "circular"], icon_name="attach-symbolic"
-        )
-        self.attach_button.connect("clicked", self.attach_file)
-        self.input_box.append(self.attach_button)
-        
-        # Attached image preview
-        self.attached_image = Gtk.Image(visible=False)
-        self.attached_image.set_size_request(36, 36)
-        self.input_box.append(self.attached_image)
-        
-        # Update attach button visibility based on model capabilities
-        self._update_attach_visibility()
-        
-        # Screen recording button
-        self.screen_record_button = Gtk.Button(
-            icon_name="media-record-symbolic",
-            css_classes=["flat"],
-            halign=Gtk.Align.CENTER,
-        )
-        self.screen_record_button.connect("clicked", self.start_screen_recording)
-        self.input_box.append(self.screen_record_button)
-        
-        if not self.model.supports_video_vision():
-            self.screen_record_button.set_visible(False)
-        
-        # Text entry
+
+        # --- Text entry ---
         self.input_panel = MultilineEntry(not self.controller.newelle_settings.send_on_enter)
         self.input_panel.set_on_image_pasted(self.image_pasted)
+        # The outer card frames the entry; drop the inner MultilineEntry chrome.
+        self.input_panel.remove_css_class("card")
+        self.input_panel.remove_css_class("frame")
         self.input_box.append(self.input_panel)
         self.input_panel.set_placeholder(_("Send a message..."))
-        
-        # Mic button
+
+        # --- Actions row ---
+        actions_row = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL,
+            spacing=4,
+            margin_start=2,
+            margin_end=2,
+        )
+
+        # Left cluster order: attach / screen record / quick toggles / mode / effort
+        left_cluster = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2)
+
+        self.attach_button = Gtk.Button(
+            css_classes=["flat", "circular"], icon_name="attach-symbolic",
+            tooltip_text=_("Attach file"),
+        )
+        self.attach_button.connect("clicked", self.attach_file)
+        left_cluster.append(self.attach_button)
+
+        self.attached_image = Gtk.Image(visible=False)
+        self.attached_image.set_size_request(36, 36)
+        left_cluster.append(self.attached_image)
+
+        self.screen_record_button = Gtk.Button(
+            icon_name="media-record-symbolic",
+            css_classes=["flat", "circular"],
+            tooltip_text=_("Screen recording"),
+        )
+        self.screen_record_button.connect("clicked", self.start_screen_recording)
+        left_cluster.append(self.screen_record_button)
+        if not self.vision_model.supports_video_vision():
+            self.screen_record_button.set_visible(False)
+
+        # Quick toggles popover button
+        self._build_quick_toggles()
+        left_cluster.append(self.quick_toggles)
+
+        # Mode switcher (built only if the controller has a mode manager).
+        self.mode_button = None
+        if getattr(self.controller, "mode_manager", None) is not None:
+            self.mode_button = ModeButton(self.controller, self.window)
+            left_cluster.append(self.mode_button)
+
+        # Thinking-effort control (auto-hidden unless the model opts in).
+        self.thinking_button = self._build_thinking_control()
+        left_cluster.append(self.thinking_button)
+
+        actions_row.append(left_cluster)
+
+        # Right cluster (pushed to the end)
+        right_spacer = Gtk.Box(hexpand=True)
+        actions_row.append(right_spacer)
+        right_cluster = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
         self.mic_button = Gtk.Button(
-            css_classes=["suggested-action"],
+            css_classes=["flat", "circular"],
             icon_name="audio-input-microphone-symbolic",
             width_request=36,
             height_request=36,
+            tooltip_text=_("Record"),
         )
         self.mic_button.set_vexpand(False)
         self.mic_button.set_valign(Gtk.Align.CENTER)
         self.mic_button.connect("clicked", self.start_recording)
         self.recording_button = self.mic_button
-        self.input_box.append(self.mic_button)
-        
-        # Send button
-        send_box = Gtk.Box()
-        send_box.set_vexpand(False)
+        right_cluster.append(self.mic_button)
+
         self.send_button = Gtk.Button(
             css_classes=["suggested-action"],
             icon_name="go-next-symbolic",
             width_request=36,
             height_request=36,
+            tooltip_text=_("Send"),
         )
         self.send_button.set_vexpand(False)
         self.send_button.set_valign(Gtk.Align.CENTER)
-        send_box.append(self.send_button)
-        self.input_box.append(send_box)
-        
+        right_cluster.append(self.send_button)
+
+        # Context usage indicator (pie-chart ring), bottom-right corner.
+        self.context_indicator = ContextIndicator()
+        self.context_indicator.set_valign(Gtk.Align.CENTER)
+        right_cluster.append(self.context_indicator)
+        actions_row.append(right_cluster)
+
+        self.input_box.append(actions_row)
+
+        self._update_attach_visibility()
+
         self.input_panel.set_on_enter(self.on_entry_activate)
         self.send_button.connect("clicked", self.on_entry_button_clicked)
-        
+
         self._build_command_popover()
         self.input_panel.input_panel.get_buffer().connect("changed", self._on_input_changed)
 
+        # SHIFT+TAB cycles through Modes while focused in the input box.
+        mode_key_ctrl = Gtk.EventControllerKey.new()
+        mode_key_ctrl.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
+        mode_key_ctrl.connect("key-pressed", self._on_mode_cycle_key_pressed)
+        self.input_panel.input_panel.add_controller(mode_key_ctrl)
+
         self.append(self.input_box)
+
+        # Populate the thinking control from the current model's capabilities.
+        self._populate_thinking_control()
 
     def _build_command_popover(self):
         """Build the slash-command hints popover attached to the input panel."""
@@ -251,6 +319,29 @@ class ChatTab(Gtk.Box):
                 return True
             
         return False
+
+    def _on_mode_cycle_key_pressed(self, controller, keyval, keycode, state):
+        # CTRL+M cycles to the next Mode (forward), wrapping around.
+        if keyval == Gdk.KEY_m and (state & Gdk.ModifierType.CONTROL_MASK):
+            self._cycle_mode()
+            return True
+        return False
+
+    def _cycle_mode(self):
+        """Switch to the next Mode and refresh the mode button + settings."""
+        mm = getattr(self.controller, "mode_manager", None)
+        if mm is None:
+            return
+        name = mm.cycle_mode()
+        # Propagate skill overrides and reload prompt/tool mode settings.
+        active = mm.get_active_mode()
+        self.controller.skill_manager.set_mode_overrides(active.get("skills", {}))
+        self.controller.update_settings()
+        if self.mode_button is not None:
+            self.mode_button.refresh()
+        self.notification_block.add_toast(
+            Adw.Toast.new(_("Mode: {0}").format(name))
+        )
 
     def _move_cmd_selection(self, step):
         selected = self._cmd_list.get_selected_row()
@@ -366,9 +457,10 @@ class ChatTab(Gtk.Box):
             thread.start()
 
     def _build_quick_toggles(self):
-        """Build quick toggle buttons for settings."""
+        """Build quick toggle buttons for settings (a popover MenuButton)."""
         self.quick_toggles = Gtk.MenuButton(
-            css_classes=["flat"], icon_name="controls-big"
+            css_classes=["flat", "circular"], icon_name="controls-big",
+            tooltip_text=_("Quick toggles"),
         )
         self.quick_toggles_popover = Gtk.Popover()
         entries = [
@@ -405,21 +497,88 @@ class ChatTab(Gtk.Box):
         
         self.quick_toggles_popover.set_child(container)
         self.quick_toggles.set_popover(self.quick_toggles_popover)
-        self.input_box.append(self.quick_toggles)
         self.quick_toggles_popover.connect("closed", self._update_toggles)
         
     def _update_toggles(self, *_):
         """Update settings when quick toggles popover is closed."""
         self.controller.update_settings()
+
+    def _build_thinking_control(self):
+        """Build the thinking-effort MenuButton (hidden unless the model opts in).
+
+        The popover lists the levels returned by ``model.get_thinking_modes()``;
+        selecting one calls ``model.set_thinking_mode()`` and reloads settings.
+        Hidden entirely when the handler returns ``None``.
+        """
+        button = Gtk.MenuButton(css_classes=["flat"], valign=Gtk.Align.CENTER)
+        button.set_visible(False)
+        button.connect("notify::visible", lambda *_: None)
+        self._thinking_popover = Gtk.Popover()
+        button.set_popover(self._thinking_popover)
+        self._thinking_label = Gtk.Label(label="")
+        self._thinking_arrow = Gtk.Image(icon_name="pan-down-symbolic")
+        self._thinking_arrow.add_css_class("dim-label")
+        _box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        _box.append(Gtk.Image(icon_name="brain-augemnted-symbolic", pixel_size=16))
+        _box.append(self._thinking_label)
+        _box.append(self._thinking_arrow)
+        button.set_child(_box)
+        return button
+
+    def _populate_thinking_control(self):
+        """Rebuild the thinking control from the current model's capabilities."""
+        model = self.model
+        modes = model.get_thinking_modes() if hasattr(model, "get_thinking_modes") else None
+        if not modes:
+            self.thinking_button.set_visible(False)
+            self._thinking_popover.set_child(None)
+            return
+
+        current = model.get_thinking_mode()
+        # Label: show the label of the current value, fallback to the value.
+        label = next((lbl for val, lbl in modes if val == current), modes[0][1])
+        self._thinking_label.set_label(label)
+        self.thinking_button.set_visible(True)
+
+        list_box = Gtk.ListBox(selection_mode=Gtk.SelectionMode.NONE)
+        list_box.add_css_class("boxed-list")
+        list_box.set_size_request(220, -1)
+        for value, lbl in modes:
+            row = Adw.ActionRow(title=lbl, activatable=True)
+            if value == current:
+                row.add_suffix(Gtk.Image(icon_name="object-select-symbolic"))
+            row.connect("activated", lambda _r, v=value: self._on_thinking_selected(v))
+            list_box.append(row)
+        self._thinking_popover.set_child(list_box)
+
+    def _on_thinking_selected(self, value: str):
+        try:
+            self.model.set_thinking_mode(value)
+        except Exception as e:
+            print("Thinking mode error:", e)
+        self.controller.update_settings()
+        self._thinking_popover.popdown()
+        self._populate_thinking_control()
+
+    def refresh_mode_and_thinking(self):
+        """Refresh the mode switcher label and the thinking control.
+
+        Called on LLM change and after mode edits so the controls reflect the
+        current state.
+        """
+        if self.mode_button is not None:
+            self.mode_button.refresh()
+        self._populate_thinking_control()
         
     def _update_attach_visibility(self):
         """Update attach button visibility based on model capabilities."""
         model = self.model
+        vision_model = self.vision_model
         rag_handler = self.window.rag_handler
         
         if (
-            not model.supports_vision()
-            and not model.supports_video_vision()
+            not vision_model.supports_vision()
+            and not vision_model.supports_video_vision()
             and (
                 len(model.get_supported_files())
                 + (len(rag_handler.get_supported_files()) if rag_handler is not None else 0)
@@ -470,6 +629,11 @@ class ChatTab(Gtk.Box):
     def model(self):
         """Get the LLM model from handlers."""
         return self.controller.handlers.llm
+
+    @property
+    def vision_model(self):
+        """Get the LLM configured for image and video chats."""
+        return self.controller.get_vision_model()
     
     @property
     def tts(self):
@@ -635,15 +799,23 @@ class ChatTab(Gtk.Box):
         self.emit("generation-started")
         GLib.idle_add(self.update_tab_indicator)
         GLib.idle_add(self.chat_history.set_generating, True)
+        GLib.idle_add(self.chat_history.begin_streaming_scroll, manual)
         
         # Start creating the message
-        if self.model.stream_enabled():
+        self.active_generation_model = self.controller.get_model_for_chat(self.chat)
+        if self.active_generation_model.stream_enabled():
             self.streamed_message = ""
             self.curr_label = ""
             self.streaming_label = None
-            self.last_update = time.time()
             self.stream_thinking = False
-            GLib.idle_add(self.create_streaming_message_label)
+            with self.streaming_lock:
+                self.streamed_content = ""
+                self._stream_target_content = ""
+                self.streaming_pending = False
+            GLib.idle_add(
+                self.create_streaming_message_label,
+                stream_number_variable,
+            )
             
         def run_generation():
             for status, data in self.controller.generate_response(
@@ -677,15 +849,17 @@ class ChatTab(Gtk.Box):
         threading.Thread(target=run_generation).start()
         
     def _handle_generation_finished(self, data, stream_number_variable):
-        """Handle generation completion."""
+        """Handle completion of one model turn in the generation chain."""
+        self._cancel_stream_reveal()
         message_label = data['message']
         prompts = data['prompts']
         self.last_generation_time = data['time']
         self.last_token_num = (data['input_tokens'], data['output_tokens'])
         trim_result = data.get('trim_result')
-        if trim_result is not None and hasattr(self.window, 'context_indicator'):
-            self.window.context_indicator.update_stats(trim_result)
+        if trim_result is not None and hasattr(self, 'context_indicator'):
+            self.context_indicator.update_stats(trim_result)
         
+        waiting_for_tools = False
         if hasattr(self, "current_streaming_message") and self.current_streaming_message:
             # Streaming was active, finalize the existing widget
             streaming_widget = self.current_streaming_message
@@ -701,13 +875,30 @@ class ChatTab(Gtk.Box):
             final_message = message_label
             
             def finalize_stream():
+                nonlocal waiting_for_tools
                 streaming_widget.update_content(final_message, is_streaming=False)
                 streaming_widget.finish_streaming()
-                self.chat_history._finalize_message_display()
+                waiting_for_tools = streaming_widget.state.get(
+                    "has_terminal_command", False
+                )
+                remove_streaming_row = self.chat_history.finish_compact_message(
+                    streaming_widget
+                )
+                if remove_streaming_row:
+                    self.chat_history.remove_message_widget(streaming_widget)
+                # Let the final Message render settle, then reconcile this
+                # continuation row without rescanning the entire history.
+                GLib.idle_add(
+                    self.chat_history.prune_compact_message_row,
+                    streaming_widget,
+                )
+                self.chat_history._finalize_message_display(
+                    generation_finished=not waiting_for_tools
+                )
                 self.save_chat()
                 
                 # Handle deferred tool execution and continuation
-                if streaming_widget.state.get("has_terminal_command", False):
+                if waiting_for_tools:
                     threads = streaming_widget.state.get("running_threads", [])
                     parallel = self.controller.newelle_settings.parallel_tool_execution
                     current_stream = self.stream_number_variable
@@ -727,7 +918,11 @@ class ChatTab(Gtk.Box):
                         if threads and streaming_widget.state.get("should_continue", False):
                             self.send_message(manual=False)
                         else:
-                            GLib.idle_add(self.chat_history.scrolled_chat)
+                            GLib.idle_add(
+                                self._finish_generation_chain,
+                                message_label,
+                                current_stream,
+                            )
                     
                     threading.Thread(target=wait_and_continue).start()
                 else:
@@ -747,11 +942,21 @@ class ChatTab(Gtk.Box):
                 "\n".join(prompts),
             )
         
-        GLib.idle_add(self.chat_history.set_generating, False)
-        GLib.idle_add(self.remove_send_button_spinner)
-        GLib.idle_add(self.update_tab_indicator)
+        if waiting_for_tools:
+            return
+
+        self._finish_generation_chain(message_label, stream_number_variable)
+
+    def _finish_generation_chain(self, message_label, stream_number_variable):
+        """Mark the full response chain done after all tool continuations."""
+        if self.stream_number_variable != stream_number_variable:
+            return GLib.SOURCE_REMOVE
+
+        self.chat_history.set_generating(False)
+        self.remove_send_button_spinner()
+        self.update_tab_indicator()
         self.emit("generation-stopped")
-        
+
         # Generate suggestions
         self.generate_suggestions()
 
@@ -779,18 +984,25 @@ class ChatTab(Gtk.Box):
         
         if self.controller.newelle_settings.automatic_stt:
             threading.Thread(target=restart_recording).start()
+
+        return GLib.SOURCE_REMOVE
             
-    def create_streaming_message_label(self):
+    def create_streaming_message_label(self, stream_number_variable):
         """Create a label for message streaming."""
-        self.streamed_content = ""
-        self.streaming_pending = False
+        self._cancel_stream_reveal()
+        self._stream_reveal_generation = stream_number_variable
         
         next_message_id = len(self.chat)
+        tool_group = self.chat_history.get_compact_tool_group(
+            next_message_id,
+            streaming=True,
+        )
         self.current_streaming_message = Message(
             "",
             is_user=False,
             parent_window=self,
             id_message=next_message_id,
+            tool_group=tool_group,
         )
         self.streaming_box = self.chat_history.add_message(
             "Assistant",
@@ -804,31 +1016,120 @@ class ChatTab(Gtk.Box):
         except (AttributeError, IndexError):
             pass
         self.streaming_box.set_overflow(Gtk.Overflow.VISIBLE)
+
+        with self.streaming_lock:
+            has_pending_text = bool(self._stream_target_content)
+        if has_pending_text:
+            self._start_stream_reveal(stream_number_variable)
         
     def update_message(self, message, stream_number_variable, *args):
         """Update message label when streaming (thread-safe)."""
         if self.stream_number_variable != stream_number_variable:
             return
-        
-        if time.time() - self.last_update >= 0.2:
-            self.last_update = time.time()
-            GLib.idle_add(self.refresh_streaming_ui, message, stream_number_variable)
-            
-    def refresh_streaming_ui(self, message, stream_number_variable):
-        """Update the UI with the latest streamed content (main thread)."""
+
+        with self.streaming_lock:
+            self._stream_target_content = message
+            if self.streaming_pending:
+                return
+            self.streaming_pending = True
+        GLib.idle_add(self._queue_stream_reveal, stream_number_variable)
+
+    def _queue_stream_reveal(self, stream_number_variable):
+        """Coalesce producer updates and start the main-thread reveal loop."""
         if self.stream_number_variable != stream_number_variable:
+            with self.streaming_lock:
+                self.streaming_pending = False
             return GLib.SOURCE_REMOVE
-        
-        if hasattr(self, 'current_streaming_message') and self.current_streaming_message:
-            self.current_streaming_message.update_content(message, is_streaming=True)
-        
+
+        self._start_stream_reveal(stream_number_variable)
         return GLib.SOURCE_REMOVE
+
+    def _start_stream_reveal(self, stream_number_variable):
+        if (
+            self._stream_reveal_source_id is not None
+            and self._stream_reveal_generation == stream_number_variable
+        ):
+            return
+
+        self._cancel_stream_reveal()
+        self._stream_reveal_generation = stream_number_variable
+        with self.streaming_lock:
+            self.streaming_pending = True
+        self._stream_reveal_source_id = GLib.timeout_add(
+            _STREAM_REVEAL_INTERVAL_MS,
+            self._reveal_streaming_text,
+            stream_number_variable,
+        )
+
+    def _reveal_streaming_text(self, stream_number_variable):
+        """Reveal a small, adaptive slice of the latest streamed response."""
+        if self.stream_number_variable != stream_number_variable:
+            with self.streaming_lock:
+                self.streaming_pending = False
+            self._stream_reveal_source_id = None
+            return GLib.SOURCE_REMOVE
+
+        if self.current_streaming_message is None:
+            return GLib.SOURCE_CONTINUE
+
+        with self.streaming_lock:
+            target_content = self._stream_target_content
+            visible_content = self.streamed_content
+            if target_content == visible_content:
+                self.streaming_pending = False
+                self._stream_reveal_source_id = None
+                return GLib.SOURCE_REMOVE
+
+        settings = Gtk.Settings.get_default()
+        animations_enabled = (
+            settings is None
+            or settings.get_property("gtk-enable-animations")
+        )
+
+        if not animations_enabled or not self.get_mapped():
+            next_content = target_content
+        elif target_content.startswith(visible_content):
+            remaining = len(target_content) - len(visible_content)
+            reveal_count = max(
+                1,
+                min(
+                    _STREAM_REVEAL_MAX_CHARS,
+                    (remaining + _STREAM_REVEAL_TARGET_FRAMES - 1)
+                    // _STREAM_REVEAL_TARGET_FRAMES,
+                ),
+            )
+            next_content = target_content[:len(visible_content) + reveal_count]
+        else:
+            # Some handlers revise earlier output instead of only appending.
+            # Apply those corrections atomically so the displayed text stays valid.
+            next_content = target_content
+
+        with self.streaming_lock:
+            self.streamed_content = next_content
+
+        if self.current_streaming_message is not None:
+            self.current_streaming_message.update_content(
+                next_content,
+                is_streaming=True,
+            )
+            self.chat_history.scrolled_chat()
+
+        return GLib.SOURCE_CONTINUE
+
+    def _cancel_stream_reveal(self):
+        if self._stream_reveal_source_id is not None:
+            GLib.source_remove(self._stream_reveal_source_id)
+            self._stream_reveal_source_id = None
+        self._stream_reveal_generation = None
+        with self.streaming_lock:
+            self.streaming_pending = False
     
     def add_reading_widget(self, documents):
         """Add document reading widget during streaming."""
         d = [doc.replace("file:", "") for doc in documents if doc.startswith("file:")]
         documents = d
-        if self.model.stream_enabled() and hasattr(self, "current_streaming_message"):
+        model = getattr(self, "active_generation_model", self.model)
+        if model.stream_enabled() and hasattr(self, "current_streaming_message"):
             if self.current_streaming_message is not None:
                 self.reading = DocumentReaderWidget()
                 for document in documents:
@@ -913,7 +1214,7 @@ class ChatTab(Gtk.Box):
         
     def stop_chat(self):
         """Stop the current generation."""
-        self.model.stop()
+        getattr(self, "active_generation_model", self.model).stop()
         for tool_result in self.active_tool_results:
             tool_result.cancel()
         self.active_tool_results = []
@@ -1034,7 +1335,7 @@ class ChatTab(Gtk.Box):
         self.attach_button.disconnect_by_func(self.delete_attachment)
         self.attach_button.connect("clicked", self.attach_file)
         self.attached_image.set_visible(False)
-        self.screen_record_button.set_visible(self.window.model.supports_video_vision())
+        self.screen_record_button.set_visible(self.vision_model.supports_video_vision())
         
     def add_file(self, file_path=None, file_data=None):
         """Add a file attachment and update the UI, also generates thumbnail for videos

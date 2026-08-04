@@ -60,7 +60,7 @@ class OpenAIHandler(LLMHandler):
         return True
 
     def get_extra_settings(self) -> list:
-        return self.build_extra_settings("OpenAI", True, True, True, True, True, "https://openai.com/policies/row-privacy-policy/", None, False, False, True, True, supports_custom_headers=True)
+        return self.build_extra_settings("OpenAI", True, True, True, True, True, "https://openai.com/policies/row-privacy-policy/", None, False, False, True, self.supports_thinking(), True, supports_custom_headers=True)
 
     def build_extra_settings(self, provider_name: str, has_api_key: bool, has_stream_settings: bool, endpoint_change: bool, allow_advanced_params: bool, supports_automatic_models: bool, privacy_notice_url : str | None, model_list_url: str | None, default_advanced_params: bool = False, default_automatic_models: bool = False, supports_custom_body : bool = False, supports_thinking: bool = False, supports_tool_calling: bool = True, has_tool_calling_option: bool = True, supports_custom_headers: bool = False) -> list:
         """Helper to build the list of extra settings for OpenAI Handlers
@@ -194,7 +194,52 @@ class OpenAIHandler(LLMHandler):
         if not thinking:
             return {}
         thinking_effort = self.get_setting("thinking_effort", "medium")
-        return {"reasoning_effort": thinking_effort} 
+        return {"reasoning_effort": thinking_effort}
+
+    # -- Optional thinking-effort API (input-bar control) ------------------ #
+    # Bridges the chat input's effort selector to the existing thinking
+    # machinery: selecting a level enables thinking and sets reasoning_effort,
+    # "none" disables it. Levels mirror the thinking_effort combo above.
+    #
+    # The control only appears when the handler opts in via supports_thinking
+    # (so we don't send the OpenAI-specific reasoning_effort parameter to
+    # providers that don't understand it).
+    _THINKING_LEVELS = (
+        ("none", _("None")),
+        ("minimal", _("Minimal")),
+        ("low", _("Low")),
+        ("medium", _("Medium")),
+        ("high", _("High")),
+        ("xhigh", _("Max")),
+    )
+
+    def supports_thinking(self) -> bool:
+        """Whether this handler exposes the thinking-effort API to the UI.
+
+        The OpenAI API tolerates ``reasoning_effort`` (it is honored by
+        reasoning models and ignored otherwise), so the base OpenAIHandler
+        exposes it. Subclasses backed by providers that reject unknown
+        parameters override this to return ``False``.
+        """
+        return True
+
+    def get_thinking_modes(self) -> list[tuple[str, str]] | None:
+        if not self.supports_thinking():
+            return None
+        return list(self._THINKING_LEVELS)
+
+    def get_thinking_mode(self) -> str:
+        # When thinking is off the control should reflect "none".
+        if not self.get_setting("thinking", False):
+            return "none"
+        return self.get_setting("thinking_effort", "medium")
+
+    def set_thinking_mode(self, value: str):
+        if value == "none":
+            self.set_setting("thinking", False)
+        else:
+            self.set_setting("thinking", True)
+            self.set_setting("thinking_effort", value)
 
     def generate_text(self, prompt: str, history: list[dict[str, str]] = [], system_prompt: list[str] = []) -> str:
         from openai import OpenAI

@@ -1,7 +1,4 @@
-"""
-OAuth 2.0 Dynamic Client Registration (RFC 7591) and Authorization Code + PKCE flow
-for MCP HTTP servers. Implements discovery, DCR, and token management per MCP spec.
-"""
+"""OAuth discovery, client registration, PKCE, and token management for MCP."""
 
 from __future__ import annotations
 
@@ -10,11 +7,11 @@ import hashlib
 import json
 import os
 import secrets
-import socket
+import tempfile
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from typing import Any
-from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
+from urllib.parse import parse_qs, urlencode, urlparse
 import urllib.request
 import urllib.error
 
@@ -24,6 +21,9 @@ try:
     HAS_HTTPX = True
 except ImportError:
     HAS_HTTPX = False
+
+
+_CREDENTIALS_LOCK = threading.RLock()
 
 
 def _generate_pkce_pair() -> tuple[str, str]:
@@ -41,22 +41,51 @@ def _get_credentials_path(config_dir: str) -> str:
 
 def _load_credentials(config_dir: str) -> dict[str, Any]:
     """Load stored OAuth credentials."""
-    path = _get_credentials_path(config_dir)
-    if not os.path.exists(path):
-        return {}
-    try:
-        with open(path, "r") as f:
-            return json.load(f)
-    except (json.JSONDecodeError, OSError):
-        return {}
+    with _CREDENTIALS_LOCK:
+        path = _get_credentials_path(config_dir)
+        if not os.path.exists(path):
+            return {}
+        try:
+            with open(path, "r") as f:
+                credentials = json.load(f)
+            return credentials if isinstance(credentials, dict) else {}
+        except (json.JSONDecodeError, OSError):
+            return {}
 
 
 def _save_credentials(config_dir: str, credentials: dict[str, Any]) -> None:
-    """Persist OAuth credentials."""
-    path = _get_credentials_path(config_dir)
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w") as f:
-        json.dump(credentials, f, indent=2)
+    """Atomically persist OAuth credentials with owner-only permissions."""
+    with _CREDENTIALS_LOCK:
+        path = _get_credentials_path(config_dir)
+        directory = os.path.dirname(path)
+        os.makedirs(directory, exist_ok=True)
+        descriptor, temporary_path = tempfile.mkstemp(
+            prefix=".mcp_oauth_credentials.", dir=directory
+        )
+        try:
+            os.fchmod(descriptor, 0o600)
+            with os.fdopen(descriptor, "w") as credential_file:
+                descriptor = -1
+                json.dump(credentials, credential_file, indent=2)
+                credential_file.flush()
+                os.fsync(credential_file.fileno())
+            os.replace(temporary_path, path)
+            os.chmod(path, 0o600)
+        finally:
+            if descriptor != -1:
+                os.close(descriptor)
+            try:
+                os.unlink(temporary_path)
+            except FileNotFoundError:
+                pass
+
+
+def _set_credential_entry(config_dir: str, key: str, entry: dict[str, Any]) -> None:
+    """Merge one OAuth entry without overwriting concurrent login flows."""
+    with _CREDENTIALS_LOCK:
+        credentials = _load_credentials(config_dir)
+        credentials[key] = entry
+        _save_credentials(config_dir, credentials)
 
 
 def _credential_key(mcp_url: str) -> str:
@@ -179,8 +208,6 @@ def discover_auth(mcp_url: str) -> tuple[dict | None, str | None]:
                 if r.status_code == 401:
                     www_auth = r.headers.get("WWW-Authenticate", "")
                     break
-            if not www_auth:
-                return (None, None)
     else:
         for method, url, body in [
             ("GET", mcp_url, None),
@@ -196,9 +223,6 @@ def discover_auth(mcp_url: str) -> tuple[dict | None, str | None]:
                     break
             except Exception:
                 pass
-        if not www_auth:
-            return (None, None)
-
     params = _parse_www_authenticate(www_auth)
     resource_metadata_url = params.get("resource_metadata")
     if not resource_metadata_url:
@@ -273,7 +297,6 @@ def register_client(
         "grant_types": ["authorization_code", "refresh_token"],
         "response_types": ["code"],
         "token_endpoint_auth_method": "none",
-        "scope": "openid",
     }
     data, status = _fetch_json(registration_endpoint, "POST", body)
     if status in (200, 201) and data:
@@ -285,9 +308,19 @@ def run_oauth_flow(
     mcp_url: str,
     config_dir: str,
     client_name: str = "Newelle MCP Client",
+    client_id: str | None = None,
+    client_secret: str | None = None,
+    redirect_port: int | None = None,
+    scopes: list[str] | None = None,
+    authorization_params: dict[str, str] | None = None,
+    token_endpoint_auth_method: str | None = None,
 ) -> tuple[bool, str]:
     """
-    Run full OAuth flow: discovery -> DCR (if supported) -> Authorization Code + PKCE.
+    Run Authorization Code + PKCE using DCR or a pre-registered OAuth client.
+
+    Pre-registered clients are needed by providers such as Google. Their
+    registration details are saved with the token so the normal re-authenticate
+    action can reuse them later without putting the client secret in GSettings.
     Returns (success, error_message).
     """
     as_meta, resource_metadata_url = discover_auth(mcp_url)
@@ -297,7 +330,6 @@ def run_oauth_flow(
     registration_endpoint = as_meta.get("registration_endpoint")
     authorization_endpoint = as_meta.get("authorization_endpoint")
     token_endpoint = as_meta.get("token_endpoint")
-    scopes_supported = as_meta.get("scopes_supported", [])
     code_challenge_methods = as_meta.get("code_challenge_methods_supported", [])
 
     if "S256" not in code_challenge_methods:
@@ -306,27 +338,76 @@ def run_oauth_flow(
     if not authorization_endpoint or not token_endpoint:
         return (False, "Invalid authorization server metadata")
 
-    server = HTTPServer(("127.0.0.1", 0), lambda *a, **k: None)
-    port = server.server_address[1]
-    redirect_uri = f"http://127.0.0.1:{port}/callback"
-    server.server_close()
+    key = _credential_key(mcp_url)
+    explicit_client_id = client_id is not None
+    credential_store = _load_credentials(config_dir)
+    stored = credential_store.get(key, {})
+    if (
+        not explicit_client_id
+        and stored.get("client_id")
+        and stored.get("redirect_port") is None
+        and registration_endpoint
+    ):
+        # Older Newelle versions did not persist the loopback port used for a
+        # dynamically registered client. Re-register instead of sending an
+        # unregistered redirect URI with that legacy client ID.
+        stored = {}
+    client_id = client_id or stored.get("client_id")
+    if client_secret is None:
+        client_secret = stored.get("client_secret")
+    if redirect_port is None:
+        redirect_port = stored.get("redirect_port")
+    if scopes is None:
+        scopes = stored.get("scopes")
+    if authorization_params is None:
+        authorization_params = stored.get("authorization_params") or {}
+    if token_endpoint_auth_method is None:
+        token_endpoint_auth_method = stored.get("token_endpoint_auth_method")
 
-    client_id = None
-    client_secret = None
-    if registration_endpoint:
+    if redirect_port is None:
+        server = HTTPServer(("127.0.0.1", 0), lambda *args, **kwargs: None)
+        port = server.server_address[1]
+        server.server_close()
+    else:
+        port = redirect_port
+    redirect_uri = f"http://127.0.0.1:{port}/callback"
+
+    registration = None
+    registration_kind = stored.get("registration_kind")
+    if not client_id and registration_endpoint:
         reg = register_client(registration_endpoint, redirect_uri, client_name)
         if reg:
+            registration = reg
+            registration_kind = "dynamic"
             client_id = reg.get("client_id")
             client_secret = reg.get("client_secret")
         if not client_id:
             return (False, "Dynamic client registration failed")
-    else:
-        return (False, "Server does not support Dynamic Client Registration (no registration_endpoint)")
+    elif not client_id:
+        return (
+            False,
+            "This server requires a pre-registered OAuth client ID and secret",
+        )
+    elif explicit_client_id:
+        registration_kind = "pre_registered"
+
+    if token_endpoint_auth_method is None and registration:
+        token_endpoint_auth_method = registration.get("token_endpoint_auth_method")
+    if token_endpoint_auth_method is None:
+        supported_methods = as_meta.get("token_endpoint_auth_methods_supported")
+        if client_secret and not supported_methods:
+            token_endpoint_auth_method = "client_secret_basic"
+        elif client_secret and "client_secret_basic" in supported_methods:
+            token_endpoint_auth_method = "client_secret_basic"
+        elif client_secret and "client_secret_post" in supported_methods:
+            token_endpoint_auth_method = "client_secret_post"
+        else:
+            token_endpoint_auth_method = "none"
 
     code_verifier, code_challenge = _generate_pkce_pair()
     state = secrets.token_urlsafe(32)
     resource = _canonical_mcp_url(mcp_url)
-    scope = " ".join(scopes_supported) if scopes_supported else "openid"
+    discovered_scopes = as_meta.get("scopes_supported", [])
     if resource_metadata_url:
         rs_meta, _ = _fetch_json(resource_metadata_url)
         if rs_meta:
@@ -334,7 +415,9 @@ def run_oauth_flow(
                 resource = rs_meta["resource"]
             rs_scopes = rs_meta.get("scopes_supported", [])
             if rs_scopes:
-                scope = " ".join(rs_scopes)
+                discovered_scopes = rs_scopes
+    selected_scopes = scopes or discovered_scopes or ["openid"]
+    scope = " ".join(selected_scopes)
 
     auth_params = {
         "response_type": "code",
@@ -346,6 +429,9 @@ def run_oauth_flow(
         "code_challenge_method": "S256",
         "resource": resource,
     }
+    for param, value in (authorization_params or {}).items():
+        if param not in auth_params:
+            auth_params[param] = value
     auth_url = f"{authorization_endpoint}?{urlencode(auth_params)}"
 
     result: dict[str, Any] = {"code": None, "state": None, "error": None}
@@ -371,7 +457,11 @@ def run_oauth_flow(
         def log_message(self, format, *args):
             pass
 
-    httpd = HTTPServer(("127.0.0.1", port), CallbackHandler)
+    try:
+        httpd = HTTPServer(("127.0.0.1", port), CallbackHandler)
+    except OSError as exc:
+        return (False, f"Could not start the OAuth callback server: {exc}")
+    httpd.timeout = 300
     try:
         try:
             from ..utility.system import open_website
@@ -402,9 +492,11 @@ def run_oauth_flow(
         "resource": resource,
     }
     token_headers = {"Content-Type": "application/x-www-form-urlencoded"}
-    if client_secret:
+    if client_secret and token_endpoint_auth_method == "client_secret_basic":
         creds_b64 = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
         token_headers["Authorization"] = f"Basic {creds_b64}"
+    elif client_secret and token_endpoint_auth_method == "client_secret_post":
+        token_body["client_secret"] = client_secret
 
     token_data = urlencode(token_body)
     if HAS_HTTPX:
@@ -438,9 +530,7 @@ def run_oauth_flow(
         return (False, "No access token in response")
 
     canonical_url = _canonical_mcp_url(mcp_url)
-    key = _credential_key(mcp_url)
-    creds = _load_credentials(config_dir)
-    creds[key] = {
+    credential_entry = {
         "client_id": client_id,
         "client_secret": client_secret,
         "access_token": access_token,
@@ -449,10 +539,15 @@ def run_oauth_flow(
         "token_endpoint": token_endpoint,
         "resource": resource,
         "canonical_url": canonical_url,
+        "redirect_port": port,
+        "scopes": selected_scopes,
+        "authorization_params": authorization_params or {},
+        "token_endpoint_auth_method": token_endpoint_auth_method,
+        "registration_kind": registration_kind or "legacy",
     }
     import time
-    creds[key]["expires_at"] = time.time() + expires_in
-    _save_credentials(config_dir, creds)
+    credential_entry["expires_at"] = time.time() + expires_in
+    _set_credential_entry(config_dir, key, credential_entry)
     return (True, "")
 
 
@@ -483,13 +578,20 @@ def get_valid_token(mcp_url: str, config_dir: str) -> str | None:
     body = {
         "grant_type": "refresh_token",
         "refresh_token": refresh_token,
-        "client_id": client_id,
-        "resource": resource,
     }
+    if client_id:
+        body["client_id"] = client_id
+    if resource:
+        body["resource"] = resource
     headers = {}
-    if client_secret:
+    token_endpoint_auth_method = entry.get(
+        "token_endpoint_auth_method", "client_secret_basic"
+    )
+    if client_secret and token_endpoint_auth_method == "client_secret_basic":
         cred = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
         headers["Authorization"] = f"Basic {cred}"
+    elif client_secret and token_endpoint_auth_method == "client_secret_post":
+        body["client_secret"] = client_secret
     data, status = _post_form(token_endpoint, body, headers)
     if status != 200 or not data:
         return access_token
@@ -497,18 +599,26 @@ def get_valid_token(mcp_url: str, config_dir: str) -> str | None:
     new_refresh = data.get("refresh_token", refresh_token)
     expires_in = data.get("expires_in", 3600)
     if new_access:
-        entry["access_token"] = new_access
-        entry["refresh_token"] = new_refresh
-        entry["expires_at"] = time.time() + expires_in
-        _save_credentials(config_dir, creds)
-        return new_access
+        with _CREDENTIALS_LOCK:
+            latest_credentials = _load_credentials(config_dir)
+            latest_entry = latest_credentials.get(key)
+            if latest_entry is None:
+                return new_access
+            if latest_entry.get("access_token") != access_token:
+                return latest_entry.get("access_token") or new_access
+            latest_entry["access_token"] = new_access
+            latest_entry["refresh_token"] = new_refresh
+            latest_entry["expires_at"] = time.time() + expires_in
+            _save_credentials(config_dir, latest_credentials)
+            return new_access
     return access_token
 
 
 def clear_oauth_credentials(mcp_url: str, config_dir: str) -> None:
     """Remove stored credentials for an MCP server."""
     key = _credential_key(mcp_url)
-    creds = _load_credentials(config_dir)
-    if key in creds:
-        del creds[key]
-        _save_credentials(config_dir, creds)
+    with _CREDENTIALS_LOCK:
+        creds = _load_credentials(config_dir)
+        if key in creds:
+            del creds[key]
+            _save_credentials(config_dir, creds)

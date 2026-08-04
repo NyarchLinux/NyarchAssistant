@@ -4,5 +4,6 @@
     <file alias="images/illustration.svg">../data/images/illustration.svg</file>
     <file alias="images/extension.svg">../data/images/extension.svg</file>
     <file alias="images/error.svg">../data/images/error.svg</file>
+    <file alias="mcp_servers.json">../data/mcp_servers.json</file>
   </gresource>
 </gresources>

@@ -1,5 +1,4 @@
 import fnmatch
-import glob as glob_module
 import json
 import os
 import re
@@ -15,6 +14,7 @@ from ..ui.widgets.file_permission_confirm import FilePermissionConfirmWidget
 from ..ui.widgets.glob import GlobWidget
 from ..ui.widgets.grep import GrepWidget
 from ..ui.widgets.list_directory import ListDirectoryWidget
+from ..utility.file_search import glob_files, grep_files
 
 
 class FileEditingIntegration(NewelleExtension):
@@ -668,10 +668,7 @@ class FileEditingIntegration(NewelleExtension):
 
         def _do_glob_search():
             try:
-                full_pattern = os.path.join(search_dir, pattern)
-                matches = glob_module.glob(full_pattern, recursive=True)
-                matches = sorted(matches)
-                return matches, None
+                return glob_files(search_dir, pattern), None
             except Exception as e:
                 return None, str(e)
 
@@ -735,10 +732,7 @@ class FileEditingIntegration(NewelleExtension):
 
         def _do_glob_search():
             try:
-                full_pattern = os.path.join(search_dir, pattern)
-                matches = glob_module.glob(full_pattern, recursive=True)
-                matches = sorted(matches)
-                return matches, None
+                return glob_files(search_dir, pattern), None
             except Exception as e:
                 return None, str(e)
 
@@ -916,15 +910,6 @@ class FileEditingIntegration(NewelleExtension):
             results.append(expanded)
         return results
 
-    def _file_matches_glob(self, filename: str, glob_patterns: list[str]) -> bool:
-        """Check if filename matches any of the glob patterns."""
-        if not glob_patterns:
-            return True
-        for pattern in glob_patterns:
-            if fnmatch.fnmatch(filename, pattern):
-                return True
-        return False
-
     def grep_search(
         self,
         pattern: str,
@@ -972,44 +957,10 @@ class FileEditingIntegration(NewelleExtension):
         glob_patterns = self._expand_glob_pattern(glob) if glob else []
 
         def _do_grep_search():
-            matches = []
-            match_count = 0
-
-            def search_file(file_path: str) -> bool:
-                nonlocal match_count
-                try:
-                    with open(file_path, 'rb') as f:
-                        if b'\x00' in f.read(8192):
-                            return False
-                    with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
-                        for line_num, line in enumerate(f, 1):
-                            if regex.search(line):
-                                matches.append((file_path, line_num, line))
-                                match_count += 1
-                                if limit and match_count >= limit:
-                                    return True
-                except (OSError, UnicodeDecodeError):
-                    pass
-                return False
-
             try:
-                if os.path.isfile(search_path):
-                    if not glob_patterns or self._file_matches_glob(os.path.basename(search_path), glob_patterns):
-                        search_file(search_path)
-                else:
-                    for root, dirs, files in os.walk(search_path):
-                        dirs[:] = [d for d in dirs if not d.startswith('.')]
-                        for filename in files:
-                            if limit and match_count >= limit:
-                                break
-                            if glob_patterns and not self._file_matches_glob(filename, glob_patterns):
-                                continue
-                            file_path = os.path.join(root, filename)
-                            if search_file(file_path):
-                                break
-                        if limit and match_count >= limit:
-                            break
-                return matches, None
+                return grep_files(
+                    search_path, regex, glob_patterns, limit
+                ), None
             except Exception as e:
                 return None, str(e)
 
@@ -1091,44 +1042,10 @@ class FileEditingIntegration(NewelleExtension):
         glob_patterns = self._expand_glob_pattern(glob) if glob else []
 
         def _do_grep_search():
-            matches = []
-            match_count = 0
-
-            def search_file(file_path: str) -> bool:
-                nonlocal match_count
-                try:
-                    with open(file_path, 'rb') as f:
-                        if b'\x00' in f.read(8192):
-                            return False
-                    with open(file_path, 'r', encoding='utf-8', errors='replace') as f:
-                        for line_num, line in enumerate(f, 1):
-                            if regex.search(line):
-                                matches.append((file_path, line_num, line))
-                                match_count += 1
-                                if limit and match_count >= limit:
-                                    return True
-                except (OSError, UnicodeDecodeError):
-                    pass
-                return False
-
             try:
-                if os.path.isfile(search_path):
-                    if not glob_patterns or self._file_matches_glob(os.path.basename(search_path), glob_patterns):
-                        search_file(search_path)
-                else:
-                    for root, dirs, files in os.walk(search_path):
-                        dirs[:] = [d for d in dirs if not d.startswith('.')]
-                        for filename in files:
-                            if limit and match_count >= limit:
-                                break
-                            if glob_patterns and not self._file_matches_glob(filename, glob_patterns):
-                                continue
-                            file_path = os.path.join(root, filename)
-                            if search_file(file_path):
-                                break
-                        if limit and match_count >= limit:
-                            break
-                return matches, None
+                return grep_files(
+                    search_path, regex, glob_patterns, limit
+                ), None
             except Exception as e:
                 return None, str(e)
 
@@ -1265,7 +1182,8 @@ class FileEditingIntegration(NewelleExtension):
                             "description": "Glob pattern to filter files (e.g., '*.py', '.{ts,tsx}')"
                         },
                         "limit": {
-                            "type": "number",
+                            "type": "integer",
+                            "minimum": 1,
                             "description": "Limit output to first N matches (optional)"
                         }
                     },

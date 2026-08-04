@@ -39,7 +39,8 @@ newelle_sources = [
   'controller.py',
   'ui_controller.py',
   'tools.py',
-  'skills.py'
+  'skills.py',
+  'modes.py'
 ]
 
 integrations_sources = [
@@ -70,6 +71,7 @@ ui_sources = [
   'ui/explorer.py',
   'ui/stdout_monitor.py',
   'ui/model_library.py',
+  'ui/mcp_catalog.py',
   'ui/extra_settings.py',
   'ui/interfaces.py',
 ]
@@ -81,6 +83,7 @@ widgets_sources = [
   'ui/widgets/barchart.py',
   'ui/widgets/comborow.py',
   'ui/widgets/copybox.py',
+  'ui/widgets/command_session_action.py',
   'ui/widgets/file.py',
   'ui/widgets/file_read.py',
   'ui/widgets/file_edit.py',
@@ -95,6 +98,7 @@ widgets_sources = [
   'ui/widgets/terminal_dialog.py',
   'ui/widgets/markuptextview.py',
   'ui/widgets/website.py',
+  'ui/widgets/sources.py',
   'ui/widgets/websearch.py',
   'ui/widgets/thinking.py',
   'ui/widgets/documents_reader.py',
@@ -109,6 +113,8 @@ widgets_sources = [
   'ui/widgets/chatrow.py',
   'ui/widgets/chat_history.py',
   'ui/widgets/chat_tab.py',
+  'ui/widgets/mode_switcher.py',
+  'ui/widgets/mode_editor.py',
   'ui/widgets/call.py',
   'ui/widgets/question.py',
   'ui/widgets/image_generator.py',
@@ -240,9 +246,14 @@ utility_sources = [
   'utility/wakeword_detector.py',
   'utility/vad.py',
   'utility/force_sync.py',
+  'utility/file_search.py',
   'utility/context_manager.py',
+  'utility/source_attribution.py',
   'utility/command_permissions.py',
+  'utility/command_runner.py',
+  'utility/command_sessions.py',
   'utility/background_process.py',
+  'utility/tool_call_group.py',
 ]
 
 install_data(newelle_sources, install_dir: moduledir)
@@ -262,4 +273,3 @@ install_data(interface_sources, install_dir: moduledir / 'handlers' / 'interface
 install_data(utility_sources, install_dir: moduledir / 'utility')
 install_data(integrations_sources, install_dir: moduledir / 'integrations')
 install_data(image_generator_sources, install_dir: moduledir / 'handlers' / 'image_generator')
-

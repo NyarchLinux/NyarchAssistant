@@ -1,0 +1,811 @@
+{
+  "schema_version": 1,
+  "applications": [
+    {
+      "id": "gmail",
+      "name": "Gmail",
+      "description": "Search mail, read conversations, manage labels, and create drafts with Google's official remote MCP server.",
+      "logo_url": "https://www.gstatic.com/images/branding/product/2x/gmail_48dp.png",
+      "setup": {
+        "instructions": "Enroll in the Gmail MCP Developer Preview, enable the Gmail API and Gmail MCP API, configure the OAuth consent screen, and create a Web OAuth client. Add http://127.0.0.1:8765/callback as an authorized redirect URI, then paste the client credentials below.",
+        "help_url": "https://developers.google.com/workspace/gmail/api/guides/configure-mcp-server",
+        "fields": [
+          {
+            "id": "client_id",
+            "type": "text",
+            "label": "OAuth client ID",
+            "description": "The client ID from Google Auth Platform.",
+            "placeholder": "000000000000-example.apps.googleusercontent.com",
+            "required": true
+          },
+          {
+            "id": "client_secret",
+            "type": "secret",
+            "label": "OAuth client secret",
+            "description": "The client secret from Google Auth Platform.",
+            "required": true
+          }
+        ]
+      },
+      "server": {
+        "type": "http",
+        "title": "Gmail",
+        "url": "https://gmailmcp.googleapis.com/mcp/v1",
+        "auth": {
+          "type": "oauth",
+          "client_id": "${client_id}",
+          "client_secret": "${client_secret}",
+          "redirect_port": 8765,
+          "scopes": [
+            "https://www.googleapis.com/auth/gmail.readonly",
+            "https://www.googleapis.com/auth/gmail.compose"
+          ],
+          "authorization_params": {
+            "access_type": "offline",
+            "prompt": "consent"
+          },
+          "token_endpoint_auth_method": "client_secret_post"
+        }
+      }
+    },
+    {
+      "id": "github",
+      "name": "GitHub",
+      "description": "Work with repositories, issues, pull requests, actions, and code through GitHub's official remote MCP server.",
+      "logo_url": "https://github.githubassets.com/favicons/favicon.svg",
+      "setup": {
+        "instructions": "Create a fine-grained personal access token with only the repository and organization permissions you want Newelle to use.",
+        "help_url": "https://github.com/github/github-mcp-server/blob/main/docs/remote-server.md",
+        "fields": [
+          {
+            "id": "token",
+            "type": "secret",
+            "label": "Personal access token",
+            "description": "The token is stored with your existing MCP server settings.",
+            "placeholder": "github_pat_…",
+            "required": true
+          }
+        ]
+      },
+      "server": {
+        "type": "http",
+        "title": "GitHub",
+        "url": "https://api.githubcopilot.com/mcp/",
+        "auth": {
+          "type": "bearer",
+          "token": "${token}"
+        }
+      }
+    },
+    {
+      "id": "sentry",
+      "name": "Sentry",
+      "description": "Investigate issues, events, traces, and projects using Sentry's hosted MCP service.",
+      "logo_url": "https://sentry.io/favicon.ico",
+      "setup": {
+        "instructions": "Your browser will open so you can choose a Sentry account and approve access.",
+        "help_url": "https://github.com/getsentry/sentry-mcp"
+      },
+      "server": {
+        "type": "http",
+        "title": "Sentry",
+        "url": "https://mcp.sentry.dev/mcp",
+        "auth": {
+          "type": "oauth"
+        }
+      }
+    },
+    {
+      "id": "google_maps",
+      "name": "Google Maps",
+      "description": "Search places, get directions, and access location services through the Google Maps MCP server.",
+      "logo_url": "https://maps.google.com/favicon.ico",
+      "setup": {
+        "instructions": "Create a Google Maps Platform API key with the required Maps APIs enabled, then enter it below.",
+        "help_url": "https://github.com/modelcontextprotocol/servers-archived/tree/main/src/google-maps",
+        "fields": [
+          {
+            "id": "google_maps_api_key",
+            "type": "secret",
+            "label": "Google Maps API key",
+            "description": "The API key used by the Google Maps MCP server.",
+            "required": true
+          }
+        ]
+      },
+      "server": {
+        "type": "stdio",
+        "title": "Google Maps",
+        "command": "npx",
+        "args": [
+          "-y",
+          "@modelcontextprotocol/server-google-maps"
+        ],
+        "env": {
+          "GOOGLE_MAPS_API_KEY": "${google_maps_api_key}"
+        }
+      }
+    },
+    {
+      "id": "gnome_mcp",
+      "name": "GNOME",
+      "description": "Control selected GNOME desktop features through the community GNOME MCP server.",
+      "logo_url": "https://upload.wikimedia.org/wikipedia/commons/6/68/Gnomelogo.svg",
+      "setup": {
+        "instructions": "Automatic setup needs Git and Rust/Cargo on the host. Disable it below if gnome-mcp-server is already installed and available on PATH.",
+        "help_url": "https://github.com/bilelmoussaoui/gnome-mcp-server",
+        "additional_setup": {
+          "type": "git_repository",
+          "repository": "https://github.com/bilelmoussaoui/gnome-mcp-server.git",
+          "directory": "gnome-mcp-server",
+          "required_paths": ["Cargo.toml", "src"],
+          "enabled_by_default": true,
+          "description": "Newelle downloads the GNOME MCP server into its MCP folder and runs Cargo from that checkout.",
+          "instructions": "The first connection may take a while while Cargo downloads and builds the Rust dependencies.",
+          "server": {
+            "type": "stdio",
+            "title": "GNOME",
+            "command": "cargo",
+            "args": [
+              "run",
+              "--release",
+              "--manifest-path",
+              "${setup_dir}/Cargo.toml"
+            ],
+            "env": {}
+          }
+        }
+      },
+      "server": {
+        "type": "stdio",
+        "title": "GNOME",
+        "command": "gnome-mcp-server",
+        "args": [],
+        "env": {}
+      }
+    },
+    {
+      "id": "hyprmcp",
+      "name": "Hyprland",
+      "description": "Inspect and control a Hyprland desktop through its unofficial MCP server.",
+      "logo_url": "https://raw.githubusercontent.com/hyprwm/Hyprland/main/assets/hyprland.png",
+      "setup": {
+        "instructions": "Make sure Git and uv are installed on the host, then copy HYPRLAND_INSTANCE_SIGNATURE from the environment of the running Hyprland session.",
+        "help_url": "https://github.com/stefanoamorelli/hyprmcp",
+        "additional_setup": {
+          "type": "git_repository",
+          "repository": "https://github.com/stefanoamorelli/hyprmcp.git",
+          "directory": "hyprmcp",
+          "required_paths": ["hyprmcp/server.py"],
+          "description": "Newelle downloads the Hyprland MCP bridge into its MCP folder and configures the installed path automatically.",
+          "instructions": "Keep Hyprland running with the same instance signature. If Hyprland is restarted, reconnect this server with the new HYPRLAND_INSTANCE_SIGNATURE value."
+        },
+        "fields": [
+          {
+            "id": "instance_signature",
+            "type": "text",
+            "label": "Hyprland instance signature",
+            "description": "The HYPRLAND_INSTANCE_SIGNATURE value for the running compositor.",
+            "required": true
+          }
+        ]
+      },
+      "server": {
+        "type": "stdio",
+        "title": "Hyprland",
+        "command": "uv",
+        "args": [
+          "run",
+          "--with",
+          "mcp[cli]",
+          "--with",
+          "subprocess",
+          "mcp",
+          "run",
+          "${setup_dir}/hyprmcp/server.py"
+        ],
+        "env": {
+          "PYTHONPATH": "${setup_dir}",
+          "HYPRLAND_INSTANCE_SIGNATURE": "${instance_signature}"
+        }
+      }
+    },
+    {
+      "id": "kwin_mcp",
+      "name": "KWin",
+      "description": "Control a KDE Plasma 6 Wayland desktop with the community KWin MCP server.",
+      "logo_url": "https://raw.githubusercontent.com/KDE/kwin/master/logo.png",
+      "setup": {
+        "instructions": "Use KDE Plasma 6 on Wayland and install the server with uv tool install kwin-mcp (or pip). The uvx command must be available on PATH.",
+        "help_url": "https://github.com/isac322/kwin-mcp"
+      },
+      "server": {
+        "type": "stdio",
+        "title": "KWin",
+        "command": "uvx",
+        "args": ["kwin-mcp"],
+        "env": {}
+      }
+    },
+    {
+      "id": "blender_mcp",
+      "name": "Blender",
+      "description": "Connect Blender to Newelle through its MCP extension and local bridge.",
+      "logo_url": "https://www.blender.org/favicon.ico",
+      "setup": {
+        "instructions": "Install and enable the Blender Lab MCP extension from the official Blender page. Git and uv must be installed on the host.",
+        "help_url": "https://www.blender.org/lab/mcp-server/",
+        "additional_setup": {
+          "type": "git_repository",
+          "repository": "https://projects.blender.org/lab/blender_mcp.git",
+          "directory": "blender-mcp",
+          "required_paths": ["mcp/pyproject.toml"],
+          "description": "Newelle downloads Blender's official MCP bridge into its MCP folder and configures the bridge path automatically.",
+          "instructions": "In Blender, enable the Blender Lab MCP extension and start its local service before using the tools. Keep Blender open while this connection is enabled."
+        },
+        "fields": [
+          {
+            "id": "host",
+            "type": "text",
+            "label": "Blender host",
+            "description": "Hostname of the local Blender MCP service.",
+            "default": "127.0.0.1",
+            "required": true
+          },
+          {
+            "id": "port",
+            "type": "text",
+            "label": "Blender port",
+            "description": "Port used by the Blender MCP extension.",
+            "default": "9876",
+            "required": true
+          }
+        ]
+      },
+      "server": {
+        "type": "stdio",
+        "title": "Blender",
+        "command": "uv",
+        "args": [
+          "--directory",
+          "${setup_dir}/mcp",
+          "run",
+          "--with",
+          "mcp[cli]<2",
+          "blender-mcp"
+        ],
+        "env": {
+          "BLENDER_HOST": "${host}",
+          "BLENDER_PORT": "${port}"
+        }
+      }
+    },
+    {
+      "id": "kdenlive_mcp",
+      "name": "Kdenlive",
+      "description": "Control Kdenlive and automate video editing through its D-Bus MCP server.",
+      "logo_url": "https://kdenlive.org/images/kdenlive-ci-guide.svg",
+      "setup": {
+        "instructions": "Install Git and uv, then use a Kdenlive build patched with the D-Bus scripting API. Keep Kdenlive running while you connect.",
+        "help_url": "https://github.com/D-Ogi/mcp-kdenlive",
+        "additional_setup": {
+          "type": "git_repository",
+          "repository": "https://github.com/D-Ogi/mcp-kdenlive.git",
+          "directory": "kdenlive-mcp",
+          "required_paths": ["mcp_kdenlive/__init__.py", "requirements.txt"],
+          "description": "Newelle downloads the Kdenlive MCP bridge into its MCP folder and configures its Python dependencies automatically.",
+          "instructions": "Start the patched Kdenlive build before using these tools. The regular Kdenlive release does not expose the required D-Bus scripting API."
+        }
+      },
+      "server": {
+        "type": "stdio",
+        "title": "Kdenlive",
+        "command": "uv",
+        "args": [
+          "run",
+          "--with-requirements",
+          "${setup_dir}/requirements.txt",
+          "--directory",
+          "${setup_dir}",
+          "python",
+          "-m",
+          "mcp_kdenlive"
+        ],
+        "env": {
+          "PYTHONPATH": "${setup_dir}"
+        }
+      }
+    },
+    {
+      "id": "gimp_mcp",
+      "name": "GIMP",
+      "description": "Create and edit images in GIMP through the community GIMP MCP plugin.",
+      "logo_url": "https://www.gimp.org/images/frontpage/wilber-big.png",
+      "setup": {
+        "instructions": "Use GIMP 3.2+. Automatic setup is optional: enable it to download the MCP bridge, or disable it if gimp-mcp-server is already installed on PATH.",
+        "help_url": "https://github.com/maorcc/gimp-mcp",
+        "additional_setup": {
+          "type": "git_repository",
+          "repository": "https://github.com/maorcc/gimp-mcp.git",
+          "directory": "gimp-mcp",
+          "required_paths": ["gimp_mcp_server.py", "gimp-mcp-plugin.py", "pyproject.toml"],
+          "enabled_by_default": false,
+          "description": "Newelle downloads the GIMP MCP bridge and plug-in into its MCP folder and runs it with Python 3.13 for native dependency compatibility.",
+          "instructions": "Automatic setup installs gimp-mcp-plugin.py into GIMP's plug-ins folder. If automatic setup is disabled, install the plug-in manually, mark it executable, and restart GIMP. Open an image, then choose Tools > MCP > Start MCP Server before using the tools.",
+          "post_setup": {
+            "type": "gimp_plugin",
+            "source": "gimp-mcp-plugin.py"
+          },
+          "server": {
+            "type": "stdio",
+            "title": "GIMP",
+            "command": "uv",
+            "args": [
+              "run",
+              "--python",
+              "3.13",
+              "--directory",
+              "${setup_dir}",
+              "gimp_mcp_server.py"
+            ],
+            "env": {}
+          }
+        }
+      },
+      "server": {
+        "type": "stdio",
+        "title": "GIMP",
+        "command": "gimp-mcp-server",
+        "args": [],
+        "env": {}
+      }
+    },
+    {
+      "id": "playwright",
+      "name": "Playwright",
+      "description": "Automate browser pages with Microsoft's official Playwright MCP server.",
+      "logo_url": "https://playwright.dev/img/playwright-logo.svg",
+      "setup": {
+        "instructions": "Node.js 18+ and npx must be installed. Newelle launches a fresh stdio process for tool calls, so persistent browser profiles and long-lived login sessions may be limited.",
+        "help_url": "https://github.com/microsoft/playwright-mcp"
+      },
+      "server": {
+        "type": "stdio",
+        "title": "Playwright",
+        "command": "npx",
+        "args": ["-y", "@playwright/mcp@0.0.78"],
+        "env": {}
+      }
+    },
+    {
+      "id": "email_mcp",
+      "name": "Email",
+      "description": "Read, search, and send mail with the email-mcp server for Gmail, Outlook, iCloud, and IMAP.",
+      "logo_url": "https://github.com/marlinjai.png?size=96",
+      "setup": {
+        "instructions": "Run npx @marlinjai/email-mcp setup once in a terminal. The wizard opens browser OAuth for Gmail or Outlook, or asks for an app-specific password/IMAP values for other providers.",
+        "help_url": "https://github.com/marlinjai/email-mcp"
+      },
+      "server": {
+        "type": "stdio",
+        "title": "Email",
+        "command": "npx",
+        "args": ["-y", "@marlinjai/email-mcp"],
+        "env": {}
+      }
+    },
+    {
+      "id": "caldav_mcp",
+      "name": "CalDAV",
+      "description": "Read and manage calendars through a provider-neutral CalDAV MCP server.",
+      "logo_url": "https://github.com/madbonez.png?size=96",
+      "setup": {
+        "instructions": "Create an app-specific password when your calendar provider requires one, then enter the CalDAV endpoint and account details below.",
+        "help_url": "https://github.com/madbonez/caldav-mcp",
+        "fields": [
+          {
+            "id": "calendar_url",
+            "type": "url",
+            "label": "CalDAV URL",
+            "description": "The calendar collection or server URL.",
+            "placeholder": "https://caldav.example.com/",
+            "required": true
+          },
+          {
+            "id": "username",
+            "type": "text",
+            "label": "Username",
+            "required": true
+          },
+          {
+            "id": "password",
+            "type": "secret",
+            "label": "Password or app password",
+            "required": true
+          }
+        ]
+      },
+      "server": {
+        "type": "stdio",
+        "title": "CalDAV",
+        "command": "uvx",
+        "args": ["mcp-caldav"],
+        "env": {
+          "CALDAV_URL": "${calendar_url}",
+          "CALDAV_USERNAME": "${username}",
+          "CALDAV_PASSWORD": "${password}"
+        }
+      }
+    },
+    {
+      "id": "obsidian",
+      "name": "Obsidian",
+      "description": "Search and edit a local Obsidian vault with the community MCPVault server.",
+      "logo_url": "https://www.obsidian.md/favicon.ico",
+      "setup": {
+        "instructions": "Install Node.js 18+ and choose the local Obsidian vault that MCPVault should expose. The original mcp-obsidian repository is now maintained as mcpvault.",
+        "help_url": "https://github.com/bitbonsai/mcpvault",
+        "fields": [
+          {
+            "id": "vault",
+            "type": "directory",
+            "label": "Vault folder",
+            "description": "Only this Obsidian vault is exposed to the server.",
+            "placeholder": "~/Documents/Obsidian/MyVault",
+            "required": true
+          }
+        ]
+      },
+      "server": {
+        "type": "stdio",
+        "title": "Obsidian",
+        "command": "npx",
+        "args": ["-y", "@bitbonsai/mcpvault@latest", "${vault}"],
+        "env": {}
+      }
+    },
+    {
+      "id": "huggingface",
+      "name": "Hugging Face",
+      "description": "Search the Hub and use Hugging Face resources through the official hosted MCP server.",
+      "logo_url": "https://huggingface.co/front/assets/huggingface_logo-noborder.svg",
+      "setup": {
+        "instructions": "Your browser will open so you can authenticate with Hugging Face and approve access to the Hub.",
+        "help_url": "https://huggingface.co/docs/huggingface_hub/en/package_reference/mcp"
+      },
+      "server": {
+        "type": "http",
+        "title": "Hugging Face",
+        "url": "https://huggingface.co/mcp?login",
+        "auth": {
+          "type": "oauth"
+        }
+      }
+    },
+    {
+      "id": "linear",
+      "name": "Linear",
+      "description": "Query issues, projects, teams, and cycles through Linear's official remote MCP server.",
+      "logo_url": "https://linear.app/favicon.ico",
+      "setup": {
+        "instructions": "Your browser will open so you can sign in to Linear and authorize the connection.",
+        "help_url": "https://linear.app/docs/mcp"
+      },
+      "server": {
+        "type": "http",
+        "title": "Linear",
+        "url": "https://mcp.linear.app/mcp",
+        "auth": {
+          "type": "oauth"
+        }
+      }
+    },
+    {
+      "id": "notion",
+      "name": "Notion",
+      "description": "Search, read, and update Notion pages and databases with Notion's official MCP server.",
+      "logo_url": "https://www.notion.so/images/favicon.ico",
+      "setup": {
+        "instructions": "Your browser will open so you can authorize Newelle with a Notion workspace.",
+        "help_url": "https://developers.notion.com/guides/mcp/overview"
+      },
+      "server": {
+        "type": "http",
+        "title": "Notion",
+        "url": "https://mcp.notion.com/mcp",
+        "auth": {
+          "type": "oauth"
+        }
+      }
+    },
+    {
+      "id": "canva",
+      "name": "Canva",
+      "description": "Create and edit designs, search libraries, manage assets, export designs, and collaborate through Canva's official remote MCP server.",
+      "logo_url": "https://www.canva.com/favicon.ico",
+      "setup": {
+        "instructions": "Your browser will open so you can sign in to Canva and authorize Newelle. Each user must authenticate individually.",
+        "help_url": "https://www.canva.dev/docs/mcp/"
+      },
+      "server": {
+        "type": "http",
+        "title": "Canva",
+        "url": "https://mcp.canva.com/mcp",
+        "auth": {
+          "type": "oauth"
+        }
+      }
+    },
+    {
+      "id": "nextcloud_context_agent",
+      "name": "Nextcloud Context Agent",
+      "description": "Access Nextcloud files, calendars, tasks, contacts, sharing, Talk, and other enabled integrations through the Context Agent MCP server.",
+      "logo_url": "https://nextcloud.com/favicon.ico",
+      "setup": {
+        "instructions": "Install and configure the Nextcloud Context Agent app, then enter its MCP endpoint and an app password for the account Newelle should use.",
+        "help_url": "https://docs.nextcloud.com/server/stable/admin_manual/ai/app_context_agent.html",
+        "fields": [
+          {
+            "id": "nextcloud_host",
+            "type": "text",
+            "label": "Nextcloud hostname",
+            "description": "The hostname of your Nextcloud instance, without https:// or a trailing slash.",
+            "placeholder": "cloud.example.com",
+            "required": true
+          },
+          {
+            "id": "app_password",
+            "type": "secret",
+            "label": "Nextcloud app password",
+            "description": "An app password for the Nextcloud account Newelle should use.",
+            "required": true
+          }
+        ]
+      },
+      "server": {
+        "type": "http",
+        "title": "Nextcloud Context Agent",
+        "url": "https://${nextcloud_host}/index.php/apps/app_api/proxy/context_agent/mcp/",
+        "auth": {
+          "type": "bearer",
+          "token": "${app_password}"
+        }
+      }
+    },
+    {
+      "id": "shiply",
+      "name": "Shiply",
+      "description": "Publish and manage static websites through Shiply's hosted MCP server.",
+      "logo_url": "https://shiply.now/favicon.ico",
+      "setup": {
+        "instructions": "Anonymous publishing is available without credentials. Shiply operations for owned sites may require an API key configured separately by the service.",
+        "help_url": "https://shiply.now/"
+      },
+      "server": {
+        "type": "http",
+        "title": "Shiply",
+        "url": "https://shiply.now/mcp",
+        "auth": {
+          "type": "none"
+        }
+      }
+    },
+    {
+      "id": "awesome_mcp_tools",
+      "name": "Awesome MCP Tools",
+      "description": "Search, compare, and browse the awesome-mcp.tools catalog of MCP servers.",
+      "logo_url": "https://awesome-mcp.tools/favicon.ico",
+      "setup": {
+        "instructions": "No credentials are required to use the hosted catalog server.",
+        "help_url": "https://awesome-mcp.tools/"
+      },
+      "server": {
+        "type": "http",
+        "title": "Awesome MCP Tools",
+        "url": "https://awesome-mcp.tools/mcp",
+        "auth": {
+          "type": "none"
+        }
+      }
+    },
+    {
+      "id": "gitmcp",
+      "name": "GitMCP",
+      "description": "Create an MCP server for a public GitHub repository so agents can understand its code and documentation in context.",
+      "logo_url": "https://gitmcp.io/favicon.ico",
+      "setup": {
+        "instructions": "Enter a public GitHub repository in owner/repository format. GitMCP will create the corresponding repository-specific MCP URL.",
+        "help_url": "https://gitmcp.io/",
+        "fields": [
+          {
+            "id": "repository",
+            "type": "text",
+            "label": "GitHub repository",
+            "description": "A public GitHub repository in owner/repository format.",
+            "placeholder": "owner/repository",
+            "required": true
+          }
+        ]
+      },
+      "server": {
+        "type": "http",
+        "title": "GitMCP",
+        "url": "https://gitmcp.io/${repository}",
+        "auth": {
+          "type": "none"
+        }
+      }
+    },
+    {
+      "id": "stripe",
+      "name": "Stripe",
+      "description": "Work with Stripe payments, customers, billing workflows, and Stripe documentation through the official MCP server.",
+      "logo_url": "https://stripe.com/favicon.ico",
+      "setup": {
+        "instructions": "Your browser will open so you can sign in to Stripe and authorize Newelle.",
+        "help_url": "https://docs.stripe.com/mcp"
+      },
+      "server": {
+        "type": "http",
+        "title": "Stripe",
+        "url": "https://mcp.stripe.com",
+        "auth": {
+          "type": "oauth"
+        }
+      }
+    },
+    {
+      "id": "google_workspace_drive",
+      "name": "Google Workspace Drive",
+      "description": "Search, read, create, copy, and inspect files and permissions in Google Drive through Google’s MCP server.",
+      "logo_url": "https://www.gstatic.com/images/branding/product/2x/drive_48dp.png",
+      "setup": {
+        "instructions": "Your browser will open so you can sign in to Google and authorize Drive access.",
+        "help_url": "https://developers.google.com/workspace/drive/api/reference/mcp"
+      },
+      "server": {
+        "type": "http",
+        "title": "Google Workspace Drive",
+        "url": "https://drivemcp.googleapis.com/mcp/v1",
+        "auth": {
+          "type": "oauth"
+        }
+      }
+    },
+    {
+      "id": "arxiv",
+      "name": "arXiv",
+      "description": "Search arXiv papers, fetch metadata in batches, read full HTML content, and browse the category taxonomy.",
+      "logo_url": "https://arxiv.org/favicon.ico",
+      "setup": {
+        "instructions": "No account or authentication is required to connect to this server.",
+        "help_url": "https://www.pulsemcp.com/servers/cyanheads-arxiv"
+      },
+      "server": {
+        "type": "http",
+        "title": "arXiv",
+        "url": "https://arxiv.caseyjhand.com/mcp",
+        "auth": {
+          "type": "none"
+        }
+      }
+    },
+    {
+      "id": "godaddy",
+      "name": "GoDaddy",
+      "description": "Search for domain names and check domain availability through GoDaddy’s public MCP server.",
+      "logo_url": "https://www.godaddy.com/favicon.ico",
+      "setup": {
+        "instructions": "No account or API credential is required for the public domain-search tools.",
+        "help_url": "https://developer.godaddy.com/en/docs/api-users/mcp"
+      },
+      "server": {
+        "type": "http",
+        "title": "GoDaddy",
+        "url": "https://api.godaddy.com/v1/domains/mcp",
+        "auth": {
+          "type": "none"
+        }
+      }
+    },
+    {
+      "id": "onlyoffice_docspace",
+      "name": "ONLYOFFICE DocSpace",
+      "description": "Manage DocSpace files, folders, people, and collaborative rooms through the ONLYOFFICE MCP server.",
+      "logo_url": "https://www.onlyoffice.com/favicon.ico",
+      "setup": {
+        "instructions": "Enter your DocSpace base URL and an API key with the permissions you want to expose to Newelle.",
+        "help_url": "https://www.onlyoffice.com/blog/2025/08/onlyoffice-docspace-mcp-server",
+        "fields": [
+          {
+            "id": "docspace_base_url",
+            "type": "url",
+            "label": "DocSpace base URL",
+            "description": "The base URL of your ONLYOFFICE DocSpace instance.",
+            "placeholder": "https://your-instance.onlyoffice.com",
+            "required": true
+          },
+          {
+            "id": "docspace_api_key",
+            "type": "secret",
+            "label": "DocSpace API key",
+            "description": "The API key used to authenticate with your DocSpace instance.",
+            "required": true
+          }
+        ]
+      },
+      "server": {
+        "type": "stdio",
+        "title": "ONLYOFFICE DocSpace",
+        "command": "npx",
+        "args": [
+          "--yes",
+          "@onlyoffice/docspace-mcp"
+        ],
+        "env": {
+          "DOCSPACE_BASE_URL": "${docspace_base_url}",
+          "DOCSPACE_API_KEY": "${docspace_api_key}"
+        }
+      }
+    },
+    {
+      "id": "mcp_libre",
+      "name": "LibreOffice MCP",
+      "description": "Create, read, convert, search, and edit LibreOffice documents through the mcp-libre server.",
+      "logo_url": "https://www.libreoffice.org/favicon.ico",
+      "setup": {
+        "instructions": "Install Git and uv, and make sure LibreOffice 24.2+ is available on the host. Newelle downloads mcp-libre and resolves its Python environment automatically.",
+        "help_url": "https://github.com/patrup/mcp-libre",
+        "additional_setup": {
+          "type": "git_repository",
+          "repository": "https://github.com/patrup/mcp-libre.git",
+          "directory": "mcp-libre",
+          "required_paths": ["pyproject.toml", "src/main.py"],
+          "description": "Newelle downloads the mcp-libre repository into its MCP setup folder and uses uv to run the server from that checkout.",
+          "instructions": "Keep LibreOffice installed and accessible from the command line. The repository can optionally use LIBREOFFICE_PATH when LibreOffice is not on the default PATH."
+        }
+      },
+      "server": {
+        "type": "stdio",
+        "title": "LibreOffice MCP",
+        "command": "uv",
+        "args": [
+          "run",
+          "--directory",
+          "${setup_dir}",
+          "python",
+          "src/main.py"
+        ],
+        "env": {}
+      }
+    },
+    {
+      "id": "kubernetes",
+      "name": "Kubernetes",
+      "description": "Inspect and operate Kubernetes clusters with the Kubernetes SIGs MCP server.",
+      "logo_url": "https://github.com/containers.png?size=96",
+      "setup": {
+        "instructions": "Install uvx and choose a kubeconfig file with the cluster permissions you want to expose. Use a least-privilege service account where possible.",
+        "help_url": "https://github.com/containers/kubernetes-mcp-server",
+        "fields": [
+          {
+            "id": "kubeconfig",
+            "type": "file",
+            "label": "Kubeconfig",
+            "description": "The kubeconfig used by the MCP server.",
+            "placeholder": "~/.kube/config",
+            "default": "~/.kube/config",
+            "required": true
+          }
+        ]
+      },
+      "server": {
+        "type": "stdio",
+        "title": "Kubernetes",
+        "command": "uvx",
+        "args": ["kubernetes-mcp-server@latest", "--kubeconfig", "${kubeconfig}"],
+        "env": {}
+      }
+    }
+  ]
+}

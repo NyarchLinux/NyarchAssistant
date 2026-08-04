@@ -224,6 +224,35 @@ class NewelleExtension(Handler):
     def get_tools(self) -> list:
         return []
 
+    def get_modes(self) -> dict:
+        """Returns the Modes contributed by this extension.
+
+        Each key is a unique Mode name; each value is a mode dict with the
+        same shape used by :class:`ModeManager`::
+
+            {
+                "description": "<str>",      # one-line summary
+                "icon": "<str>",             # GTK symbolic icon name
+                "tools":  {"<tool_name>": "<state>", ...},   # optional
+                "skills": {"<skill_name>": "<state>", ...},  # optional
+                "prompts": {                                      # optional
+                    "<prompt_key>": {
+                        "state": "<state>",
+                        "override": "<replacement text>",         # optional
+                    },
+                },
+            }
+
+        where ``<state>`` is ``"enable"``, ``"remove"`` or ``"no_change"``.
+
+        Extension modes are added only when no mode with that name already
+        exists, so they never clobber built-ins or user-created modes.
+
+        Returns:
+            dict: ``{name: mode_dict}`` (empty by default).
+        """
+        return {}
+
     def get_commands(self) -> list[Command]:
         """Returns the list of slash commands provided by this extension.
         
@@ -509,6 +538,21 @@ class ExtensionLoader:
                     AVAILABLE_PROMPTS.append(prompt)
                 PROMPTS[prompt["key"]] = prompt["text"]
 
+    def add_modes(self, mode_manager):
+        """Add the modes contributed by each extension to the ModeManager.
+
+        Args:
+            mode_manager: the application :class:`ModeManager`. Extension modes
+                are merged via :meth:`ModeManager.add_modes`, which never
+                clobbers built-ins or user-created modes.
+        """
+        for extension in self.extensions:
+            if extension in self.disabled_extensions:
+                continue
+            modes = extension.get_modes()
+            if modes:
+                mode_manager.add_modes(modes)
+
     def remove_handlers(self, extension, AVAILABLE_LLMS, AVAILABLE_TTS, AVAILABLE_STT, AVAILABLE_MEMORIES, AVAILABLE_EMBEDDINGS, AVAILABLE_RAG, AVAILABLE_WEBSEARCH):
         """Remove handlers of an extension
 
@@ -568,6 +612,8 @@ class ExtensionLoader:
             except Exception as e:
                 print(f"Error during extension uninstall cleanup: {e}")
         os.remove(os.path.join(self.extension_dir, self.filemap[extension]))
+        self.extensions_settings.pop(extension, None)
+        self.save_settings()
 
     def add_extension(self, file_path : str):
         """
@@ -616,7 +662,9 @@ class ExtensionLoader:
         if not isinstance(extension, str):
             extension = extension.id
         self.extensions_settings[extension]["disabled"] = True
-        self.disabled_extensions.append(self.get_extension_by_id(extension))
+        extension_object = self.get_extension_by_id(extension)
+        if extension_object not in self.disabled_extensions:
+            self.disabled_extensions.append(extension_object)
         self.save_settings()
 
     def save_settings(self):

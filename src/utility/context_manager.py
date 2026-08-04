@@ -1,6 +1,6 @@
 import copy
 from dataclasses import dataclass, field
-from .strings import count_tokens, remove_thinking_blocks
+from .strings import count_message_tokens, remove_thinking_blocks
 
 
 SUMMARIZE_PROMPT = """Summarize the following conversation messages into a concise paragraph.
@@ -81,7 +81,7 @@ class ContextManager:
 
         # Phase 2: count tokens per message
         msg_tokens = [
-            count_tokens(m.get("Message", "")) + self.TOKEN_OVERHEAD_PER_MSG
+            count_message_tokens(m.get("Message", "")) + self.TOKEN_OVERHEAD_PER_MSG
             for m in history
         ]
         original_tokens = sum(msg_tokens) + prompts_token_count
@@ -148,7 +148,7 @@ class ContextManager:
             result_history.append(history[i])
 
         trimmed_tokens = sum(
-            count_tokens(m.get("Message", "")) + self.TOKEN_OVERHEAD_PER_MSG
+            count_message_tokens(m.get("Message", "")) + self.TOKEN_OVERHEAD_PER_MSG
             for m in result_history
         ) + prompts_token_count
 

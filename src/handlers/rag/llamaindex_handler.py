@@ -4,6 +4,11 @@ from time import time
 import numpy as np
 
 from ...utility.strings import clean_prompt
+from ...utility.source_attribution import (
+    format_source_context,
+    infer_provided_text_source,
+    source_from_metadata,
+)
 from ...handlers.llm import LLMHandler 
 from ...handlers.embeddings.embedding import EmbeddingHandler 
 from ...handlers import ExtraSettings 
@@ -363,16 +368,24 @@ class LlamaIndexHanlder(RAGHandler):
         if self.get_setting("use_llm"):
             query_engine = self.index.as_query_engine()
             response = query_engine.query(prompt)
-            r.append(str(response))
+            source_nodes = getattr(response, "source_nodes", []) or []
+            sources = list(dict.fromkeys(
+                source_from_metadata(getattr(node, "metadata", None))
+                for node in source_nodes
+            ))
+            source = "; ".join(sources) if sources else "Unknown source"
+            r.append(format_source_context(str(response), source, source_type="Documents"))
         else:
             nodes = self.retrieve_with_history(prompt, history)
             nodes = self.apply_otsu(nodes, int(self.get_setting("return_documents")))
             for node in nodes:
                 if not self.get_setting("use_bm25") and node.score < float(self.get_setting("similarity_threshold")):
                      continue
-                r.append("---")
-                r.append("- Source: " + str(node.metadata.get("file_path", node.metadata.get("file_name", "Unknown"))))
-                r.append(node.node.get_content())
+                r.append(format_source_context(
+                    node.node.get_content(),
+                    source_from_metadata(node.metadata),
+                    source_type="Document",
+                ))
         return r
 
     def get_paths(self):
@@ -531,22 +544,36 @@ class LlamaIndexHanlder(RAGHandler):
         urls = []
         for document in documents:
             if document.startswith("file:") or os.path.exists(document):
-                path = document.lstrip("file:")
-                document_list.extend(SimpleDirectoryReader(input_files=[path]).load_data())
+                path = os.path.abspath(os.path.expanduser(document.removeprefix("file:")))
+                loaded_documents = SimpleDirectoryReader(input_files=[path]).load_data()
+                for loaded_document in loaded_documents:
+                    loaded_document.metadata.setdefault("source", path)
+                document_list.extend(loaded_documents)
             elif document.startswith("text:"):
-                text = document.lstrip("text:")
-                document_list.append(Document(text=text))
+                text = document.removeprefix("text:")
+                source = infer_provided_text_source(text)
+                document_list.append(Document(
+                    text=text,
+                    metadata={"source": source, "source_type": "provided_text"},
+                ))
             elif document.startswith("url:") or document.startswith("http://") or document.startswith("https://"):
-                url = document.lstrip("url:")
+                url = document.removeprefix("url:")
                 urls.append(url)
-        t = []
-        for url in urls:
-            def request(url):
-                r = requests.get(url)
-                document_list.append(Document(text=r.text))
-            th = threading.Thread(target=request, args=(url, ))
+        url_documents = [None] * len(urls)
+        threads = []
+        for index, url in enumerate(urls):
+            def request(index, url):
+                response = requests.get(url)
+                url_documents[index] = Document(
+                    text=response.text,
+                    metadata={"source": url, "url": url, "source_type": "url"},
+                )
+            th = threading.Thread(target=request, args=(index, url))
             th.start()
-        [t.join() for t in t]
+            threads.append(th)
+        for thread in threads:
+            thread.join()
+        document_list.extend(document for document in url_documents if document is not None)
         return document_list
     
     def build_index(self, documents: list[str], chunk_size: int | None = None) -> RAGIndex: 
@@ -754,20 +781,21 @@ class LlamaIndexIndex(RAGIndex):
         for node in nodes:
             if not self.use_bm25 and node.score < float(self.similarity_threshold):
                 continue
-            r.append("---")
-            r.append("- Source: " + str(node.metadata.get("file_path", node.metadata.get("file_name", "Unknown"))))
-            r.append(node.node.get_content())
+            r.append(format_source_context(
+                node.node.get_content(),
+                source_from_metadata(node.metadata),
+                source_type="Document",
+            ))
         return r
 
     def get_all_contexts(self) -> list[str]:
         r = []
-        last_document = ""
         for document in self.docs:
-            file = document.metadata.get("file_path", document.metadata.get("file_name", "Unknown"))
-            if file != last_document:
-                r.append("-- Source: " + str(file))
-                last_document = file
-            r.append(document.text)
+            r.append(format_source_context(
+                document.text,
+                source_from_metadata(document.metadata),
+                source_type="Document",
+            ))
         return r
 
     def insert(self, documents: list[str]):
@@ -845,5 +873,3 @@ class LlamaIndexIndex(RAGIndex):
             except Exception as e:
                 print(f"Failed to load BM25 retriever: {e}")
                 self.bm25_retriever = None
-
-

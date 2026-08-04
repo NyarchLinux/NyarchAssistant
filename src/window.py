@@ -22,7 +22,6 @@ from .ui.presentation import PresentationWindow
 from .ui.widgets import File, CopyBox, BarChartBox, MarkupTextView, DocumentReaderWidget, TipsCarousel, BrowserWidget, Terminal, CodeEditorWidget, ToolWidget, CallPanel
 from .ui.explorer import ExplorerPanel
 from .ui.widgets import MultilineEntry, ProfileRow, DisplayLatex, InlineLatex, ThinkingWidget, Message, ChatRow, FolderRow, ChatHistory, ChatTab
-from .ui.widgets.context_indicator import ContextIndicator
 from .ui.stdout_monitor import StdoutMonitorDialog
 from .utility.stdout_capture import StdoutMonitor
 from .constants import AVAILABLE_LLMS, SCHEMA_ID, SETTINGS_GROUPS
@@ -153,8 +152,6 @@ class MainWindow(Adw.ApplicationWindow):
         menu = Gio.Menu()
         menu.append(_("Thread editing"), "app.thread_editing")
         menu.append(_("Scheduled tasks"), "app.scheduled_tasks")
-        menu.append(_("Extensions"), "app.extension")
-        menu.append(_("Interfaces"), "app.interfaces")
         menu.append(_("Settings"), "app.settings")
         menu.append(_("Keyboard shorcuts"), "app.shortcuts")
         
@@ -183,9 +180,6 @@ class MainWindow(Adw.ApplicationWindow):
 
         # Header box - Contains the buttons that must go in the left side of the header
         self.headerbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, hexpand=True)
-        # Context usage indicator
-        self.context_indicator = ContextIndicator()
-        self.headerbox.append(self.context_indicator)
         # Mute TTS Button
         self.mute_tts_button = Gtk.Button(
             css_classes=["flat"], icon_name="audio-volume-muted-symbolic", visible=False
@@ -739,6 +733,36 @@ class MainWindow(Adw.ApplicationWindow):
             for box in chat_history.messages_box:
                 walk(box)
 
+    def _refresh_compact_mode(self):
+        """Apply the compact tool-call layout to every open chat tab."""
+        chat_tabs = getattr(self, "chat_tabs", None)
+        if chat_tabs is None:
+            return
+
+        enabled = self.controller.newelle_settings.compact_mode
+
+        def walk(widget):
+            if isinstance(widget, Message):
+                widget.set_compact_mode(enabled)
+                return
+            child = widget.get_first_child()
+            while child is not None:
+                nxt = child.get_next_sibling()
+                walk(child)
+                child = nxt
+
+        for i in range(chat_tabs.get_n_pages()):
+            page = chat_tabs.get_nth_page(i)
+            child = page.get_child() if page is not None else None
+            if child is not None:
+                chat_history = getattr(child, "chat_history", None)
+                if chat_history is not None:
+                    if enabled and hasattr(chat_history, "refresh_compact_groups"):
+                        chat_history.refresh_compact_groups()
+                    elif not enabled and hasattr(chat_history, "restore_hidden_compact_rows"):
+                        chat_history.restore_hidden_compact_rows()
+                walk(child)
+
     def update_font_settings(self):
         ns = self.controller.newelle_settings
         parts = []
@@ -831,6 +855,8 @@ class MainWindow(Adw.ApplicationWindow):
         self.memory_handler = self.controller.handlers.memory
         self.rag_handler = self.controller.handlers.rag
         self.extensionloader = self.controller.extensionloader
+        if ReloadType.COMPACT_MODE in reloads:
+            self._refresh_compact_mode()
         if ReloadType.RELOAD_CHAT in reloads:
             self.show_chat()
         if ReloadType.RELOAD_CHAT_LIST in reloads:
@@ -860,7 +886,7 @@ class MainWindow(Adw.ApplicationWindow):
 
             if should_be_listening:
                 self.start_wakeword_detection()
-        if ReloadType.LLM in reloads:
+        if ReloadType.LLM in reloads or ReloadType.SECONDARY_LLM in reloads:
             self.reload_buttons() 
             self.update_model_popup()
         if ReloadType.TOOLS in reloads:
@@ -874,19 +900,32 @@ class MainWindow(Adw.ApplicationWindow):
 
     def _update_chat_tab_llm_buttons(self):
         """Update chat tab buttons that depend on LLM capabilities"""
+        vision_model = self.controller.get_vision_model()
         n_pages = self.chat_tabs.get_n_pages()
         for i in range(n_pages):
             page = self.chat_tabs.get_nth_page(i)
             child = page.get_child()
             if isinstance(child, ChatTab):
                 child._update_attach_visibility()
-                if not self.model.supports_video_vision():
+                if not vision_model.supports_video_vision():
                     if child.video_recorder is not None:
                         child.video_recorder.stop()
                         child.video_recorder = None
                 child.screen_record_button.set_visible(
-                    self.model.supports_video_vision() and not child.attached_image_data
+                    vision_model.supports_video_vision() and not child.attached_image_data
                 )
+                # Refresh the Mode switcher label and the thinking control so
+                # they follow the active LLM's capabilities.
+                child.refresh_mode_and_thinking()
+
+    def refresh_mode_buttons(self):
+        """Refresh the Mode switcher in every chat tab (after a mode edit)."""
+        n_pages = self.chat_tabs.get_n_pages()
+        for i in range(n_pages):
+            page = self.chat_tabs.get_nth_page(i)
+            child = page.get_child()
+            if isinstance(child, ChatTab):
+                child.refresh_mode_and_thinking()
 
     # Model popup
     def update_model_popup(self):
@@ -1560,7 +1599,7 @@ class MainWindow(Adw.ApplicationWindow):
             groups: List of settings groups that were changed
         """
         # Load new settings and compare with old to determine what actually changed
-        newsettings = NewelleSettings()
+        newsettings = NewelleSettings(self.controller.mode_manager)
         newsettings.load_settings(self.settings)
         actual_reloads = self.controller.newelle_settings.compare_settings(newsettings)
 
@@ -1627,8 +1666,11 @@ class MainWindow(Adw.ApplicationWindow):
         self.rag_handler = self.controller.handlers.rag
         self.extensionloader = self.controller.extensionloader
 
+        if ReloadType.COMPACT_MODE in reload_types:
+            self._refresh_compact_mode()
+
         # Update LLM UI - label first for responsiveness, delay expensive popup rebuild
-        if ReloadType.LLM in reload_types:
+        if ReloadType.LLM in reload_types or ReloadType.SECONDARY_LLM in reload_types:
             self.update_model_popup()
             self._update_chat_tab_llm_buttons()
         GLib.idle_add(lambda: self.chat_header.set_title_widget(self.build_model_popup()) and False)
@@ -1722,6 +1764,7 @@ class MainWindow(Adw.ApplicationWindow):
         # Handle any remaining reload types
         for reload_type in reload_types:
             if reload_type not in {ReloadType.RELOAD_CHAT, ReloadType.RELOAD_CHAT_LIST,
+                                  ReloadType.COMPACT_MODE,
                                   ReloadType.PROMPTS, ReloadType.OFFERS, ReloadType.TOOLS}:
                 self.controller.reload(reload_type)
 
@@ -1840,6 +1883,7 @@ class MainWindow(Adw.ApplicationWindow):
     def attach_file(self, button):
         """Show attach file dialog to add a file"""
         filters = Gio.ListStore.new(Gtk.FileFilter)
+        vision_model = self.controller.get_vision_model()
         image_patterns = ["*.png", "*.jpg", "*.jpeg", "*.webp"]
         video_patterns = ["*.mp4"]
         file_patterns = self.model.get_supported_files()
@@ -1867,13 +1911,13 @@ class MainWindow(Adw.ApplicationWindow):
         
         if second_file_filter is not None:
             filters.append(second_file_filter)
-        if self.model.supports_video_vision():
+        if vision_model.supports_video_vision():
             filters.append(video_filter)
             supported_patterns += video_patterns
         if len(self.model.get_supported_files()) > 0:
             filters.append(file_filter)
             supported_patterns += file_patterns
-        if self.model.supports_vision():
+        if vision_model.supports_vision():
             supported_patterns += image_patterns
             filters.append(image_filter)
         default_filter = Gtk.FileFilter(
@@ -2160,9 +2204,14 @@ class MainWindow(Adw.ApplicationWindow):
             GLib.idle_add(tab.chat_history.update_button_text)
 
     def refresh_context_indicator(self):
-        """Recompute and display context usage for the current chat."""
-        if hasattr(self, 'context_indicator'):
-            t = threading.Thread(target=self.context_indicator.update_from_chat, args=(self.controller,))
+        """Recompute and display context usage for the current chat.
+
+        The indicator now lives per ChatTab (bottom-right of its input box), so
+        target the active tab's instance.
+        """
+        tab = self.get_active_chat_tab()
+        if tab is not None and hasattr(tab, 'context_indicator'):
+            t = threading.Thread(target=tab.context_indicator.update_from_chat, args=(self.controller,))
             t.start()
 
     def update_history(self):

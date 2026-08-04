@@ -92,6 +92,15 @@ def count_tokens(text: str, model: str = "gpt-4o-mini") -> int:
     except Exception:
         return len(text) // 4
 
+def count_message_tokens(message: str, model: str = "gpt-4o-mini") -> int:
+    """Count the textual tokens in a chat message.
+
+    Media attachments are sent to multimodal models separately from the text.
+    Exclude their path or base64 payload so pasted images do not appear to use
+    hundreds of thousands of text tokens.
+    """
+    return count_tokens(clean_prompt(message), model)
+
 def quote_string(s):
     if "'" in s:
         return "'" + s.replace("'", "'\\''") + "'"

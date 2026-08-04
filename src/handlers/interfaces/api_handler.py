@@ -8,23 +8,12 @@ import tempfile
 import threading
 import time
 import uuid
+from datetime import datetime, timezone
 from typing import Union
 
 from ...utility import convert_messages_openai_to_newelle, parse_tool_calls_from_assistant_content
 from ..extra_settings import ExtraSettings
 from .chat_interface import ChatInterface
-
-
-def _chat_completion_log_print(label: str, obj, max_chars: int = 8000) -> None:
-    """Debug logging for the OpenAI-compatible chat completions endpoint (stdout)."""
-    try:
-        text = json.dumps(obj, ensure_ascii=False, indent=2, default=str)
-    except TypeError:
-        text = repr(obj)
-    orig_len = len(text)
-    if orig_len > max_chars:
-        text = text[:max_chars] + f"\n... [truncated, {orig_len} chars total]"
-    print(f"[API chat/completions] {label}\n{text}")
 
 
 class APIInterface(ChatInterface):
@@ -42,10 +31,24 @@ class APIInterface(ChatInterface):
         self._server = None
         # user_key -> event_q for in-progress runs paused at a tool interaction
         self._pending_streams: dict[str, queue.Queue] = {}
+        # NDJSON log writer runs on a single lazy daemon thread fed by a queue
+        # so disk I/O never blocks the FastAPI asyncio event loop. The queue /
+        # thread are created on first write, lazily. _log_writer_init_lock
+        # guards the lazy-start TOCTOU race; everything else is single-thread.
+        self._log_writer_init_lock = threading.Lock()
+        self._log_file_queue: "queue.Queue | None" = None
+        # Cap the number of "log file write failed" warnings so a bad path
+        # doesn't flood stdout with repeated errors.
+        self._log_file_error_count = 0
 
     @staticmethod
     def get_extra_requirements() -> list:
         return ["fastapi", "uvicorn"]
+
+    # Single source of truth for the on-disk log location. Used both as the
+    # EntrySetting default (so the UI shows the value) and as the fallback in
+    # _resolve_log_file_path() (so an empty user value still resolves sanely).
+    _DEFAULT_LOG_FILE_PATH = "~/.local/share/io.github.qwersyk.Newelle/api_logs.jsonl"
 
     def get_extra_settings(self) -> list:
         return [
@@ -71,13 +74,166 @@ class APIInterface(ChatInterface):
                 max=65535,
                 step=1,
             ),
+            ExtraSettings.ToggleSetting(
+                key="log_requests",
+                title=_("Enable API logging"),
+                description=_("Log every API request and response to stdout, including the system prompt, full chat history, and the generated assistant message. Useful for debugging clients and replaying conversations."),
+                default=False,
+            ),
+            ExtraSettings.ToggleSetting(
+                key="log_to_file",
+                title=_("Save API logs to a JSON file"),
+                description=_("Append every API request and response (system prompt, full chat history, generated message) to a newline-delimited JSON (.jsonl) file. The file grows unbounded — rotate it externally if needed."),
+                default=False,
+            ),
+            ExtraSettings.EntrySetting(
+                key="log_file_path",
+                title=_("Log file path"),
+                description=_("Filesystem path for the NDJSON log file. ~ expands to your home directory; the parent folder is created on demand. Default: XDG data dir (Linux), home (macOS/Windows)."),
+                default=self._DEFAULT_LOG_FILE_PATH,
+            ),
         ]
+
+
 
     def _get_port(self):
         return self.get_setting("port", search_default=True, return_value=8080)
 
     def _get_host(self):
         return self.get_setting("host", search_default=True, return_value="127.0.0.1")
+
+    def _is_logging_enabled(self) -> bool:
+        """Return True when the user opted-in to per-request API logging."""
+        return bool(self.get_setting("log_requests", search_default=True, return_value=False))
+
+    def _is_logging_to_file(self) -> bool:
+        """Return True when the user opted-in to persisting API logs to a file."""
+        return bool(self.get_setting("log_to_file", search_default=True, return_value=False))
+
+    def _resolve_log_file_path(self) -> str:
+        """Return the configured NDJSON log file path, expanding `~`.
+
+        Always returns the class-level default if the user value is blank,
+        so callers can rely on receiving a non-empty string.
+        """
+        raw = self.get_setting(
+            "log_file_path",
+            search_default=True,
+            return_value=self._DEFAULT_LOG_FILE_PATH,
+        )
+        cleaned = (raw or "").strip() or self._DEFAULT_LOG_FILE_PATH
+        return os.path.expanduser(cleaned)
+
+    def _ensure_log_writer_thread(self) -> "queue.Queue":
+        """Start a single background drainer thread (idempotent) and return its queue.
+
+        Disk I/O for the NDJSON log file is funneled through one daemon thread
+        so a slow filesystem never stalls the FastAPI asyncio event loop. The
+        thread is created lazily on first write and lives until process exit
+        (it's a daemon — no shutdown signaling needed). Double-checked locking
+        makes first-call startup safe under concurrent request handlers.
+        """
+        if self._log_file_queue is not None:
+            return self._log_file_queue
+        with self._log_writer_init_lock:
+            if self._log_file_queue is not None:
+                return self._log_file_queue
+            q: "queue.Queue" = queue.Queue()
+            self._log_file_queue = q
+
+            def drainer():
+                while True:
+                    item = q.get()
+                    if item is None:
+                        break
+                    line, path = item
+                    try:
+                        os.makedirs(os.path.dirname(os.path.abspath(path)) or ".", exist_ok=True)
+                        with open(path, "a", encoding="utf-8") as f:
+                            f.write(line)
+                        self._log_file_error_count = 0
+                    except Exception as e:
+                        self._log_file_error_count += 1
+                        if self._log_file_error_count <= 3:
+                            print(f"[API] failed to write log entry to {path}: {e}")
+
+            threading.Thread(target=drainer, daemon=True, name="api-log-writer").start()
+            return q
+
+    def _write_log_file_entry(self, stage: str, payload) -> None:
+        """Enqueue (timestamped, serialised) log entry for the background writer.
+
+        Each line shares the unified ``{timestamp, stage, payload}`` schema so
+        downstream consumers don't have to fork on entry shape. The on-disk
+        file is the authoritative record: payloads are written *un-truncated*,
+        even when the stdout side truncates for readability.
+
+        No-op when 'log_to_file' is off. The actual disk write happens on a
+        dedicated background thread (see ``_ensure_log_writer_thread``), so a
+        slow / misconfigured path cannot stall the API event loop. Errors in
+        the worker are swallowed but the first few are surfaced to stdout so
+        a misconfigured path is observable; the error counter resets on the
+        first successful write so a recovered path surfaces a fresh warning if
+        it breaks again.
+        """
+        if not self._is_logging_to_file():
+            return
+        path = self._resolve_log_file_path()
+        if not path:
+            return
+        try:
+            stamped = {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "stage": stage,
+                "payload": payload,
+            }
+            line = json.dumps(stamped, ensure_ascii=False, default=str) + "\n"
+        except (TypeError, ValueError) as e:
+            self._record_log_file_error(f"failed to serialize log entry: {e}")
+            return
+
+        # Off-thread write — never blocks the asyncio event loop.
+        self._ensure_log_writer_thread().put((line, path))
+
+    def _record_log_file_error(self, message: str) -> None:
+        """Surface at most the first 3 file-logging errors to stdout."""
+        self._log_file_error_count += 1
+        if self._log_file_error_count <= 3:
+            print(f"[API] {message}")
+
+    def _log(self, msg: str) -> None:
+        """Print *msg* to stdout (when stdout logging is enabled) and append a
+        corresponding entry to the JSONL log file (when file logging is enabled).
+
+        Stdout runs first so a slow disk write never delays the live signal the
+        operator sees while debugging.
+        """
+        if self._is_logging_enabled():
+            print(msg)
+        if self._is_logging_to_file():
+            self._write_log_file_entry("event", msg)
+
+    def _chat_completion_log_print(self, label: str, obj, max_chars: int = 8000) -> None:
+        """Structured logging for the OpenAI-compatible chat completions endpoint.
+
+        Always appends the un-truncated payload as one NDJSON line to the log file
+        when the 'log_to_file' toggle is enabled. Additionally prints a
+        truncated, pretty-printed version to stdout when 'log_requests' is on.
+        The file is the authoritative record; stdout is a developer convenience.
+        """
+        if self._is_logging_to_file():
+            self._write_log_file_entry(label, obj)
+        if not self._is_logging_enabled():
+            return
+        try:
+            text = json.dumps(obj, ensure_ascii=False, indent=2, default=str)
+        except TypeError:
+            text = repr(obj)
+        orig_len = len(text)
+        if orig_len > max_chars:
+            text = text[:max_chars] + f"\n... [truncated, {orig_len} chars total]"
+        print(f"[API chat/completions] {label}\n{text}")
+
 
     def _create_app(self):
         from fastapi import FastAPI, UploadFile, File, Request, HTTPException
@@ -196,25 +352,27 @@ class APIInterface(ChatInterface):
         @app.post("/chats/completions")
         async def chat_completions(request: ChatCompletionRequest):
             req_dump = request.model_dump() if hasattr(request, "model_dump") else request.dict()
-            _chat_completion_log_print("request (raw body)", req_dump)
+            self._chat_completion_log_print("request (raw body)", req_dump)
 
             llm = controller.handlers.llm
             last_user_message, history, system_prompt = convert_messages_openai_to_newelle(request.messages)
             embed_openai_tools_in_system_prompt(system_prompt, request.tools)
 
-            _chat_completion_log_print(
-                "request (normalized for LLM)",
+            # When the user opted-in to logging, dump the full system prompt,
+            # full chat history and the last user message so the entire request
+            # round-trip can be inspected or replayed. _chat_completion_log_print
+            # is a no-op when logging is disabled.
+            self._chat_completion_log_print(
+                "request (system prompt + history + last user message)",
                 {
-                    "last_user_message": last_user_message,
-                    "history_len": len(history),
-                    "history_tail": history[-5:] if history else [],
                     "system_prompt": system_prompt,
+                    "history": history,
+                    "last_user_message": last_user_message,
                 },
-                max_chars=6000,
             )
 
             if not last_user_message:
-                print("[API chat/completions] response: 400 No user message provided")
+                self._log("[API chat/completions] response: 400 No user message provided")
                 return JSONResponse(
                     status_code=400,
                     content={"error": {"message": "No user message provided", "type": "invalid_request_error"}},
@@ -224,11 +382,11 @@ class APIInterface(ChatInterface):
             created = int(time.time())
             model_name = request.model or (llm.get_selected_model() if hasattr(llm, "get_selected_model") else "default")
 
-            print(
+            self._log(
                 f"[API chat/completions] routing completion_id={completion_id} model={model_name!r} "
                 f"stream={request.stream} messages={len(request.messages)}"
             )
-
+            history = history[:-1]
             if request.stream:
                 return self._stream_response(llm, completion_id, created, model_name, last_user_message, history, system_prompt)
             else:
@@ -242,7 +400,7 @@ class APIInterface(ChatInterface):
         @app.post("/v2/chat/completions")
         async def chat_completions_v2(request: ChatCompletionRequest):
             req_dump = request.model_dump() if hasattr(request, "model_dump") else request.dict()
-            _chat_completion_log_print("v2 request (raw body)", req_dump)
+            self._chat_completion_log_print("v2 request (raw body)", req_dump)
 
             user_key = (request.user or "default").strip() or "default"
 
@@ -274,7 +432,7 @@ class APIInterface(ChatInterface):
                 # The returned "✅ …" string is intentionally discarded here;
                 # the actual output comes from the resumed stream.
                 self.try_handle_command(user_key, stripped)
-                print(
+                self._log(
                     f"[API v2/chat/completions] resuming paused run user={user_key!r} "
                     f"completion_id={completion_id} stream={request.stream}"
                 )
@@ -290,7 +448,7 @@ class APIInterface(ChatInterface):
             # ── Slash commands ───────────────────────────────────────────────
             cmd_response = self.try_handle_command(user_key, last_user_message)
             if cmd_response is not None:
-                _chat_completion_log_print(
+                self._chat_completion_log_print(
                     f"v2 command response user={user_key!r}", {"response": cmd_response}
                 )
                 if request.stream:
@@ -322,8 +480,8 @@ class APIInterface(ChatInterface):
                 })
 
             # ── Full agent run ───────────────────────────────────────────────
-            print(
-                f"[API v2/chat/completions] user={user_key!r} completion_id={completion_id} "
+            self._log(
+                f"[API v2] user={user_key!r} completion_id={completion_id} "
                 f"stream={request.stream} model={model_name!r}"
             )
 
@@ -488,7 +646,7 @@ class APIInterface(ChatInterface):
             }],
             "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
         }
-        _chat_completion_log_print(f"response (non-stream) id={completion_id}", payload)
+        self._chat_completion_log_print(f"response (non-stream) id={completion_id}", payload)
 
         return JSONResponse(content=payload)
 
@@ -522,7 +680,7 @@ class APIInterface(ChatInterface):
         def event_generator():
             nonlocal prev_len
 
-            print(
+            self._log(
                 f"[API chat/completions] stream start id={completion_id} model={model_name!r} "
                 f"prompt_len={len(prompt)} history_len={len(history)} system_prompt_parts={len(system_prompt)}"
             )
@@ -571,7 +729,7 @@ class APIInterface(ChatInterface):
                 else:
                     finish_reason = "stop"
 
-            _chat_completion_log_print(
+            self._chat_completion_log_print(
                 f"response (stream end) id={completion_id} finish_reason={finish_reason}",
                 {
                     "assistant_raw_len": len(message_for_parsing),
@@ -657,18 +815,43 @@ class APIInterface(ChatInterface):
         """
         _sse = self._sse_chunk  # local alias
 
+        # Accumulate streamed text/tool output so the v2 stream-end log can
+        # capture the full generated message (mirrors v1's `assistant_raw`).
+        # Only pay the copying cost when the user has opted-in to logging.
+        log_on = self._is_logging_enabled()
+        accumulated_text = ""
+        stream_error = None
+
         while True:
             kind, data = event_q.get()
 
             if kind == "done":
-                _chat_completion_log_print(
-                    f"v2 stream end id={completion_id}", {"stream_error": None}
+                self._chat_completion_log_print(
+                    f"v2 stream end id={completion_id}",
+                    {
+                        "assistant_message": accumulated_text,
+                        "assistant_message_len": len(accumulated_text),
+                        "stream_error": stream_error,
+                    },
                 )
                 yield _sse(completion_id, created, model_name, finish_reason="stop")
                 yield "data: [DONE]\n\n"
                 return
 
             if kind == "error":
+                stream_error = data
+                # Include the error suffix in the accumulated snapshot so the
+                # log mirrors exactly what the client received.
+                if log_on:
+                    accumulated_text += f"\n\n[Error: {data}]"
+                self._chat_completion_log_print(
+                    f"v2 stream error id={completion_id}",
+                    {
+                        "assistant_message": accumulated_text,
+                        "assistant_message_len": len(accumulated_text),
+                        "stream_error": stream_error,
+                    },
+                )
                 yield _sse(completion_id, created, model_name,
                            delta_content=f"\n\n[Error: {data}]")
                 yield _sse(completion_id, created, model_name, finish_reason="stop")
@@ -677,18 +860,28 @@ class APIInterface(ChatInterface):
 
             if kind == "text":
                 if data:
+                    if log_on:
+                        accumulated_text += data
                     yield _sse(completion_id, created, model_name, delta_content=data)
 
             elif kind == "tool":
                 rendered = self._render_tool_event(data)
                 if rendered:
+                    if log_on:
+                        accumulated_text += rendered
                     yield _sse(completion_id, created, model_name, delta_content=rendered)
 
                 if data.get("type") == "tool_interaction":
                     # Save queue so the next /option request can resume from here.
                     self._pending_streams[user_key] = event_q
-                    _chat_completion_log_print(
-                        f"v2 stream paused for interaction id={completion_id}", data
+                    self._chat_completion_log_print(
+                        f"v2 stream paused for interaction id={completion_id}",
+                        {
+                            "assistant_message": accumulated_text,
+                            "assistant_message_len": len(accumulated_text),
+                            "tool_interaction": data,
+                            "stream_error": stream_error,
+                        },
                     )
                     yield _sse(completion_id, created, model_name, finish_reason="stop")
                     yield "data: [DONE]\n\n"
@@ -740,7 +933,7 @@ class APIInterface(ChatInterface):
             }],
             "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
         }
-        _chat_completion_log_print(f"v2 response (non-stream) id={completion_id}", payload)
+        self._chat_completion_log_print(f"v2 response (non-stream) id={completion_id}", payload)
         return JSONResponse(content=payload)
 
     def _v2_resume_non_stream(self, user_key, completion_id, created, model_name,
@@ -762,7 +955,7 @@ class APIInterface(ChatInterface):
             }],
             "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
         }
-        _chat_completion_log_print(f"v2 response (resume non-stream) id={completion_id}", payload)
+        self._chat_completion_log_print(f"v2 response (resume non-stream) id={completion_id}", payload)
         return JSONResponse(content=payload)
 
     def _collect_queue(self, user_key, event_q: queue.Queue) -> tuple[str, str]:

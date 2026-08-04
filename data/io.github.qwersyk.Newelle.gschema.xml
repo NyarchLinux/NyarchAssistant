@@ -23,6 +23,12 @@
         <key name="display-latex" type="b">
             <default>true</default>
         </key>
+        <key name="expand-reasoning" type="b">
+            <default>false</default>
+        </key>
+        <key name="compact-mode" type="b">
+            <default>false</default>
+        </key>
         <key name="path" type="s">
             <default>"~"</default>
         </key>
@@ -42,6 +48,9 @@
             <default>false</default>
         </key>
 	      <key name="secondary-llm-on" type="b">
+            <default>false</default>
+        </key>
+	      <key name="secondary-llm-vision" type="b">
             <default>false</default>
         </key>
 	      <key name="secondary-language-model" type="s">
@@ -142,6 +151,12 @@
         </key>
         <key name="current-profile" type="s">
           <default>"Assistant"</default>
+        </key>
+        <key name="modes" type="s">
+          <default>"{}"</default>
+        </key>
+        <key name="current-mode" type="s">
+          <default>"Normal"</default>
         </key>
         <key name="user-name" type="s">
           <default>"User"</default>

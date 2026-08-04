@@ -3,6 +3,7 @@ from .multiline import MultilineEntry
 from .barchart import BarChartBox
 from .comborow import ComboRowHelper
 from .copybox import CopyBox
+from .command_session_action import CommandSessionActionWidget
 from .file import File
 from .file_read import ReadFileWidget
 from .file_permission_confirm import FilePermissionConfirmWidget
@@ -13,6 +14,7 @@ from .latex import DisplayLatex, LatexCanvas, InlineLatex
 from .mermaid import MermaidWidget
 from .markuptextview import MarkupTextView
 from .website import WebsiteButton
+from .sources import SourceChip, SourcesButton
 from .websearch import WebSearchWidget
 from .thinking import ThinkingWidget
 from .documents_reader import DocumentReaderWidget
@@ -20,7 +22,7 @@ from .tipscarousel import TipsCarousel
 from .browser import BrowserWidget
 from .terminal_dialog import Terminal, TerminalDialog
 from .code_editor import CodeEditorWidget
-from .tool import ToolWidget
+from .tool import ToolWidget, ToolCallSlot, ToolCallsGroupWidget
 from .skill import SkillWidget
 from .subagent import SubagentWidget
 from .scheduled_task import ScheduledTaskWidget
@@ -30,6 +32,8 @@ from .chatrow import ChatRow
 from .folderrow import FolderRow
 from .chat_history import ChatHistory
 from .chat_tab import ChatTab
+from .mode_switcher import ModeButton
+from .mode_editor import ModeEditorDialog
 from .call import CallPanel
 
 __all__ = [
@@ -38,6 +42,7 @@ __all__ = [
     "BarChartBox",
     "ComboRowHelper",
     "CopyBox",
+    "CommandSessionActionWidget",
     "File",
     "ReadFileWidget",
     "FilePermissionConfirmWidget",
@@ -50,6 +55,8 @@ __all__ = [
     "MarkupTextView",
     "InlineLatex",
     "WebsiteButton",
+    "SourceChip",
+    "SourcesButton",
     "WebSearchWidget",
     "ThinkingWidget",
     "DocumentReaderWidget",
@@ -59,6 +66,8 @@ __all__ = [
     "TerminalDialog",
     "CodeEditorWidget",
     "ToolWidget",
+    "ToolCallSlot",
+    "ToolCallsGroupWidget",
     "SkillWidget",
     "SubagentWidget",
     "ScheduledTaskWidget",
@@ -69,5 +78,7 @@ __all__ = [
     "FolderRow",
     "ChatHistory",
     "ChatTab",
+    "ModeButton",
+    "ModeEditorDialog",
     "CallPanel"
 ]

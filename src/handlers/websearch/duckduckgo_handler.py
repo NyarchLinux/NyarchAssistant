@@ -51,10 +51,10 @@ class DDGSeachHandler(WebSearchHandler):
         results = [(result['href'], result['title']) for result in results]
         print(results)
         content, urls = self.scrape_websites(results, add_website, max_results=max_results)
-        text = ""
-        for result in content:
-            text += "\nSource: " + result["url"]
-            text += f"## {result['title']}\n{result['text'][:3000]}\n\n"
+        text = "\n\n".join(
+            self.format_source(result["title"], result["url"], result["text"][:3000])
+            for result in content
+        )
         return text, urls
     
     def scrape_websites(self, result_links, update, max_results=None):
@@ -68,7 +68,6 @@ class DDGSeachHandler(WebSearchHandler):
         processed_count = 0
 
         for url, initial_title in result_links:
-            urls.append(url)
             if processed_count >= max_results:
                 print(f"Reached maximum results limit ({max_results}).")
                 break
@@ -89,6 +88,7 @@ class DDGSeachHandler(WebSearchHandler):
                     article_data['title'] = article.get_title() or initial_title # Prefer newspaper's title if available
                     article_data['text'] = text
                     extracted_content.append(article_data)
+                    urls.append(url)
                     print(f"  Successfully extracted content. Title: '{article_data['title']}'")
                     processed_count += 1
                 else:

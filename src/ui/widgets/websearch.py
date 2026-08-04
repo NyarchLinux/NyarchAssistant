@@ -1,5 +1,6 @@
 from ...ui import load_image_with_callback 
 from ...utility.system import open_website
+from ...utility.website_scraper import resolve_favicon_url
 from gi.repository import Gtk, Pango, GObject
 
 class WebSearchWidget(Gtk.Box):
@@ -60,11 +61,7 @@ class WebSearchWidget(Gtk.Box):
         self.append(self._expander)
 
     def _create_website_row(self, title, link, favicon):
-        if not favicon.startswith("http") and not favicon.startswith("https"):
-            from urllib.parse import urlparse, urljoin
-            base_url = urlparse(link).scheme + "://" + urlparse(link).netloc
-            favicon = urljoin(base_url, favicon)
-            print(favicon)
+        favicon = resolve_favicon_url(link, favicon)
         button = Gtk.Button()
         button.connect("clicked", lambda x, link=link: self.emit('website-clicked', link))
         row_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
