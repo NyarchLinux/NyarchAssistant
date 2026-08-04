@@ -151,12 +151,16 @@ class Message(Gtk.Box):
             self.tool_calls_group is not None
             and getattr(self.tool_calls_group, "owner_message", None) is not self
         )
-        if self.compact_mode and (
-            self._tool_slots_in_order() or (self.streaming and shared_chain)
-        ):
-            self._move_intermediate_text_to_group()
-        elif not self._tool_slots_in_order():
-            self._restore_intermediate_text()
+        tool_slots = self._tool_slots_in_order()
+        if self.compact_mode and tool_slots:
+            self._move_intermediate_widgets_to_group()
+        elif self.compact_mode and self.streaming and shared_chain:
+            # Keep streamed continuation text with the active iteration, but
+            # reasoning only belongs there once this message calls a tool.
+            self._restore_moved_thinking()
+            self._move_intermediate_widgets_to_group(include_thinking=False)
+        elif not tool_slots:
+            self._restore_intermediate_widgets()
         return False
 
     def append(self, widget):
@@ -241,13 +245,16 @@ class Message(Gtk.Box):
             if chunk_type == "tool_call" and isinstance(widget, ToolCallSlot)
         ]
 
-    def _move_intermediate_text_to_group(self):
-        """Put text accompanying tool calls into the shared tool expander."""
+    def _move_intermediate_widgets_to_group(self, include_thinking=True):
+        """Put reasoning and text accompanying tool calls in the expander."""
         group = self.tool_calls_group
         if group is None:
             return
         for index, (chunk_type, widget, _chunk) in enumerate(self.widgets_map):
-            if chunk_type != "text" or not isinstance(widget, Gtk.Widget):
+            is_intermediate = chunk_type == "text" or (
+                include_thinking and isinstance(widget, ThinkingWidget)
+            )
+            if not is_intermediate or not isinstance(widget, Gtk.Widget):
                 continue
             self._compact_moved_widgets.setdefault(widget, index)
             group.append_auxiliary_widget(
@@ -255,8 +262,8 @@ class Message(Gtk.Box):
                 (self.id_message, index),
             )
 
-    def _restore_intermediate_text(self):
-        """Return moved text to its original message position."""
+    def _restore_intermediate_widgets(self):
+        """Return moved reasoning and text to their original positions."""
         group = self.tool_calls_group
         if group is None:
             return
@@ -266,6 +273,20 @@ class Message(Gtk.Box):
             anchor = self._find_previous_root_widget(index)
             self.insert_child_after(widget, anchor)
         self._compact_moved_widgets.clear()
+
+    def _restore_moved_thinking(self):
+        """Keep reasoning outside a shared group until this message calls a tool."""
+        group = self.tool_calls_group
+        if group is None:
+            return
+        for widget, index in list(self._compact_moved_widgets.items()):
+            if not isinstance(widget, ThinkingWidget):
+                continue
+            if widget.get_parent() is group.content_box:
+                group.remove_auxiliary_widget(widget)
+            anchor = self._find_previous_root_widget(index)
+            self.insert_child_after(widget, anchor)
+            self._compact_moved_widgets.pop(widget, None)
 
     def _has_content_outside_tool_group(self):
         for chunk_type, widget, _chunk in self.widgets_map:
@@ -296,7 +317,7 @@ class Message(Gtk.Box):
             # later continuation only contributes its slots.
             for slot in group.slots:
                 group.append_slot(slot)
-            self._move_intermediate_text_to_group()
+            self._move_intermediate_widgets_to_group()
             return
         if group.get_parent() is not self:
             first_slot = slots[0]
@@ -314,13 +335,13 @@ class Message(Gtk.Box):
             self.insert_child_after(group, anchor)
         for slot in slots:
             group.append_slot(slot)
-        self._move_intermediate_text_to_group()
+        self._move_intermediate_widgets_to_group()
 
     def _detach_compact_tool_group(self):
         group = self.tool_calls_group
         if group is None:
             return
-        self._restore_intermediate_text()
+        self._restore_intermediate_widgets()
         if group.get_parent() is self:
             self.remove(group)
 
