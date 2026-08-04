@@ -66,7 +66,6 @@ class Settings(Adw.Window):
             title=_("Permissions"),
         )
         self.MemoryPage = Adw.PreferencesPage(icon_name="vcard-symbolic", title=_("Knowledge"))
-        self.VoicePage = Adw.PreferencesPage(icon_name="audio-input-microphone-symbolic", title=_("Voice"))
         self.SkillsPage = Adw.PreferencesPage(icon_name="skills-symbolic", title=_("Skills"))
         self.MCPPage = Adw.PreferencesPage(icon_name="internet-symbolic", title=_("MCP Servers"))
         self.AvatarPage = Adw.PreferencesPage(icon_name="avatar-symbolic", title=_("Avatar"))
@@ -177,7 +176,6 @@ class Settings(Adw.Window):
 
         # Build the TTS settings
         self.Voicegroup = Adw.PreferencesGroup(title=_('Voice'))
-        self.VoicePage.add(self.Voicegroup)
         self.AvatarPage.add(self.Voicegroup)
         tts_enabled = Gtk.Switch(valign=Gtk.Align.CENTER)
         self.settings.bind("tts-on", tts_enabled, 'active', Gio.SettingsBindFlags.DEFAULT)
@@ -775,7 +773,7 @@ class Settings(Adw.Window):
             ("General", _("General"), "settings-symbolic", self.general_page),
             ("LLM", _("LLM"), "brain-augemnted-symbolic", self.LLMPage),
             ("Memory", _("Knowledge"), "vcard-symbolic", self.MemoryPage),
-            ("Voice", _("Voice"), "audio-input-microphone-symbolic", self.VoicePage),
+            ("avatar", _("Avatar"), "avatar-symbolic", self.AvatarPage),
             ("Prompts", _("Prompts"), "question-round-outline-symbolic", self.PromptsPage),
             ("Tools", _("Tools"), "tools-symbolic", self.ToolsPage),
             ("Permissions", _("Permissions"), "key-symbolic", self.PermissionsPage),
