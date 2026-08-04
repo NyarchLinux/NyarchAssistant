@@ -58,16 +58,16 @@ class ThinkingWidget(Gtk.Box):
         )
         self.textbuffer = self.textview.get_buffer()
 
-        scrolled_window = Gtk.ScrolledWindow(
+        self.scrolled_window = Gtk.ScrolledWindow(
             hscrollbar_policy=Gtk.PolicyType.NEVER,
             vscrollbar_policy=Gtk.PolicyType.AUTOMATIC,
             min_content_height=150,
             max_content_height=400,
             child=self.textview
         )
-        scrolled_window.add_css_class("expander-inset-content")
+        self.scrolled_window.add_css_class("expander-inset-content")
 
-        self.expander.add_row(scrolled_window)
+        self.expander.add_row(self.scrolled_window)
 
         self.append(self.expander)
 
@@ -142,21 +142,61 @@ class ThinkingWidget(Gtk.Box):
     def _update_ui_append_text(self, text):
         if not self.get_display():
             return GLib.SOURCE_REMOVE
+        follow_end = self._is_scrolled_to_end()
         end_iter = self.textbuffer.get_end_iter()
         self.textbuffer.insert(end_iter, text, -1)
-        # Auto-scroll to the end only if the user hasn't scrolled up manually
-        # A simple way is to always scroll for this example
-        self._scroll_to_end()
+        if follow_end:
+            self._scroll_to_end()
         return GLib.SOURCE_REMOVE # Remove the idle source
 
     def _update_ui_set_text(self, text):
         if not self.get_display():
             return GLib.SOURCE_REMOVE
-        self.textbuffer.set_text(text, -1)
-        # Scroll to the beginning after setting text
         start_iter = self.textbuffer.get_start_iter()
-        self.textview.scroll_to_iter(start_iter, 0.0, False, 0.0, 0.0)
+        end_iter = self.textbuffer.get_end_iter()
+        current_text = self.textbuffer.get_text(start_iter, end_iter, True)
+        if current_text == text:
+            return GLib.SOURCE_REMOVE
+
+        follow_end = self._is_scrolled_to_end()
+        adjustment = self.scrolled_window.get_vadjustment()
+        scroll_value = adjustment.get_value()
+
+        # Thinking streams normally grow by appending. Updating the buffer in
+        # place avoids briefly clearing and relaying out the text, which would
+        # otherwise move a reader back toward the top on every streamed chunk.
+        is_append = text.startswith(current_text)
+        if is_append:
+            self.textbuffer.insert(
+                self.textbuffer.get_end_iter(),
+                text[len(current_text):],
+                -1,
+            )
+        else:
+            self.textbuffer.set_text(text, -1)
+
+        if follow_end:
+            self._scroll_to_end()
+        elif not is_append:
+            GLib.idle_add(self._restore_scroll_position, scroll_value)
         return GLib.SOURCE_REMOVE # Remove the idle source
+
+    def _is_scrolled_to_end(self, tolerance=2.0):
+        adjustment = self.scrolled_window.get_vadjustment()
+        bottom = max(
+            adjustment.get_lower(),
+            adjustment.get_upper() - adjustment.get_page_size(),
+        )
+        return bottom - adjustment.get_value() <= tolerance
+
+    def _restore_scroll_position(self, value):
+        adjustment = self.scrolled_window.get_vadjustment()
+        maximum = max(
+            adjustment.get_lower(),
+            adjustment.get_upper() - adjustment.get_page_size(),
+        )
+        adjustment.set_value(min(max(value, adjustment.get_lower()), maximum))
+        return GLib.SOURCE_REMOVE
 
     def _scroll_to_end(self):
         """Scrolls the TextView to the end."""
@@ -164,8 +204,7 @@ class ThinkingWidget(Gtk.Box):
             return
         end_iter = self.textbuffer.get_end_iter()
         # Mark ensures the view scrolls down even if text added rapidly
-        end_mark = self.textbuffer.create_mark("end_mark", end_iter, False)
+        end_mark = self.textbuffer.create_mark(None, end_iter, False)
         self.textview.scroll_to_mark(end_mark, 0.0, True, 0.0, 1.0) # Align bottom
         # Clean up the mark
         GLib.idle_add(self.textbuffer.delete_mark, end_mark)
-
