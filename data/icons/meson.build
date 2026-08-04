@@ -42,6 +42,12 @@ install_data (
     'branch-symbolic.svg',
     'call-emergency-symbolic.svg',
     'skills-symbolic.svg',
+    'key-symbolic.svg',
+    'audio-input-microphone-symbolic.svg',
+    'extension-symbolic.svg',
+    'list-drag-handle-symbolic.svg',
+    'folder-visiting-symbolic.svg',
+    'edit-undo-symbolic.svg',
     'avatar-symbolic.svg',
     install_dir: symbolic_dir
 )

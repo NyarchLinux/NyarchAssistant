@@ -17,6 +17,8 @@ from ..constants import AVAILABLE_EMBEDDINGS, AVAILABLE_LLMS, AVAILABLE_MEMORIES
 from ..constants import AVAILABLE_TRANSLATORS, AVAILABLE_AVATARS
 
 from ..utility.pip import install_module
+from .extension import ExtensionPage
+from .interfaces import InterfacesPage
 from .extra_settings import ExtraSettingsBuilder
 
 from .widgets import ComboRowHelper, CopyBox 
@@ -25,7 +27,7 @@ from ..utility.system import can_escape_sandbox, get_spawn_command, open_website
 
 from ..controller import NewelleController
 
-class Settings(Adw.PreferencesWindow):
+class Settings(Adw.Window):
     def __init__(self,app, controller: NewelleController,headless=False, startup_page=None, popup=False, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.app = app
@@ -35,7 +37,10 @@ class Settings(Adw.PreferencesWindow):
         self.popup = popup
         if not headless:
             self.set_transient_for(app.win)
+        self.set_title(_("Settings"))
+        self.set_default_size(950, 720)
         self.set_modal(True)
+        self.set_resizable(False)
         self.downloading = {}
         self.model_threads = {}
         self.slider_labels = {}
@@ -56,7 +61,13 @@ class Settings(Adw.PreferencesWindow):
         self.LLMPage = Adw.PreferencesPage(icon_name="brain-augemnted-symbolic", title=_("LLM")) 
         self.PromptsPage = Adw.PreferencesPage(icon_name="question-round-outline-symbolic", title=_("Prompts"))
         self.ToolsPage = Adw.PreferencesPage(icon_name="tools-symbolic", title=_("Tools"))
+        self.PermissionsPage = Adw.PreferencesPage(
+            icon_name="key-symbolic",
+            title=_("Permissions"),
+        )
         self.MemoryPage = Adw.PreferencesPage(icon_name="vcard-symbolic", title=_("Knowledge"))
+        self.SkillsPage = Adw.PreferencesPage(icon_name="skills-symbolic", title=_("Skills"))
+        self.MCPPage = Adw.PreferencesPage(icon_name="internet-symbolic", title=_("MCP Servers"))
         self.AvatarPage = Adw.PreferencesPage(icon_name="avatar-symbolic", title=_("Avatar"))
         # Dictionary containing all the rows for settings update
         self.settingsrows = {}
@@ -85,15 +96,16 @@ class Settings(Adw.PreferencesWindow):
            else:
                 self.LLM.add(row)
         self.LLM.add(others_row)
-        # Secondary LLM
-        self.SECONDARY_LLM = Adw.PreferencesGroup(title=_('Advanced LLM Settings'))
-        # Create row
+        # Secondary LLM settings
+        self.SECONDARY_LLM = Adw.PreferencesGroup(title=_('Secondary LLM'))
+        self.LLMPage.add(self.SECONDARY_LLM)
+
         secondary_LLM_enabled = Gtk.Switch(valign=Gtk.Align.CENTER)
         self.settings.bind("secondary-llm-on", secondary_LLM_enabled, 'active', Gio.SettingsBindFlags.DEFAULT)
         secondary_LLM = Adw.ExpanderRow(title=_('Secondary Language Model'), subtitle=_("Model used for secondary tasks, like offers, chat name and memory generation"))
         secondary_LLM.add_action(secondary_LLM_enabled)
+        # Add the secondary model selector as its own expander.
         # Add LLMs
-        self.MemoryPage.add(self.SECONDARY_LLM)
         group = Gtk.CheckButton()
         selected = self.settings.get_string("secondary-language-model")
         others_row = Adw.ExpanderRow(title=_('Other LLMs'), subtitle=_("Other available LLM providers"))
@@ -105,10 +117,23 @@ class Settings(Adw.PreferencesWindow):
                secondary_LLM.add_row(row)
         secondary_LLM.add_row(others_row)
         self.SECONDARY_LLM.add(secondary_LLM)
+
+        # Vision routing is a separate action row in the same group.
+        vision_row = Adw.ActionRow(
+            title=_("Use secondary LLM for vision"),
+            subtitle=_("Use the secondary model for chats containing images or videos"),
+        )
+        vision_switch = Gtk.Switch(valign=Gtk.Align.CENTER)
+        vision_row.add_suffix(vision_switch)
+        self.settings.bind("secondary-llm-vision", vision_switch, 'active', Gio.SettingsBindFlags.DEFAULT)
+        self.SECONDARY_LLM.add(vision_row)
+
+        self.KNOWLEDGE = Adw.PreferencesGroup(title=_('Advanced LLM Settings'))
+        self.MemoryPage.add(self.KNOWLEDGE)
         
         # Build the Embedding settings
         embedding_row = Adw.ExpanderRow(title=_('Embedding Model'), subtitle=_("Embedding is used to trasform text into vectors. Used by Long Term Memory and RAG. Changing it might require you to re-index documents or reset memory."))
-        self.SECONDARY_LLM.add(embedding_row)
+        self.KNOWLEDGE.add(embedding_row)
         group = Gtk.CheckButton()
         selected = self.settings.get_string("embedding-model")
         for key in AVAILABLE_EMBEDDINGS:
@@ -120,7 +145,7 @@ class Settings(Adw.PreferencesWindow):
         self.settings.bind("memory-on", memory_enabled, 'active', Gio.SettingsBindFlags.DEFAULT)
         tts_program = Adw.ExpanderRow(title=_('Long Term Memory'), subtitle=_("Keep memory of old conversations"))
         tts_program.add_action(memory_enabled)
-        self.SECONDARY_LLM.add(tts_program)
+        self.KNOWLEDGE.add(tts_program)
         group = Gtk.CheckButton()
         selected = self.settings.get_string("memory-model")
         for key in AVAILABLE_MEMORIES:
@@ -132,7 +157,7 @@ class Settings(Adw.PreferencesWindow):
         self.settings.bind("websearch-on", web_enabled, 'active', Gio.SettingsBindFlags.DEFAULT)
         tts_program = Adw.ExpanderRow(title=_('Web Search'), subtitle=_("Search information on the Web"))
         tts_program.add_action(web_enabled)
-        self.SECONDARY_LLM.add(tts_program)
+        self.KNOWLEDGE.add(tts_program)
         group = Gtk.CheckButton()
         selected = self.settings.get_string("websearch-model")
         for key in AVAILABLE_WEBSEARCH:
@@ -140,7 +165,7 @@ class Settings(Adw.PreferencesWindow):
            tts_program.add_row(row)
         # Build the Image Generator settings
         image_generator_row = Adw.ExpanderRow(title=_('Image Generator'), subtitle=_("Choose which image generation engine to use"))
-        self.SECONDARY_LLM.add(image_generator_row)
+        self.KNOWLEDGE.add(image_generator_row)
         group = Gtk.CheckButton()
         selected = self.settings.get_string("image-generator")
         for key in AVAILABLE_IMAGE_GENERATORS:
@@ -369,6 +394,10 @@ class Settings(Adw.PreferencesWindow):
         # Build tools settings lazily (first time Tools page is opened)
         self.tools_page_initialized = False
         self._building_tools_page = False
+        self.permissions_page_initialized = False
+        self._building_permissions_page = False
+        self.skills_page_initialized = False
+        self.mcp_page_initialized = False
         self.tool_rows = []
         # Interface settings
         self.interface = Adw.PreferencesGroup(title=_('Interface'))
@@ -469,17 +498,26 @@ class Settings(Adw.PreferencesWindow):
         row.add_suffix(switch)
         self.settings.bind("send-on-enter", switch, 'active', Gio.SettingsBindFlags.DEFAULT)
         self.interface.add(row)
-
-        row = Adw.ActionRow(title=_("Remove thinking from history"), subtitle=_("Do not send old thinking blocks for reasoning models in order to reduce token usage"))
-        switch = Gtk.Switch(valign=Gtk.Align.CENTER)
-        row.add_suffix(switch)
-        self.settings.bind("remove-thinking", switch, 'active', Gio.SettingsBindFlags.DEFAULT)
-        self.interface.add(row)
-        
+ 
         row = Adw.ActionRow(title=_("Display LaTeX"), subtitle=_("Display LaTeX formulas in chat"))
         switch = Gtk.Switch(valign=Gtk.Align.CENTER)
         row.add_suffix(switch)
         self.settings.bind("display-latex", switch, 'active', Gio.SettingsBindFlags.DEFAULT)
+        self.interface.add(row)
+
+        row = Adw.ActionRow(title=_("Expand reasoning by default"), subtitle=_("Expand the reasoning widget by default and keep it expanded when finished"))
+        switch = Gtk.Switch(valign=Gtk.Align.CENTER)
+        row.add_suffix(switch)
+        self.settings.bind("expand-reasoning", switch, 'active', Gio.SettingsBindFlags.DEFAULT)
+        self.interface.add(row)
+
+        row = Adw.ActionRow(
+            title=_("Compact mode"),
+            subtitle=_("Group tool calls from each agent iteration into one expandable box"),
+        )
+        switch = Gtk.Switch(valign=Gtk.Align.CENTER)
+        row.add_suffix(switch)
+        self.settings.bind("compact-mode", switch, 'active', Gio.SettingsBindFlags.DEFAULT)
         self.interface.add(row)
 
         row = Adw.ActionRow(title=_("Reverse Chat Order"), subtitle=_("Show most recent chats on top in chat list (change chat to apply)"))
@@ -663,7 +701,7 @@ class Settings(Adw.PreferencesWindow):
         for r in self.context_fixed_rows:
             r.set_visible(not is_cm)
 
-        self.SECONDARY_LLM.add(context_expander)
+        self.KNOWLEDGE.add(context_expander)
         # Developer settings
         self.developer = Adw.PreferencesGroup(title=_('Developer'))
         self.general_page.add(self.developer)
@@ -695,26 +733,149 @@ class Settings(Adw.PreferencesWindow):
         button.connect("clicked", install_custom_module)
         self.developer.add(row)
         
-        self.add(self.LLMPage)
-        self.add(self.PromptsPage)
-        self.add(self.ToolsPage)
-        self.add(self.MemoryPage)
-        self.add(self.AvatarPage)
-        self.add(self.general_page)  
-        self.connect("notify::visible-page", self.on_visible_page_changed)
+        if self.popup:
+            self.InterfacesPage = Adw.PreferencesPage(
+                icon_name="controls-big-symbolic",
+                title=_("Interfaces"),
+            )
+            self.ExtensionsPage = Adw.PreferencesPage(
+                icon_name="extension-symbolic",
+                title=_("Extensions"),
+            )
+        else:
+            self.InterfacesPage = InterfacesPage(
+                self.app,
+                self.controller,
+            )
+            self.ExtensionsPage = ExtensionPage(
+                self.app,
+                self.controller,
+                toast_callback=self.add_toast,
+            )
+
+        self._build_navigation(startup_page)
         if self.popup:
             # Popup uses tools_group immediately when building its stack.
             self.ensure_tools_page_initialized()
-        if startup_page is not None:
-            pages = {"LLM": self.LLMPage, "Prompts": self.PromptsPage, "Memory": self.MemoryPage, "General": self.general_page, "avatar": self.AvatarPage}
-            self.set_visible_page(pages[startup_page])
-    def on_visible_page_changed(self, _window, _pspec):
-        if self.get_visible_page() == self.ToolsPage:
+
+    def add_toast(self, toast):
+        self.toast_overlay.add_toast(toast)
+
+    def _build_navigation(self, startup_page):
+        self.toast_overlay = Adw.ToastOverlay()
+        self.split_view = Adw.NavigationSplitView()
+        self.content_stack = Gtk.Stack(
+            transition_type=Gtk.StackTransitionType.CROSSFADE,
+            transition_duration=150,
+        )
+
+        page_definitions = [
+            ("General", _("General"), "settings-symbolic", self.general_page),
+            ("LLM", _("LLM"), "brain-augemnted-symbolic", self.LLMPage),
+            ("Memory", _("Knowledge"), "vcard-symbolic", self.MemoryPage),
+            ("avatar", _("Avatar"), "avatar-symbolic", self.AvatarPage),
+            ("Prompts", _("Prompts"), "question-round-outline-symbolic", self.PromptsPage),
+            ("Tools", _("Tools"), "tools-symbolic", self.ToolsPage),
+            ("Permissions", _("Permissions"), "key-symbolic", self.PermissionsPage),
+            ("Skills", _("Skills"), "skills-symbolic", self.SkillsPage),
+            ("MCP", _("MCP Servers"), "internet-symbolic", self.MCPPage),
+            ("Interfaces", _("Interfaces"), "controls-big-symbolic", self.InterfacesPage),
+            ("Extensions", _("Extensions"), "extension-symbolic", self.ExtensionsPage),
+        ]
+        self.navigation_pages = {
+            key: (title, page)
+            for key, title, _icon_name, page in page_definitions
+        }
+
+        self.navigation_list = Gtk.ListBox(
+            selection_mode=Gtk.SelectionMode.SINGLE,
+            activate_on_single_click=True,
+            margin_top=6,
+            margin_bottom=6,
+            margin_start=6,
+            margin_end=6,
+        )
+        self.navigation_list.add_css_class("navigation-sidebar")
+        self.navigation_list.connect("row-selected", self.on_navigation_row_selected)
+        self.navigation_list.connect("row-activated", self.on_navigation_row_activated)
+
+        self.navigation_rows = {}
+        for key, title, icon_name, page in page_definitions:
+            self.content_stack.add_named(page, key)
+            row = Adw.ActionRow(title=title)
+            row.add_prefix(Gtk.Image(icon_name=icon_name))
+            row.settings_page_key = key
+            self.navigation_list.append(row)
+            self.navigation_rows[key] = row
+
+        sidebar_scroll = Gtk.ScrolledWindow(
+            hscrollbar_policy=Gtk.PolicyType.NEVER,
+            vscrollbar_policy=Gtk.PolicyType.AUTOMATIC,
+        )
+        sidebar_scroll.set_child(self.navigation_list)
+        sidebar_toolbar = Adw.ToolbarView()
+        sidebar_toolbar.add_top_bar(Adw.HeaderBar())
+        sidebar_toolbar.set_content(sidebar_scroll)
+        sidebar_page = Adw.NavigationPage.new(sidebar_toolbar, _("Settings"))
+
+        content_toolbar = Adw.ToolbarView()
+        content_toolbar.add_top_bar(Adw.HeaderBar())
+        content_toolbar.set_content(self.content_stack)
+        self.content_navigation_page = Adw.NavigationPage.new(
+            content_toolbar,
+            _("General"),
+        )
+
+        self.split_view.set_sidebar(sidebar_page)
+        self.split_view.set_content(self.content_navigation_page)
+        self.toast_overlay.set_child(self.split_view)
+        self.set_content(self.toast_overlay)
+
+        breakpoint = Adw.Breakpoint.new(
+            Adw.BreakpointCondition.parse("max-width: 700sp")
+        )
+        breakpoint.add_setter(self.split_view, "collapsed", True)
+        self.add_breakpoint(breakpoint)
+
+        selected_key = startup_page if startup_page in self.navigation_rows else "General"
+        self.navigation_list.select_row(self.navigation_rows[selected_key])
+        if startup_page in self.navigation_rows:
+            self.split_view.set_show_content(True)
+
+    def on_navigation_row_selected(self, _listbox, row):
+        if row is None:
+            return
+        key = row.settings_page_key
+        title, page = self.navigation_pages[key]
+        if page == self.ToolsPage:
             self.ensure_tools_page_initialized()
+        elif page == self.PermissionsPage:
+            self.ensure_permissions_page_initialized()
+        elif page == self.SkillsPage:
+            self.ensure_skills_page_initialized()
+        elif page == self.MCPPage:
+            self.ensure_mcp_page_initialized()
+        self.content_stack.set_visible_child(page)
+        self.content_navigation_page.set_title(title)
+
+    def on_navigation_row_activated(self, _listbox, _row):
+        self.split_view.set_show_content(True)
 
     def ensure_tools_page_initialized(self):
         if not self.tools_page_initialized:
             self.build_tools_page()
+
+    def ensure_permissions_page_initialized(self):
+        if not self.permissions_page_initialized:
+            self.build_permissions_page()
+
+    def ensure_skills_page_initialized(self):
+        if not self.skills_page_initialized:
+            self.build_skills_settings()
+
+    def ensure_mcp_page_initialized(self):
+        if not self.mcp_page_initialized:
+            self.build_mcp_settings()
 
     def build_tools_page(self):
         if self.tools_page_initialized or self._building_tools_page:
@@ -724,13 +885,17 @@ class Settings(Adw.PreferencesWindow):
         self.tools_group = Adw.PreferencesGroup(title=_("Tools"))
         self.ToolsPage.add(self.tools_group)
         self.refresh_tools_list()
+        self._building_tools_page = False
 
+    def build_permissions_page(self):
+        if self.permissions_page_initialized or self._building_permissions_page:
+            return
+        self._building_permissions_page = True
+        self.permissions_page_initialized = True
         self.build_file_permissions_settings()
         self.build_command_permissions_settings()
         self.build_path_security_settings()
-        self.build_skills_settings()
-        self.build_mcp_settings()
-        self._building_tools_page = False
+        self._building_permissions_page = False
 
     def _perf_add(self, name: str):
         if self.p is not None:
@@ -928,7 +1093,7 @@ class Settings(Adw.PreferencesWindow):
             title=_("File Permissions"),
             description=_("Control which directories the agent can read from or write to")
         )
-        self.ToolsPage.add(self.file_permissions_group)
+        self.PermissionsPage.add(self.file_permissions_group)
 
         add_button = Gtk.Button(icon_name="list-add-symbolic", valign=Gtk.Align.CENTER, css_classes=["flat"])
         add_button.set_tooltip_text(_("Add custom directory rule"))
@@ -1071,7 +1236,7 @@ class Settings(Adw.PreferencesWindow):
             title=_("Command Execution Permissions"),
             description=_("Control which commands can run automatically via pattern rules")
         )
-        self.ToolsPage.add(self.cmd_perms_group)
+        self.PermissionsPage.add(self.cmd_perms_group)
 
         autorun_row = Adw.ExpanderRow(title=_("Auto-run commands"), subtitle=_("Automatically execute commands (subject to permission rules below)"))
         autorun_switch = Gtk.Switch(valign=Gtk.Align.CENTER)
@@ -1213,7 +1378,7 @@ class Settings(Adw.PreferencesWindow):
             title=_("Path Security Levels"),
             description=_("Set trust levels for directories — affects auto-run behavior")
         )
-        self.ToolsPage.add(self.path_security_group)
+        self.PermissionsPage.add(self.path_security_group)
 
         add_button = Gtk.Button(icon_name="list-add-symbolic", valign=Gtk.Align.CENTER, css_classes=["flat"])
         add_button.set_tooltip_text(_("Add path security rule"))
@@ -1358,11 +1523,14 @@ class Settings(Adw.PreferencesWindow):
     # --- Skills settings ---
 
     def build_skills_settings(self):
+        if self.skills_page_initialized:
+            return
+        self.skills_page_initialized = True
         self.skills_group = Adw.PreferencesGroup(
             title=_("Skills"),
             description=_("Manage Agent Skills (SKILL.md files)")
         )
-        self.ToolsPage.add(self.skills_group)
+        self.SkillsPage.add(self.skills_group)
 
         actions_row = Adw.ActionRow(title=_("Skills folder"), subtitle=self.controller.skills_path)
         open_button = Gtk.Button(icon_name="folder-symbolic", valign=Gtk.Align.CENTER, css_classes=["flat"])
@@ -1470,13 +1638,32 @@ class Settings(Adw.PreferencesWindow):
 
     # --- MCP settings ---
 
+    def _on_mcp_application_connected(self):
+        self.refresh_mcp_servers_list()
+        self.refresh_tools_list()
+
     def build_mcp_settings(self):
+        if self.mcp_page_initialized:
+            return
+        self.mcp_page_initialized = True
+        from .mcp_catalog import ConnectApplicationView
+
+        self.mcp_catalog_group = Adw.PreferencesGroup(
+            title=_("Connect Application"),
+            description=_("Choose an application from the MCP catalog"),
+        )
+        self.mcp_catalog = ConnectApplicationView(
+            parent=self,
+            controller=self.controller,
+            on_connected=self._on_mcp_application_connected,
+        )
+        self.mcp_catalog_group.add(self.mcp_catalog)
+
         self.mcp_group = Adw.PreferencesGroup(title=_("MCP Servers"), description=_("Manage Model Context Protocol servers"))
-        self.ToolsPage.add(self.mcp_group)
+        self.MCPPage.add(self.mcp_group)
         
         # List of servers
         self.servers_list_group = Adw.ExpanderRow(title=_("Servers"), subtitle=_("List of configured MCP servers"))
-        self.mcp_group.add(self.servers_list_group)
         
         self.mcp_server_rows = []
         self.refresh_mcp_servers_list()
@@ -1814,6 +2001,8 @@ class Settings(Adw.PreferencesWindow):
         
         self.mcp_add_button.connect("clicked", add_server)
         self.mcp_group.add(add_row)
+        self.mcp_group.add(self.servers_list_group)
+        self.MCPPage.add(self.mcp_catalog_group)
     
     def _disable_mcp_form(self):
         """Disable all MCP form fields"""
@@ -1878,6 +2067,18 @@ class Settings(Adw.PreferencesWindow):
             text = str(e).strip()
             if not text:
                 text = type(e).__name__
+            missing_command_text = text.casefold()
+            if isinstance(e, FileNotFoundError) or any(
+                marker in missing_command_text
+                for marker in ("no such file or directory", "command not found")
+            ):
+                from .mcp_catalog import _missing_command_name
+
+                command = _missing_command_name(e, "the configured command")
+                text = _(
+                    "The MCP server could not start because the command '{}' was not found. "
+                    "Install it or add it to PATH, then try again."
+                ).format(command)
             if text not in messages:
                 messages.append(text)
 

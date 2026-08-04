@@ -43,15 +43,21 @@ class TinyFishHandler(WebSearchHandler):
             self.throw("Failed to query TinyFish: " + str(e), ErrorSeverity.WARNING)
             return "No results found", []
 
-        text = ""
+        text_parts = []
         urls = []
+        remaining_content = 30000
         results = response.results[:max_results]
         for result in results:
             url = getattr(result, "url", getattr(result, "link", ""))
             title = getattr(result, "title", "")
-            snippet = getattr(result, "snippet", getattr(result, "content", ""))
+            snippet = str(getattr(result, "snippet", getattr(result, "content", "")))
+            if not snippet.strip():
+                continue
+            if text_parts and remaining_content <= 0:
+                break
+            snippet = snippet[:remaining_content]
             add_website(title, url, None)
-            text += f"## {title}\n{snippet}\n\n"
+            text_parts.append(self.format_source(title, url, snippet))
             urls.append(url)
-        text = text[:30000]
-        return text, urls
+            remaining_content -= len(snippet)
+        return "\n\n".join(text_parts), urls

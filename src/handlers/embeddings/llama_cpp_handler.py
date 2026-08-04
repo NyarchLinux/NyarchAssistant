@@ -2,18 +2,19 @@ from ...handlers.embeddings import EmbeddingHandler
 from ...handlers import ExtraSettings
 from ...handlers import ErrorSeverity
 from ...utility.system import can_escape_sandbox, is_flatpak, get_spawn_command, has_backend, detect_cuda_version
+from ...utility.background_process import BackgroundProcess
 from ...ui.model_library import ModelLibraryWindow, LibraryModel
 import subprocess
 import os
 import platform
 import threading
+import shlex
 import socket
 import time
 import json
 import shutil
 import tarfile
 import tempfile
-import atexit
 from gi.repository import Gtk, Adw, GLib, Gdk
 import requests
 import numpy as np
@@ -48,12 +49,12 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
         self.llama_cpp_path = os.path.join(self.path, "llama.cpp")
         self.llama_server_path = os.path.join(self.llama_cpp_path, "build", "bin", "llama-server")
         self.model_folder = os.path.join(self.path, "custom_models")
-        self.server_process = None
-        self._atexit_handler = self.kill_server
+        self.server = BackgroundProcess("llama-server-embedding")
+        self.server.register_atexit()
         self._killing_server = False
-        atexit.register(self._atexit_handler)
         self.port = None
         self.loaded_model = None
+        self.loaded_custom_args = None
         self.models = self.get_custom_model_list()
         self.loaded_on = self.get_setting("gpu_acceleration", False, False)
         self.downloading = {}
@@ -150,6 +151,16 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
             )
         )
 
+        settings.append(
+            ExtraSettings.MultilineEntrySetting(
+                "custom_args",
+                "Custom Arguments",
+                "Additional command-line arguments passed to llama-server (e.g. --threads 4 --no-mmap). Leave empty for none.",
+                "",
+                update_settings=True,
+            )
+        )
+
         #settings.extend(
         #    [
         #        ExtraSettings.ButtonSetting("library", "Model Library", "Open the model library", self.open_model_library, label="Model Library")
@@ -181,7 +192,8 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
     def load_model(self, model=None):
         if model is None:
             model = self.get_setting("model")
-        if self.loaded_model == model and self.loaded_on == self.get_setting("gpu_acceleration", False, False):
+        custom_args = self.get_setting("custom_args", False, "")
+        if self.loaded_model == model and self.loaded_on == self.get_setting("gpu_acceleration", False, False) and self.loaded_custom_args == custom_args:
             return True
         path = self._resolve_model_path(model)
         if not path or not os.path.exists(path):
@@ -202,17 +214,54 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
         else:
             cmd_path = "llama-server"
         cmd = [cmd_path, "--model", path, "--port", str(self.port), "--host", "127.0.0.1", "--embeddings" ]
-        # Use flatpak-spawn for compiled or prebuilt CUDA binaries in Flatpak
+        # Append user-supplied custom arguments
+        if custom_args:
+            cmd.extend(shlex.split(custom_args))
+        # Use flatpak-spawn for compiled or GPU-accelerated prebuilt binaries in Flatpak
         is_prebuilt = self.get_setting("prebuilt", False, False)
-        is_cuda_binary = is_prebuilt and self.get_setting("prebuilt_cuda", False, False)
-        if (is_flatpak() and self.is_gpu_installed() and self.get_setting("gpu_acceleration", False, False) and (is_cuda_binary or not is_prebuilt)) or use_system_server:
+        prebuilt_backend = self.get_setting("prebuilt_backend", False, None)
+        if prebuilt_backend is None:
+            # Backward compatibility: infer from the legacy prebuilt_cuda flag
+            prebuilt_backend = "cuda" if self.get_setting("prebuilt_cuda", False, False) else "cpu"
+        # GPU backends (cuda/rocm/vulkan/openvino/sycl) bundle native libs and
+        # need host GPU drivers, so their prebuilts must spawn on the host.
+        # CPU prebuilts run fine inside the sandbox.
+        is_gpu_prebuilt = is_prebuilt and prebuilt_backend != "cpu"
+        uses_built_server = cmd_path == self.llama_server_path
+        spawn_on_host = (is_flatpak() and self.is_gpu_installed() and self.get_setting("gpu_acceleration", False, False) and (is_gpu_prebuilt or not is_prebuilt)) or use_system_server
+        if spawn_on_host:
             cmd = get_spawn_command() + cmd
 
-        self.server_process = subprocess.Popen(cmd)
+        # The built llama-server links against sibling libllama.so / libggml*.so
+        # shipped next to it in build/bin. Run it from that directory and expose
+        # it via LD_LIBRARY_PATH so the correct libraries are loaded instead of
+        # any system-wide libllama.so (which causes "undefined symbol" errors).
+        start_kwargs = {}
+        if uses_built_server:
+            bin_dir = os.path.dirname(self.llama_server_path)
+            start_kwargs["cwd"] = bin_dir
+            env = os.environ.copy()
+            ld_path = env.get("LD_LIBRARY_PATH", "")
+            env["LD_LIBRARY_PATH"] = f"{bin_dir}{os.pathsep}{ld_path}" if ld_path else bin_dir
+            if spawn_on_host:
+                # flatpak-spawn runs on the host; pass LD_LIBRARY_PATH through --env
+                cmd[1:1] = [f"--env=LD_LIBRARY_PATH={env['LD_LIBRARY_PATH']}"]
+            else:
+                start_kwargs["env"] = env
+
+        self.server.start(
+            cmd,
+            on_crash=lambda: GLib.idle_add(
+                self.throw,
+                "llama-server crashed unexpectedly. Check terminal output for details.",
+                ErrorSeverity.ERROR,
+            ),
+            **start_kwargs,
+        )
         self._killing_server = False
-        threading.Thread(target=self._monitor_server, daemon=True).start()
         self.loaded_model = model
         self.loaded_on = self.get_setting("gpu_acceleration", False, False)
+        self.loaded_custom_args = custom_args
         # Wait for server to potentially start
         url = f"http://localhost:{self.port}/v1/models"
         start_time = time.time()
@@ -246,37 +295,10 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
     def kill_server(self):
         self.loaded_model = None
         self._killing_server = True
-        if self.server_process:
-            try:
-                self.server_process.terminate()
-                # Wait up to 5 seconds for graceful termination
-                try:
-                    self.server_process.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    # Force kill if it doesn't terminate gracefully
-                    self.server_process.kill()
-                    self.server_process.wait()
-            except (ProcessLookupError, ValueError):
-                # Process already terminated
-                pass
-            finally:
-                self.server_process = None
+        self.server.stop()
 
-    def _monitor_server(self):
-        proc = self.server_process
-        if proc is None:
-            return
-        proc.wait()
-        if not self._killing_server and self.server_process is None and self.loaded_model is not None:
-            self.loaded_model = None
-            GLib.idle_add(self.throw, "llama-server crashed unexpectedly. Check terminal output for details.", ErrorSeverity.ERROR)
-    
     def destroy(self):
         self.kill_server()
-        try:
-            atexit.unregister(self._atexit_handler)
-        except AttributeError:
-            pass
 
     # Model library
     def fetch_models(self):
@@ -413,7 +435,7 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
 
     def show_install_dialog(self, button):
         win = Adw.Window(title="Install llama.cpp")
-        win.set_default_size(700, 620)
+        win.set_default_size(700, 760)
         win.set_modal(True)
         try:
             root = button.get_root()
@@ -613,7 +635,7 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
         left_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
         self.hw_options = {}
         group = None
-        for hw in ["CPU", "CPU (OpenBLAS)", "Nvidia (CUDA)", "AMD (ROCm)", "Any GPU (Vulkan)"]:
+        for hw in ["CPU", "CPU (OpenBLAS)", "Nvidia (CUDA)", "AMD (ROCm)", "Any GPU (Vulkan)", "Intel (OpenVINO)", "Intel (SYCL FP32)", "Intel (SYCL FP16)"]:
             btn = Gtk.CheckButton(label=hw, group=group)
             if group is None:
                 group = btn
@@ -792,6 +814,11 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
             return "vulkan"
         elif "openvino" in name_lower:
             return "openvino"
+        elif "sycl" in name_lower:
+            # llama.cpp ships separate fp32 and fp16 SYCL builds
+            if "fp16" in name_lower:
+                return "sycl-fp16"
+            return "sycl-fp32"
         return "cpu"
 
     @staticmethod
@@ -818,6 +845,8 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
             "rocm": "AMD ROCm",
             "vulkan": "Any GPU (Vulkan)",
             "openvino": "Intel OpenVINO",
+            "sycl-fp32": "Intel SYCL (FP32)",
+            "sycl-fp16": "Intel SYCL (FP16)",
         }.get(backend, backend)
         if backend == "cuda" and cuda_version is not None:
             name += f" {cuda_version:.1f}"
@@ -856,12 +885,33 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
                 pass
 
         try:
+            # The llama.cpp project sometimes publishes a release (tag) before
+            # attaching binary assets to it, so /releases/latest can return a
+            # release with zero assets. Walk back through recent releases and
+            # use the newest one that actually ships Ubuntu binaries.
             resp = requests.get(
-                "https://api.github.com/repos/ggml-org/llama.cpp/releases/latest",
+                "https://api.github.com/repos/ggml-org/llama.cpp/releases?per_page=10",
                 timeout=15,
             )
             resp.raise_for_status()
-            release = resp.json()
+            releases = resp.json()
+            if not isinstance(releases, list):
+                releases = []
+
+            release = None
+            for candidate in releases:
+                if any(
+                    a.get("name", "").endswith(".tar.gz") and "-bin-ubuntu-" in a.get("name", "")
+                    for a in candidate.get("assets", [])
+                ):
+                    release = candidate
+                    break
+            # Fall back to the newest release overall so the empty-asset case
+            # surfaces as "no compatible binaries" rather than a crash.
+            if release is None and releases:
+                release = releases[0]
+            if release is None:
+                release = {}
             tag = release.get("tag_name", "unknown")
 
             for asset in release.get("assets", []):
@@ -914,13 +964,15 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
             return
 
         backend_checks = {}
-        for b in ("cuda", "rocm", "vulkan", "openvino"):
+        for b in ("cuda", "rocm", "vulkan", "openvino", "sycl"):
             backend_checks[b] = has_backend(b)
 
         system_cuda = detect_cuda_version()
 
         for item in available:
-            item["compatible"] = item["backend"] == "cpu" or backend_checks.get(item["backend"], False)
+            # sycl-fp32 / sycl-fp16 share the same SYCL toolchain availability
+            base_backend = item["backend"].split("-")[0] if item["backend"].startswith("sycl") else item["backend"]
+            item["compatible"] = base_backend == "cpu" or backend_checks.get(base_backend, False)
             item["cuda_match"] = (
                 system_cuda is not None
                 and item.get("cuda_version") is not None
@@ -935,7 +987,10 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
                 cuda_priority = 2
             else:
                 cuda_priority = 3
-            backend_prio = {"cuda": 0, "rocm": 1, "vulkan": 2, "openvino": 3, "cpu": 4}.get(x["backend"], 99)
+            backend_prio = {
+                "cuda": 0, "rocm": 1, "vulkan": 2,
+                "openvino": 3, "sycl-fp16": 4, "sycl-fp32": 5, "cpu": 6,
+            }.get(x["backend"], 99)
             ver = x.get("cuda_version") or 0
             return (is_compatible, cuda_priority, backend_prio, -ver)
 
@@ -1111,7 +1166,10 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
             GLib.idle_add(lambda: carousel.scroll_to(carousel.get_nth_page(5), True))
             GLib.idle_add(lambda: self.settings_update())
             self.set_setting("prebuilt", True)
-            self.set_setting("prebuilt_cuda", asset.get("backend") == "cuda")
+            backend = asset.get("backend", "cpu")
+            self.set_setting("prebuilt_backend", backend)
+            # Kept for backward compatibility with the pre-sycl load_model logic
+            self.set_setting("prebuilt_cuda", backend == "cuda")
             self.set_setting("gpu_acceleration", True)
 
         except Exception as e:
@@ -1127,6 +1185,12 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
             backend = "rocm"
         elif self.hw_options["Any GPU (Vulkan)"].get_active():
             backend = "vulkan"
+        elif self.hw_options["Intel (OpenVINO)"].get_active():
+            backend = "openvino"
+        elif self.hw_options["Intel (SYCL FP32)"].get_active():
+            backend = "sycl-fp32"
+        elif self.hw_options["Intel (SYCL FP16)"].get_active():
+            backend = "sycl-fp16"
         elif self.hw_options["CPU (OpenBLAS)"].get_active():
             backend = "cpu_openblas"
 
@@ -1157,6 +1221,14 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
             elif backend == "vulkan":
                 cmake_args.append("-DGGML_VULKAN=ON")
                 cmake_args.append("-DGGML_VULKAN_F16=ON")
+            elif backend == "openvino":
+                cmake_args.append("-DGGML_OPENVINO=ON")
+            elif backend in ("sycl-fp32", "sycl-fp16"):
+                cmake_args.append("-DGGML_SYCL=ON")
+                cmake_args.append("-DCMAKE_CXX_COMPILER=icpx")
+                cmake_args.append("-DCMAKE_C_COMPILER=icx")
+                if backend == "sycl-fp16":
+                    cmake_args.append("-DGGML_SYCL_F16=ON")
             elif backend == "cpu_openblas":
                 cmake_args.append("-DGGML_BLAS=ON")
                 cmake_args.append("-DGGML_BLAS_VENDOR=OpenBLAS")
@@ -1243,6 +1315,7 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
             GLib.idle_add(lambda: carousel.scroll_to(carousel.get_nth_page(5), True))
             GLib.idle_add(lambda: self.settings_update())
             self.set_setting("prebuilt", False)
+            self.set_setting("prebuilt_backend", backend)
             self.set_setting("gpu_acceleration", True)
 
         except Exception as e:
@@ -1280,7 +1353,7 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
     def get_embedding(self, text: list[str]) -> np.ndarray:
         """Get embeddings for a list of texts using llama-server's embedding endpoint"""
         # Ensure model is loaded and server is running
-        if self.loaded_model is None or self.server_process is None:
+        if self.loaded_model is None or not self.server.is_running:
             if not self.load_model():
                 raise Exception("Failed to load model")
         

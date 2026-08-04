@@ -17,8 +17,6 @@ from .window import MainWindow
 from .ui.shortcuts import Shortcuts
 from .ui.thread_editing import ThreadEditing
 from .ui.scheduled_tasks import ScheduledTasksWindow
-from .ui.extension import Extension
-from .ui.interfaces import InterfacesWindow
 from .ui.mini_window import MiniWindow
 
 
@@ -180,6 +178,16 @@ class MyApp(Adw.Application):
           background-color: alpha(@accent_bg_color, 0.25);
         }
 
+        .mode-icon-picker-btn {
+          min-width: 36px;
+          min-height: 36px;
+          padding: 4px;
+        }
+
+        .mode-icon-picker-btn:checked {
+          background-color: alpha(@accent_bg_color, 0.25);
+        }
+
         .unfolder-drop-area {
           border-radius: 6px;
         }
@@ -190,6 +198,34 @@ class MyApp(Adw.Application):
 
         .message-text {
           line-height: 1.75;
+        }
+
+        .source-chip {
+          min-height: 22px;
+          padding: 1px 7px;
+          margin: 0 2px;
+          color: @accent_color;
+          background-color: alpha(@accent_bg_color, 0.14);
+        }
+
+        .source-chip:hover {
+          background-color: alpha(@accent_bg_color, 0.24);
+        }
+
+        .sources-button {
+          color: @accent_color;
+          background-color: alpha(@accent_bg_color, 0.14);
+          border-radius: 999px;
+        }
+
+        .sources-button:hover,
+        .sources-button:checked {
+          background-color: alpha(@accent_bg_color, 0.24);
+        }
+
+        .source-chip label {
+          font-size: 0.95em;
+          font-weight: 600;
         }
 
         .prompt-drop-target {
@@ -293,20 +329,10 @@ class MyApp(Adw.Application):
         return True
 
     def extension_action(self, *a):
-        extension = Extension(self)
-        def close(win):
-            settings = Gio.Settings.new('moe.nyarchlinux.assistant')
-            settings.set_int("chat", self.win.chat_id)
-            settings.set_string("path", os.path.normpath(self.win.main_path))
-            self.win.update_settings()
-            win.destroy()
-            return True
-        extension.connect("close-request", close) 
-        extension.present()
+        self.settings_action_paged("Extensions")
 
     def interfaces_action(self, *a):
-        interfaces = InterfacesWindow(self)
-        interfaces.present()
+        self.settings_action_paged("Interfaces")
     
     def export_current_chat_action(self, *a):
         """Export the current chat"""
@@ -421,6 +447,9 @@ class MyApp(Adw.Application):
             self.win.stop_chat()
     
     def do_shutdown(self):
+        from .utility.command_sessions import shutdown_command_sessions
+
+        shutdown_command_sessions()
         self.win.save_chat()
         settings = Gio.Settings.new('moe.nyarchlinux.assistant')
         settings.set_int("chat", self.win.chat_id)

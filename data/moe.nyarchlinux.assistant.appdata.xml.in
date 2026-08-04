@@ -39,6 +39,28 @@
 	<url type="bugtracker">https://github.com/nyarchlinux/nyarchassistant/issues</url>
 	<content_rating type="oars-1.0" />
 	<releases>
+        <release version="1.4.6" date="2026-07-04">
+            <description>
+                <p>Bug fixes and stability improvements.</p>
+            </description>
+        </release>
+        <release version="1.4.5" date="2026-06-19">
+            <description>
+                <p>Added image generation support and various improvements.</p>
+
+                <ul>
+                    <li>Added image generation support</li>
+                    <li>Added support for stablediffusion.cpp, including model library and installation/compilation options</li>
+                    <li>Added support for Pollinations, OpenAI and OpenRouter image generation providers</li>
+                    <li>Added image editing support</li>
+                    <li>Redesigned chat interface</li>
+                    <li>Added support for STDIO MCP servers in the Flatpak version</li>
+                    <li>Improved lazy tool loading by automatically exposing tool schemas when needed</li>
+                    <li>Improved MCP server error handling</li>
+                    <li>Various bug fixes and stability improvements</li>
+                </ul>
+            </description>
+        </release>
 	    <release version="1.4.1" date="2026-05-22">
             <description>
               <p>Bug fix</p>

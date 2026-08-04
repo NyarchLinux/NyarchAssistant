@@ -8,7 +8,8 @@ import copy
 
 from .tools import ToolRegistry, ToolResult
 from .skills import SkillManager
-from .utility.media import get_image_base64, get_image_path, extract_supported_files
+from .modes import ModeManager
+from .utility.media import chat_contains_vision, get_image_base64, get_image_path, extract_supported_files
 from .utility.message_chunk import get_message_chunks
 
 from .extensions import NewelleExtension
@@ -25,16 +26,18 @@ from .handlers.interfaces.interface import Interface
 from .utility.system import is_flatpak
 from .utility.pip import install_module
 from .utility.profile_settings import get_settings_dict_by_groups
-from .constants import AVAILABLE_INTEGRATIONS, AVAILABLE_WEBSEARCH,AVAILABLE_IMAGE_GENERATORS, DIR_NAME, SCHEMA_ID, PROMPTS, AVAILABLE_STT, AVAILABLE_TTS, AVAILABLE_LLMS, AVAILABLE_RAGS, AVAILABLE_PROMPTS, AVAILABLE_MEMORIES, AVAILABLE_EMBEDDINGS, AVAILABLE_INTERFACES, SETTINGS_GROUPS, restore_handlers
+from .utility.source_attribution import format_source_context
+from .constants import AVAILABLE_INTEGRATIONS, AVAILABLE_WEBSEARCH, AVAILABLE_IMAGE_GENERATORS, DIR_NAME, SCHEMA_ID, PROMPTS, AVAILABLE_STT, AVAILABLE_TTS, AVAILABLE_LLMS, AVAILABLE_RAGS, AVAILABLE_PROMPTS, AVAILABLE_MEMORIES, AVAILABLE_EMBEDDINGS, AVAILABLE_INTERFACES, SETTINGS_GROUPS, restore_handlers
 from .constants import AVAILABLE_AVATARS, AVAILABLE_TRANSLATORS
 import threading
 import pickle
+import tempfile
 import json
 import datetime
 import uuid as uuid_lib
 from .extensions import ExtensionLoader
 from .utility import override_prompts
-from .utility.strings import clean_bot_response, clean_prompt, count_tokens, remove_thinking_blocks, get_edited_messages
+from .utility.strings import clean_bot_response, clean_prompt, count_tokens, extract_reasoning_content, get_edited_messages
 from .utility.context_manager import ContextManager, TrimResult
 from .utility.replacehelper import PromptFormatter, replace_variables_dict
 from enum import Enum 
@@ -90,6 +93,7 @@ EXTENSIONS: Reload EXTENSIONS
     TOOLS = 14
     WAKEWORD = 15
     IMAGE_GENERATOR = 16 
+    COMPACT_MODE = 17
     # Nyarch Vars
     AVATAR = 40
     TRANSLATORS = 42
@@ -246,7 +250,15 @@ class NewelleController:
         self.skill_manager.discover()
         self.load_integrations()
         self.load_extensions()
-        self.newelle_settings = NewelleSettings()
+        # Modes: an overlay on top of the active profile that can override
+        # prompts (enable/disable + text replacement) and force-enable/remove
+        # tools & skills. It must exist before loading prompts so the first
+        # prompt build already reflects the active mode.
+        self.mode_manager = ModeManager(self.settings)
+        # Merge any modes contributed by already-loaded extensions.
+        self.extensionloader.add_modes(self.mode_manager)
+        self.skill_manager.set_mode_overrides(self.mode_manager.get_active_mode()["skills"])
+        self.newelle_settings = NewelleSettings(self.mode_manager)
         self.newelle_settings.load_settings(self.settings)
         self.load_chats(self.newelle_settings.chat_id)
         self.handlers = HandlersManager(self.settings, self.extensionloader, self.models_dir, self.integrationsloader, self.installing_handlers, self)
@@ -353,15 +365,37 @@ class NewelleController:
                 self.newelle_settings.chat_id = min(self.chats.keys())
 
     def save_chats(self):
-        """Save chats"""
+        """Save chats without exposing a partially written storage file."""
         with self.save_lock:
-            with open(self.chats_path, 'wb') as f:
-                pickle.dump({
-                    "chats": self.chats,
-                    "next_chat_id": self.next_chat_id,
-                    "folders": self.folders,
-                    "next_folder_id": self.next_folder_id,
-                }, f)
+            storage_dir = os.path.dirname(self.chats_path) or "."
+            storage_name = os.path.basename(self.chats_path)
+            temporary_path = None
+            try:
+                with tempfile.NamedTemporaryFile(
+                    mode="wb",
+                    dir=storage_dir,
+                    prefix=f".{storage_name}.",
+                    suffix=".tmp",
+                    delete=False,
+                ) as temporary_file:
+                    temporary_path = temporary_file.name
+                    pickle.dump({
+                        "chats": self.chats,
+                        "next_chat_id": self.next_chat_id,
+                        "folders": self.folders,
+                        "next_folder_id": self.next_folder_id,
+                    }, temporary_file)
+                    temporary_file.flush()
+                    os.fsync(temporary_file.fileno())
+
+                os.replace(temporary_path, self.chats_path)
+                temporary_path = None
+            finally:
+                if temporary_path is not None:
+                    try:
+                        os.unlink(temporary_path)
+                    except FileNotFoundError:
+                        pass
 
     def create_call_chat(self):
         """Create a new call chat that won't be displayed in the chat list"""
@@ -911,7 +945,7 @@ class NewelleController:
 
     def update_settings(self, apply=True):
         """Update settings"""
-        newsettings = NewelleSettings()
+        newsettings = NewelleSettings(self.mode_manager)
         newsettings.load_settings(self.settings)
         reload = self.newelle_settings.compare_settings(newsettings)
         if apply:
@@ -943,6 +977,8 @@ class NewelleController:
             self.extensionloader.add_prompts(PROMPTS, AVAILABLE_PROMPTS)
             self.extensionloader.add_handlers(AVAILABLE_LLMS, AVAILABLE_TTS, AVAILABLE_STT, AVAILABLE_MEMORIES, AVAILABLE_EMBEDDINGS, AVAILABLE_RAGS, AVAILABLE_WEBSEARCH,AVAILABLE_AVATARS, AVAILABLE_TRANSLATORS, AVAILABLE_INTERFACES=AVAILABLE_INTERFACES, AVAILABLE_IMAGE_GENERATORS=AVAILABLE_IMAGE_GENERATORS)
             self.newelle_settings.load_prompts()
+            if hasattr(self, "mode_manager"):
+                self.extensionloader.add_modes(self.mode_manager)
             self.extensionloader.add_tools(self.tools)
             self.handlers.extensionloader = self.extensionloader
             self.handlers.select_handlers(self.newelle_settings)
@@ -1034,26 +1070,30 @@ class NewelleController:
     
     def get_enabled_tools(self) -> list:
         """Get the list of enabled tools
-        
+
         Returns:
             list[Tool]: List of enabled tools
         """
         enabled_tools = []
         tools_settings = self.newelle_settings.tools_settings_dict
-        
+
         for tool in self.tools.get_all_tools():
             # Check if tool is explicitly enabled/disabled in settings
             is_enabled = tool.default_on
             if tool.name in tools_settings and "enabled" in tools_settings[tool.name]:
                 is_enabled = tools_settings[tool.name]["enabled"]
-            
+
             # Special case: search tool is disabled if websearch is off
             if tool.name == "search" and not self.newelle_settings.websearch_on:
                 is_enabled = False
-            
+
+            # Apply the active Mode's tool override (enable/remove/no_change)
+            if hasattr(self, "mode_manager"):
+                is_enabled = self.mode_manager.resolve_tool_enabled(tool.name, is_enabled)
+
             if is_enabled:
                 enabled_tools.append(tool)
-        
+
         return enabled_tools
         
     def load_extensions(self):
@@ -1406,8 +1446,7 @@ class NewelleController:
                 break
             if msg["User"] == "Console" and msg["Message"] == "None":
                 continue
-            if self.newelle_settings.remove_thinking:
-                msg["Message"] = remove_thinking_blocks(msg["Message"])
+            msg["Reasoning"], msg["Message"] = extract_reasoning_content(msg["Message"])
             if msg["User"] == "File" or msg["User"] == "Folder":
                 msg["Message"] = f"```{msg['User'].lower()}\n{msg['Message'].strip()}\n```"
                 msg["User"] = "User"
@@ -1462,9 +1501,14 @@ class NewelleController:
             
         r = []
         if self.newelle_settings.memory_on:
-            r += self.handlers.memory.get_context(
+            memory_contexts = self.handlers.memory.get_context(
                 chat[-1]["Message"], self.get_history(chat=chat)
-            )
+            ) or []
+            r += [
+                format_source_context(context, "Saved memory", source_type="Memory")
+                for context in memory_contexts
+                if context and context.strip()
+            ]
         if self.newelle_settings.rag_on:
             r += self.handlers.rag.get_context(
                 chat[-1]["Message"], self.get_history(chat=chat)
@@ -1516,6 +1560,21 @@ class NewelleController:
                 target=self.handlers.memory.register_response,
                 args=(bot_response, chat),
             ).start()
+
+    def get_vision_model(self) -> LLMHandler:
+        """Return the model configured to handle image and video chats."""
+        if (
+            self.newelle_settings.use_secondary_language_model
+            and self.newelle_settings.use_secondary_language_model_for_vision
+        ):
+            return self.handlers.secondary_llm
+        return self.handlers.llm
+
+    def get_model_for_chat(self, chat: list[dict]) -> LLMHandler:
+        """Return the model that should generate the next response for a chat."""
+        if chat_contains_vision(chat):
+            return self.get_vision_model()
+        return self.handlers.llm
 
     def prepare_generation(self, chat_id=None):
         """Prepare contexts and prompts for generation.
@@ -1605,8 +1664,9 @@ class NewelleController:
         message_label = ""
         try:
             t1 = time.time()
-            if self.handlers.llm.stream_enabled():
-                message_label = self.handlers.llm.send_message_stream(
+            model = self.get_model_for_chat(chat)
+            if model.stream_enabled():
+                message_label = model.send_message_stream(
                     chat[-1]["Message"],
                     new_history,
                     prompts,
@@ -1614,7 +1674,7 @@ class NewelleController:
                     [stream_number_variable], 
                 )
             else:
-                 message_label = self.handlers.llm.send_message(chat[-1]["Message"], new_history, prompts)
+                message_label = model.send_message(chat[-1]["Message"], new_history, prompts)
             
             # Post-generation logic
             last_generation_time = time.time() - t1
@@ -1719,6 +1779,7 @@ class NewelleController:
             system_prompt += self.get_memory_prompt(chat_id=effective_chat_id)
         
         current_history = history.copy()
+        model = self.get_model_for_chat(self.chats[chat_id]["chat"])
         cont = True
         try:
             for iteration in range(max_tool_calls):
@@ -1736,22 +1797,28 @@ class NewelleController:
                     prompt = message
                 else:
                     prompt = ""
-                    for i in range(len(current_history) - 1, -1, -1):
-                        if current_history[i]["User"] == "Console":
-                            prompt = current_history.pop(i)["Message"]
-                            break
+                    if (
+                        current_history
+                        and current_history[-1].get("ToolContext")
+                    ):
+                        prompt = current_history.pop()["Message"]
+                    else:
+                        for i in range(len(current_history) - 1, -1, -1):
+                            if current_history[i]["User"] == "Console":
+                                prompt = current_history.pop(i)["Message"]
+                                break
 
                 send_history, _ = self._trim_context(current_history, system_prompt, message)
 
-                if self.handlers.llm.stream_enabled():
-                    response = self.handlers.llm.send_message_stream(
+                if model.stream_enabled():
+                    response = model.send_message_stream(
                         prompt,
                         send_history,
                         system_prompt,
                         stream_callback
                     )
                 else:
-                    response = self.handlers.llm.send_message(
+                    response = model.send_message(
                         prompt,
                         send_history,
                         system_prompt
@@ -1783,6 +1850,7 @@ class NewelleController:
                     tool_name = tool_call["name"]
                     tool_args = tool_call["args"]
                     tool_uuid = str(uuid_lib.uuid4())[:8]
+                    tool_context_messages = []
 
                     # Lazy loading: a tool_search call means the model just fetched
                     # a tool's schema. Expand it in the system prompt so that, on the
@@ -1836,7 +1904,8 @@ class NewelleController:
                                 if on_tool_result_callback:
                                     on_tool_result_callback(tool_name, result)
                                 tool_result_output = result.get_output()
-                                if tool_result_output is not None:
+                                tool_context_messages = result.get_context_messages()
+                                if tool_result_output is not None or tool_context_messages:
                                     cont = True
                     except Exception as e:
                         tool_result_output = f"Error: {str(e)}"
@@ -1845,7 +1914,10 @@ class NewelleController:
                             on_tool_result_callback(tool_name, tr)
                     
                     tool_call_msg = f"```json\n{{\"name\": \"{tool_name}\", \"arguments\": {json.dumps(tool_args)}}}\n```"
-                    tool_result_msg = f"[Tool: {tool_name}, ID: {tool_uuid}]\n{tool_result_output}"
+                    console_output = tool_result_output
+                    if console_output is None and tool_context_messages:
+                        console_output = "Tool returned additional context."
+                    tool_result_msg = f"[Tool: {tool_name}, ID: {tool_uuid}]\n{console_output}"
                     
                     current_history.append({
                         "User": "Assistant",
@@ -1857,6 +1929,12 @@ class NewelleController:
                         "Message": tool_result_msg,
                         "UUID": tool_uuid
                     })
+                    for context_message in tool_context_messages:
+                        current_history.append({
+                            "User": "User",
+                            "Message": context_message,
+                            "ToolContext": True,
+                        })
                     if save_chat:
                         self.chats[chat_id]["chat"].append({
                             "User": "Assistant",
@@ -1868,6 +1946,12 @@ class NewelleController:
                             "User": "Console",
                             "Message": tool_result_msg,
                         })
+                        for context_message in tool_context_messages:
+                            self.chats[chat_id]["chat"].append({
+                                "User": "User",
+                                "Message": context_message,
+                                "ToolContext": True,
+                            })
                         self.save_chats()
             
             if save_chat:
@@ -1914,6 +1998,13 @@ class NewelleController:
 
 class NewelleSettings:
 
+    def __init__(self, mode_manager=None):
+        # The active ModeManager overlays prompt enable/disable and text
+        # overrides on top of the profile prompts during ``load_prompts``.
+        # It is optional so NewelleSettings remains usable without a mode
+        # manager (e.g. in isolated tests).
+        self.mode_manager = mode_manager
+
     def load_settings(self, settings):
         """Basic settings loading
 
@@ -1941,12 +2032,12 @@ class NewelleSettings:
         self.hidden_files = settings.get_boolean("hidden-files")
         self.remember_profile = settings.get_boolean("remember-profile")
         self.reverse_order = settings.get_boolean("reverse-order")
-        self.remove_thinking = settings.get_boolean("remove-thinking")
         self.auto_generate_name = settings.get_boolean("auto-generate-name")
         self.chat_id = settings.get_int("chat")
         self.main_path = settings.get_string("path")
         self.auto_run = settings.get_boolean("auto-run")
         self.display_latex = settings.get_boolean("display-latex")
+        self.compact_mode = settings.get_boolean("compact-mode")
         self.tts_enabled = settings.get_boolean("tts-on")
         self.tts_program = settings.get_string("tts")
         self.tts_voice = settings.get_string("tts-voice")
@@ -1973,6 +2064,7 @@ class NewelleSettings:
         self.secondary_language_model = self.settings.get_string("secondary-language-model")
         self.secondary_language_model_settings = self.settings.get_string("llm-secondary-settings")
         self.use_secondary_language_model = self.settings.get_boolean("secondary-llm-on")
+        self.use_secondary_language_model_for_vision = self.settings.get_boolean("secondary-llm-vision")
         self.custom_prompts = json.loads(self.settings.get_string("custom-prompts"))
         self.prompts_settings = json.loads(self.settings.get_string("prompts-settings")) 
         self.extensions_settings = self.settings.get_string("extensions-settings")
@@ -2057,16 +2149,25 @@ class NewelleSettings:
                     "user_custom": True,
                 })
         self.prompts = override_prompts(self.custom_prompts, PROMPTS)
+        # self.prompts stays profile-level only: mode overrides are applied to
+        # bot_prompts below so the Mode Editor keeps comparing against the true
+        # profile base text (controller.newelle_settings.prompts).
+        mm = self.mode_manager
         self.bot_prompts = []
         ordered_prompts = self._get_ordered_prompts()
         for prompt in ordered_prompts:
+            key = prompt["key"]
             is_active = False
             if prompt["setting_name"] in self.prompts_settings:
                 is_active = self.prompts_settings[prompt["setting_name"]]
             else:
                 is_active = prompt["default"]
+            if mm is not None:
+                is_active = mm.resolve_prompt_enabled(key, is_active)
             if is_active:
-                self.bot_prompts.append(self.prompts[prompt["key"]])
+                base_text = self.prompts[key]
+                text = mm.resolve_prompt_text(key, base_text) if mm is not None else base_text
+                self.bot_prompts.append(text)
 
     def _get_ordered_prompts(self):
         """Return AVAILABLE_PROMPTS sorted by the user's custom order."""
@@ -2098,7 +2199,7 @@ class NewelleSettings:
         reloads = []
         if self.language_model != new_settings.language_model or self.llm_settings != new_settings.llm_settings:
             reloads.append(ReloadType.LLM)
-        if self.secondary_language_model != new_settings.secondary_language_model or self.use_secondary_language_model != new_settings.use_secondary_language_model or self.secondary_language_model_settings != new_settings.secondary_language_model_settings:
+        if self.secondary_language_model != new_settings.secondary_language_model or self.use_secondary_language_model != new_settings.use_secondary_language_model or self.use_secondary_language_model_for_vision != new_settings.use_secondary_language_model_for_vision or self.secondary_language_model_settings != new_settings.secondary_language_model_settings:
             reloads.append(ReloadType.SECONDARY_LLM)
         
         if self.tts_program != new_settings.tts_program:
@@ -2157,6 +2258,8 @@ class NewelleSettings:
             reloads.append(ReloadType.IMAGE_GENERATOR)
         if self.hide_warning != new_settings.hide_warning:
             reloads.append(ReloadType.RELOAD_CHAT)
+        if self.compact_mode != new_settings.compact_mode:
+            reloads.append(ReloadType.COMPACT_MODE)
 
         return reloads
 

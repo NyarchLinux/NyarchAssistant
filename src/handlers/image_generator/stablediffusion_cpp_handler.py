@@ -2,6 +2,7 @@ from .image_generator import ImageGeneratorHandler
 from ...handlers.extra_settings import ExtraSettings
 from ...utility.system import can_escape_sandbox, is_flatpak, get_spawn_command, has_backend, detect_cuda_version
 from ...utility.media import get_image_path
+from ...utility.background_process import BackgroundProcess
 from ...tools import Tool, ToolResult
 from ...handlers import ErrorSeverity
 from ...ui.model_library import ModelLibraryWindow, LibraryModel
@@ -308,8 +309,8 @@ class StableDiffusionCPPHandler(ImageGeneratorHandler):
         self.shared_folder = os.path.join(self.model_folder, "_shared")
         self.lora_folder = os.path.join(self.path, "sd_lora")
         self._installing = False
-        self._server_process = None
-        self._server_lock = threading.Lock()
+        self._server = BackgroundProcess("sd-server")
+        self._server.register_atexit()
         self.downloading = {}
 
         for folder in (self.model_folder, self.shared_folder, self.lora_folder):
@@ -1416,77 +1417,73 @@ class StableDiffusionCPPHandler(ImageGeneratorHandler):
 
     def _start_server(self) -> None:
         """Start the sd-server process if not already running."""
-        with self._server_lock:
-            if self._server_process is not None and self._server_process.poll() is None:
-                return
-            if self._is_server_running():
-                return
+        if self._server.is_running:
+            return
+        if self._is_server_running():
+            return
 
-            binary = self._get_server_binary_path()
+        binary = self._get_server_binary_path()
 
-            # Validate that the binary exists
-            if binary == self.sd_server_binary_path and not os.path.exists(binary):
-                raise FileNotFoundError(
-                    f"sd-server binary not found at {binary}. "
-                    "Please reinstall stable-diffusion.cpp or disable server mode."
-                )
-            if binary == "sd-server" and not shutil.which("sd-server"):
-                raise FileNotFoundError(
-                    "sd-server not found on system PATH. "
-                    "Please install it or disable server mode."
-                )
-
-            model = self._resolve_model_path(self.get_setting("model"))
-            port = self._get_server_port()
-            variant = self._variant_for_model_path(self.get_setting("model"))
-            variant_manifest = variant[1] if variant else None
-
-            cmd = [
-                binary,
-                *self._model_arg(model),
-                "--listen-port", str(port),
-            ]
-
-            if self._is_lora_enabled():
-                cmd.extend(["--lora-model-dir", self._get_lora_dir()])
-
-            clip_skip = self.get_setting("clip_skip", True, -1)
-            if clip_skip > 0:
-                cmd.extend(["--clip-skip", str(int(clip_skip))])
-
-            cmd.extend(self._build_advanced_args(variant_manifest))
-
-            use_system = is_flatpak() and self.get_setting("use_system_sd", False, False)
-            use_spawn = is_flatpak() and (use_system or (os.path.exists(self.sd_server_binary_path) and self.get_setting("gpu_acceleration", False, False)))
-
-            env = os.environ.copy()
-            if binary == self.sd_server_binary_path:
-                bin_dir = os.path.dirname(binary)
-                if use_spawn:
-                    cmd = get_spawn_command() + [f"--env=LD_LIBRARY_PATH={bin_dir}"] + cmd
-                else:
-                    existing = env.get("LD_LIBRARY_PATH", "")
-                    env["LD_LIBRARY_PATH"] = bin_dir if not existing else f"{bin_dir}:{existing}"
-            elif use_spawn:
-                cmd = get_spawn_command() + cmd
-
-            self._server_process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.PIPE,
-                env=env if not use_spawn else None,
+        # Validate that the binary exists
+        if binary == self.sd_server_binary_path and not os.path.exists(binary):
+            raise FileNotFoundError(
+                f"sd-server binary not found at {binary}. "
+                "Please reinstall stable-diffusion.cpp or disable server mode."
             )
-            proc = self._server_process  # local ref to avoid race with _stop_server
+        if binary == "sd-server" and not shutil.which("sd-server"):
+            raise FileNotFoundError(
+                "sd-server not found on system PATH. "
+                "Please install it or disable server mode."
+            )
 
-        # Wait for the server to be ready (outside the lock so other threads can proceed)
+        model = self._resolve_model_path(self.get_setting("model"))
+        port = self._get_server_port()
+        variant = self._variant_for_model_path(self.get_setting("model"))
+        variant_manifest = variant[1] if variant else None
+
+        cmd = [
+            binary,
+            *self._model_arg(model),
+            "--listen-port", str(port),
+        ]
+
+        if self._is_lora_enabled():
+            cmd.extend(["--lora-model-dir", self._get_lora_dir()])
+
+        clip_skip = self.get_setting("clip_skip", True, -1)
+        if clip_skip > 0:
+            cmd.extend(["--clip-skip", str(int(clip_skip))])
+
+        cmd.extend(self._build_advanced_args(variant_manifest))
+
+        use_system = is_flatpak() and self.get_setting("use_system_sd", False, False)
+        use_spawn = is_flatpak() and (use_system or (os.path.exists(self.sd_server_binary_path) and self.get_setting("gpu_acceleration", False, False)))
+
+        # Capture stderr so a startup failure can be reported to the user.
+        start_kwargs = {"stderr": subprocess.PIPE}
+        if binary == self.sd_server_binary_path:
+            bin_dir = os.path.dirname(binary)
+            if use_spawn:
+                cmd = get_spawn_command() + [f"--env=LD_LIBRARY_PATH={bin_dir}"] + cmd
+            else:
+                env = os.environ.copy()
+                existing = env.get("LD_LIBRARY_PATH", "")
+                env["LD_LIBRARY_PATH"] = bin_dir if not existing else f"{bin_dir}:{existing}"
+                start_kwargs["env"] = env
+        elif use_spawn:
+            cmd = get_spawn_command() + cmd
+
+        proc = self._server.start(cmd, **start_kwargs)
+
+        # Wait for the server to be ready
         timeout = 120
         start = time.time()
         while time.time() - start < timeout:
             # Check if the process died prematurely
             if proc.poll() is not None:
                 returncode = proc.returncode
-                stderr_output = proc.stderr.read().decode("utf-8", errors="replace").strip()
-                self._server_process = None
+                stderr_output = self._server.get_output(which="stderr").strip()
+                self._server.stop()
                 error_msg = f"sd-server exited with code {returncode}"
                 if stderr_output:
                     error_msg += f": {stderr_output}"
@@ -1499,17 +1496,11 @@ class StableDiffusionCPPHandler(ImageGeneratorHandler):
 
     def _stop_server(self) -> None:
         """Stop the sd-server process."""
-        with self._server_lock:
-            if self._server_process is not None:
-                try:
-                    self._server_process.terminate()
-                    self._server_process.wait(timeout=5)
-                except Exception:
-                    try:
-                        self._server_process.kill()
-                    except Exception:
-                        pass
-                self._server_process = None
+        self._server.stop()
+
+    def destroy(self):
+        """Stop the sd-server on shutdown."""
+        self._stop_server()
 
     def _generate_via_server(self, prompt: str, output_file: str) -> str:
         """Generate an image using the sd-server HTTP API.
@@ -2006,7 +1997,7 @@ class StableDiffusionCPPHandler(ImageGeneratorHandler):
 
     def show_install_dialog(self, button):
         win = Adw.Window(title="Install stable-diffusion.cpp")
-        win.set_default_size(700, 620)
+        win.set_default_size(700, 760)
         win.set_modal(True)
         try:
             root = button.get_root()

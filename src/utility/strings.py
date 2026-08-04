@@ -90,6 +90,15 @@ def count_tokens(text: str, model: str = "gpt-4o-mini") -> int:
     except Exception:
         return len(text) // 4
 
+def count_message_tokens(message: str, model: str = "gpt-4o-mini") -> int:
+    """Count the textual tokens in a chat message.
+
+    Media attachments are sent to multimodal models separately from the text.
+    Exclude their path or base64 payload so pasted images do not appear to use
+    hundreds of thousands of text tokens.
+    """
+    return count_tokens(clean_prompt(message), model)
+
 def quote_string(s):
     if "'" in s:
         return "'" + s.replace("'", "'\\''") + "'"
@@ -373,6 +382,32 @@ def convert_think_codeblocks(text: str) -> str:
         str: The converted text 
     """
     return text.replace("<think>", "```think").replace("</think>", "```")
+
+def extract_reasoning_content(message):
+    """
+    Extracts the first <think> block and the remaining clean text.
+
+    Args:
+        message: The input string containing the full message.
+
+    Returns:
+        A tuple of (reasoning, text). 
+        If no <think> block is found, reasoning is None.
+    """
+    pattern = r"<think>(.*?)</think>"
+    
+    # Search for the first match anywhere in the string
+    match = re.search(pattern, message, flags=re.DOTALL)
+    
+    if match:
+        # Extract the content inside the capture group
+        reasoning = match.group(1)
+        # Remove the entire <think>...</think> structure from the main text
+        clean_text = message.replace(match.group(0), "").strip()
+        return reasoning, clean_text
+    
+    # If no think block is found
+    return None, message.strip()
 
 def remove_thinking_blocks(text):
   """

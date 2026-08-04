@@ -1,196 +1,311 @@
 import os
 import subprocess
-from ..controller import NewelleController
-
-from ..utility.system import can_escape_sandbox, get_spawn_command
-
-from ..constants import AVAILABLE_EMBEDDINGS, AVAILABLE_INTERFACES, AVAILABLE_LLMS, AVAILABLE_MEMORIES, AVAILABLE_PROMPTS, AVAILABLE_RAGS, AVAILABLE_STT, AVAILABLE_TTS, AVAILABLE_WEBSEARCH, PROMPTS
-from .extra_settings import ExtraSettingsBuilder
-from .widgets import CopyBox
-from ..constants import AVAILABLE_AVATARS, AVAILABLE_TRANSLATORS
-from ..extensions import ExtensionLoader
-from gi.repository import Gtk, Adw, Gio, GLib
 from threading import Thread
 
+from gi.repository import Adw, GLib, Gtk
 
-class Extension(Gtk.Window):
-    def __init__(self,app):
-        Gtk.Window.__init__(self, title=_("Extensions"))
-        self.settings = Gio.Settings.new('moe.nyarchlinux.assistant')
+from ..controller import NewelleController
+from ..extensions import ExtensionLoader
+from ..utility.system import can_escape_sandbox, get_spawn_command
+from .extra_settings import ExtraSettingsBuilder
+from .widgets import CopyBox
 
-        self.directory = GLib.get_user_config_dir()
-        self.controller : NewelleController = app.win.controller
-        self.path = self.controller.extension_path 
-        self.pip_directory = self.controller.pip_path 
-        self.extension_path = self.controller.extension_path 
-        self.extensions_cache = self.controller.extension_path
-        self.sandbox = can_escape_sandbox()
-                
+
+class ExtensionPage(Adw.PreferencesPage):
+    """Manage user-installed extensions inside the settings window."""
+
+    def __init__(
+        self,
+        app,
+        controller: NewelleController,
+        toast_callback=None,
+    ):
+        super().__init__(
+            icon_name="extension-symbolic",
+            title=_("Extensions"),
+        )
         self.app = app
-        self.set_default_size(500, 500)
-        self.set_transient_for(app.win)
-        self.set_modal(True)
-        self.set_titlebar(Adw.HeaderBar(css_classes=["flat"]))
-
-        self.notification_block = Adw.ToastOverlay()
-        self.scrolled_window = Gtk.ScrolledWindow()
-        self.scrolled_window.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        self.notification_block.set_child(self.scrolled_window)
-
-        self.set_child(self.notification_block)
+        self.controller = controller
+        self.settings = controller.settings
+        self.toast_callback = toast_callback
+        self.extension_path = controller.extension_path
+        self.pip_directory = controller.pip_path
+        self.extensions_cache = controller.extensions_cache
+        self.sandbox = can_escape_sandbox()
+        self.page_groups = []
         self.update()
-    
+
+    def _add_toast(self, title):
+        if self.toast_callback is not None:
+            self.toast_callback(Adw.Toast(title=title))
+
+    def _parent_window(self):
+        root = self.get_root()
+        return root if isinstance(root, Gtk.Window) else None
+
+    def _clear_page(self):
+        for group in self.page_groups:
+            self.remove(group)
+        self.page_groups = []
+
+    def _add_group(self, group):
+        self.add(group)
+        self.page_groups.append(group)
+
     def update(self):
-        self.extensionloader = ExtensionLoader(self.extension_path, pip_path=self.pip_directory, extension_cache=self.extensions_cache, settings=self.settings)
-        self.extensionloader.load_extensions()
-        self.extensionloader.set_ui_controller(self.controller.ui_controller)
-        self.controller.set_extensionsloader(self.extensionloader) 
+        self._clear_page()
+        self.extensionloader = self.controller.extensionloader
         self.extra_settings_rows = {}
         self.extra_settings_builder = ExtraSettingsBuilder(
             settingsrows=self.extra_settings_rows,
             convert_constants=self._convert_extension_constants,
         )
 
-        self.main = Gtk.Box(margin_top=10,margin_start=10,margin_bottom=10,margin_end=10,valign=Gtk.Align.FILL,halign=Gtk.Align.CENTER,orientation=Gtk.Orientation.VERTICAL)
-        self.main.set_size_request(300, -1)
-        self.scrolled_window.set_child(self.main)
         self.extensiongroup = Adw.PreferencesGroup(title=_("Installed Extensions"))
-        self.main.append(self.extensiongroup)
-        for extension in self.extensionloader.get_extensions():
-            
-            self.extra_settings_rows[(extension.key, "extension", False)] = {}
-            extension.set_extra_settings_update(
-                lambda _, current_extension=extension: GLib.idle_add(
-                    self.extra_settings_builder.on_setting_change,
-                    self.extensionloader.extensionsmap,
-                    current_extension,
-                    current_extension.key,
-                    True,
-                )
-            )
-            button = Gtk.Button(css_classes=["flat", "destructive-action"], margin_top=10,margin_start=10,margin_end=10,margin_bottom=10)
-            button.connect("clicked", self.delete_extension)
-            button.set_name(extension.id)
+        self._add_group(self.extensiongroup)
 
-            icon_name="user-trash-symbolic"
-            icon = Gtk.Image.new_from_gicon(Gio.ThemedIcon(name=icon_name))
-            icon.set_icon_size(Gtk.IconSize.INHERIT)
-            button.set_child(icon)
-            switch = Gtk.Switch(valign=Gtk.Align.CENTER)
-            switch.connect("notify::state", self.change_status)
-            switch.set_name(extension.id) 
-            if extension not in self.extensionloader.disabled_extensions:
-                switch.set_active(True)
-            
-            if len(extension.get_extra_settings()) > 0:
-                row = Adw.ExpanderRow(title=extension.name)
-                row.add_suffix(switch)
-                row.add_suffix(button)
-                self.extra_settings_builder.add_extra_settings(self.extensionloader.extensionsmap, extension, row)
-            else:
-                row = Adw.ActionRow(title=extension.name)
-                row.add_suffix(button)
-                row.add_suffix(switch)
-                # Add invisible icon for alignment purposes
-                invisible_icon = Gtk.Image.new_from_gicon(Gio.ThemedIcon(name="dialog-information-symbolic"))
-                invisible_icon.set_opacity(0)
-                row.add_suffix(invisible_icon)
-            
-            self.extra_settings_rows[(extension.key, "extension", False)]["row"] = row
-            self.add_flatpak_warning_button(extension, row)
-            self.extensiongroup.add(row)                            
-        download_button = Gtk.Button(label=_("User guide to Extensions"), margin_top=10)
-        download_button.connect("clicked", lambda x : subprocess.Popen(get_spawn_command() + ["xdg-open", "https://github.com/qwersyk/Newelle/wiki/User-guide-to-Extensions"]))
-        self.main.append(download_button)
-        download_button = Gtk.Button(label=_("Download new Extensions"), margin_top=10)
-        download_button.connect("clicked", lambda x : subprocess.Popen(get_spawn_command() + ["xdg-open", "https://github.com/topics/newelle-extension"]))
-        self.main.append(download_button)
-        folder_button = Gtk.Button(label=_("Install extension from file..."), css_classes=["suggested-action"], margin_top=10)
-        folder_button.connect("clicked", self.on_folder_button_clicked)
-        self.main.append(folder_button)
+        for extension in self.extensionloader.get_extensions():
+            self._add_extension_row(extension)
+
+        self._add_extension_actions()
+
+    def _add_extension_row(self, extension):
+        self.extra_settings_rows[(extension.key, "extension", False)] = {}
+        extension.set_extra_settings_update(
+            lambda _, current_extension=extension: GLib.idle_add(
+                self.extra_settings_builder.on_setting_change,
+                self.extensionloader.extensionsmap,
+                current_extension,
+                current_extension.key,
+                True,
+            )
+        )
+
+        toggle = Gtk.Switch(valign=Gtk.Align.CENTER)
+        toggle.set_active(extension not in self.extensionloader.disabled_extensions)
+        toggle.connect("state-set", self.change_status, extension.id)
+
+        has_extra_settings = bool(extension.get_extra_settings())
+        if has_extra_settings:
+            row = Adw.ExpanderRow(title=extension.name)
+            row.add_suffix(toggle)
+            self.extra_settings_builder.add_extra_settings(
+                self.extensionloader.extensionsmap,
+                extension,
+                row,
+            )
+        else:
+            row = Adw.ActionRow(title=extension.name)
+            row.add_suffix(toggle)
+
+        row.add_prefix(
+            Gtk.Image(icon_name="extension-symbolic", css_classes=["dim-label"])
+        )
+
+        delete_button = Gtk.Button(
+            icon_name="user-trash-symbolic",
+            valign=Gtk.Align.CENTER,
+            css_classes=["flat", "destructive-action"],
+        )
+        delete_button.set_tooltip_text(_("Remove"))
+        delete_button.connect("clicked", self.delete_extension, extension.id)
+        row.add_suffix(delete_button)
+
+        self.extra_settings_rows[(extension.key, "extension", False)]["row"] = row
+        self.add_flatpak_warning_button(extension, row)
+        self.extensiongroup.add(row)
+
+    def _add_extension_actions(self):
+        actions = Adw.PreferencesGroup()
+        self._add_group(actions)
+
+        guide_row = Adw.ActionRow(title=_("User guide to Extensions"))
+        guide_button = Gtk.Button(
+            icon_name="internet-symbolic",
+            valign=Gtk.Align.CENTER,
+            css_classes=["flat"],
+        )
+        guide_button.connect(
+            "clicked",
+            lambda _button: subprocess.Popen(
+                get_spawn_command()
+                + [
+                    "xdg-open",
+                    "https://github.com/qwersyk/Newelle/wiki/User-guide-to-Extensions",
+                ]
+            ),
+        )
+        guide_row.add_suffix(guide_button)
+        guide_row.set_activatable_widget(guide_button)
+        actions.add(guide_row)
+
+        download_row = Adw.ActionRow(title=_("Download new Extensions"))
+        download_button = Gtk.Button(
+            icon_name="internet-symbolic",
+            valign=Gtk.Align.CENTER,
+            css_classes=["flat"],
+        )
+        download_button.connect(
+            "clicked",
+            lambda _button: subprocess.Popen(
+                get_spawn_command()
+                + ["xdg-open", "https://github.com/topics/newelle-extension"]
+            ),
+        )
+        download_row.add_suffix(download_button)
+        download_row.set_activatable_widget(download_button)
+        actions.add(download_row)
+
+        install_row = Adw.ActionRow(title=_("Install extension from file..."))
+        install_button = Gtk.Button(
+            label=_("Install"),
+            valign=Gtk.Align.CENTER,
+            css_classes=["suggested-action"],
+        )
+        install_button.connect("clicked", self.on_folder_button_clicked)
+        install_row.add_suffix(install_button)
+        install_row.set_activatable_widget(install_button)
+        actions.add(install_row)
 
     def _convert_extension_constants(self, _constants):
         return "extension"
 
     def add_flatpak_warning_button(self, handler, row):
-        actionbutton = Gtk.Button(css_classes=["flat"], valign=Gtk.Align.CENTER)
-        if handler.requires_sandbox_escape() and not self.sandbox:
-            icon = Gtk.Image.new_from_gicon(Gio.ThemedIcon(name="warning-outline-symbolic"))
-            actionbutton.connect("clicked", self.show_flatpak_sandbox_notice)
-            actionbutton.add_css_class("error")
-            actionbutton.set_child(icon)
-            if type(row) is Adw.ActionRow:
-                row.add_suffix(actionbutton)
-            elif type(row) is Adw.ExpanderRow:
-                row.add_action(actionbutton)
-            elif type(row) is Adw.ComboRow:
-                row.add_suffix(actionbutton)
+        if not handler.requires_sandbox_escape() or self.sandbox:
+            return
 
-    def show_flatpak_sandbox_notice(self, _el=None):
+        action_button = Gtk.Button(
+            icon_name="warning-outline-symbolic",
+            valign=Gtk.Align.CENTER,
+            css_classes=["flat", "error"],
+        )
+        action_button.connect("clicked", self.show_flatpak_sandbox_notice)
+        if isinstance(row, Adw.ExpanderRow):
+            row.add_action(action_button)
+        else:
+            row.add_suffix(action_button)
+
+    def show_flatpak_sandbox_notice(self, _button=None):
         dialog = Adw.MessageDialog(
-            title="Permission Error",
+            title=_("Permission Error"),
             modal=True,
-            transient_for=self,
+            transient_for=self._parent_window(),
             destroy_with_parent=True,
         )
         dialog.set_heading(_("Not enough permissions"))
         dialog.set_body_use_markup(True)
-        dialog.set_body(_("Newelle does not have enough permissions to run commands on your system, please run the following command"))
+        dialog.set_body(
+            _(
+                "Newelle does not have enough permissions to run commands on your system, please run the following command"
+            )
+        )
         dialog.add_response("close", _("Understood"))
         dialog.set_default_response("close")
-        dialog.set_extra_child(CopyBox("flatpak --user override --talk-name=org.freedesktop.Flatpak --filesystem=home io.github.qwersyk.Newelle", "bash"))
+        dialog.set_extra_child(
+            CopyBox(
+                "flatpak --user override --talk-name=org.freedesktop.Flatpak --filesystem=home io.github.qwersyk.Newelle",
+                "bash",
+            )
+        )
         dialog.set_close_response("close")
-        dialog.set_response_appearance("close", Adw.ResponseAppearance.DESTRUCTIVE)
-        dialog.connect("response", lambda current_dialog, _response_id: current_dialog.destroy())
+        dialog.set_response_appearance(
+            "close",
+            Adw.ResponseAppearance.DESTRUCTIVE,
+        )
+        dialog.connect(
+            "response",
+            lambda current_dialog, _response_id: current_dialog.destroy(),
+        )
         dialog.present()
-    
-    def change_status(self,widget,*a):        
-        name = widget.get_name()
-        if widget.get_active():
-            self.extensionloader.enable(name)
+
+    def change_status(self, _switch, state, extension_id):
+        if state:
+            self.extensionloader.enable(extension_id)
         else:
-            self.extensionloader.disable(name)
-            self.extensionloader.remove_handlers(self.extensionloader.get_extension_by_id(name), AVAILABLE_LLMS, AVAILABLE_TTS, AVAILABLE_STT, AVAILABLE_MEMORIES, AVAILABLE_EMBEDDINGS, AVAILABLE_RAGS, AVAILABLE_WEBSEARCH, AVAILABLE_AVATARS,AVAILABLE_TRANSLATORS, AVAILABLE_INTERFACES)
-            self.extensionloader.remove_prompts(self.extensionloader.get_extension_by_id(name), PROMPTS, AVAILABLE_PROMPTS)
-            self.extensionloader.remove_tools(self.controller.tools, self.extensionloader.get_extension_by_id(name))
-    def delete_extension(self,widget):
-        self.extensionloader.remove_extension(widget.get_name())
+            self.extensionloader.disable(extension_id)
+        return False
+
+    def _reload_user_extensions(self):
+        loader = ExtensionLoader(
+            self.extension_path,
+            pip_path=self.pip_directory,
+            extension_cache=self.extensions_cache,
+            settings=self.settings,
+        )
+        loader.load_extensions()
+        loader.set_ui_controller(self.controller.ui_controller)
+        self.controller.set_extensionsloader(loader)
+        self.extensionloader = loader
+
+    def delete_extension(self, _button, extension_id):
+        self.extensionloader.remove_extension(extension_id)
+        self._reload_user_extensions()
         self.update()
-    
-    def on_folder_button_clicked(self, widget):
-        filter = Gtk.FileFilter(name="Newelle Extensions", patterns=["*.py"])
-        dialog = Gtk.FileDialog(title="Import extension", modal=True, default_filter=filter)
-        dialog.open(self, None, self.process_folder)
+
+    def on_folder_button_clicked(self, _button):
+        file_filter = Gtk.FileFilter(
+            name="Newelle Extensions",
+            patterns=["*.py"],
+        )
+        dialog = Gtk.FileDialog(
+            title=_("Import extension"),
+            modal=True,
+            default_filter=file_filter,
+        )
+        dialog.open(self._parent_window(), None, self.process_folder)
 
     def process_folder(self, dialog, result):
         try:
-            file=dialog.open_finish(result)
-        except Exception as _:
+            file = dialog.open_finish(result)
+        except GLib.Error:
             return
         if file is None:
             return
+
         file_path = file.get_path()
+        filename = os.path.basename(file_path)
         self.extensionloader.add_extension(file_path)
-        self.extensionloader.load_extensions()
+        self._reload_user_extensions()
 
-        for extid, filename in self.extensionloader.filemap.items():
-            if filename == os.path.basename(file_path):
-                ext = self.extensionloader.get_extension_by_id(extid)
-                if ext is None:
-                    continue
-                Thread(target=ext.install).start()
+        added_extension = None
+        for extension_id, extension_filename in self.extensionloader.filemap.items():
+            if extension_filename == filename:
+                added_extension = self.extensionloader.get_extension_by_id(extension_id)
                 break
-        
-        if os.path.basename(file_path) in self.extensionloader.filemap.values():
-            self.notification_block.add_toast(Adw.Toast(title="Extension added. New extensions will run"))
-            self.extensionloader.load_extensions()
-            # Edit extension settings in order to reload on update
-            ext = self.extensionloader.get_enabled_extensions()[0] if len(self.extensionloader.get_enabled_extensions()) > 0 else None
-            if ext is not None:
-                ext.set_setting("reload_requested", ext.get_setting("reload_requested", False, 0) + 1)
+
+        if added_extension is None:
+            self._add_toast(_("This is not an extension or it is not correct"))
             self.update()
-        else:
-            self.notification_block.add_toast(Adw.Toast(title="This is not an extension or it is not correct"))
+            return
 
-        return
+        Thread(target=added_extension.install, daemon=True).start()
+        added_extension.set_setting(
+            "reload_requested",
+            added_extension.get_setting("reload_requested", False, 0) + 1,
+        )
+        self._add_toast(_("Extension added. New extensions will run"))
+        self.update()
 
+
+class Extension(Adw.Window):
+    """Compatibility wrapper for callers that still open extensions directly."""
+
+    def __init__(self, app):
+        super().__init__(
+            title=_("Extensions"),
+            default_width=600,
+            default_height=600,
+            transient_for=app.win,
+            modal=True,
+        )
+        overlay = Adw.ToastOverlay()
+        toolbar_view = Adw.ToolbarView()
+        toolbar_view.add_top_bar(Adw.HeaderBar())
+        page = ExtensionPage(
+            app,
+            app.win.controller,
+            toast_callback=overlay.add_toast,
+        )
+        toolbar_view.set_content(page)
+        overlay.set_child(toolbar_view)
+        self.set_content(overlay)

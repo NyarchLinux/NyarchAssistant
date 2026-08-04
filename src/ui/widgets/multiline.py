@@ -51,8 +51,6 @@ class MultilineEntry(Gtk.Box):
         apply_css_to_widget(self.input_panel, """
             .multilineentry {
                 background-color: rgba(0,0,0,0);
-                font-size: 15px;
-                font-family: 'System UI', -apple-system, sans-serif;
             }
             .multilineentry text {
                 background-color: transparent;
@@ -121,4 +119,3 @@ class MultilineEntry(Gtk.Box):
     def on_change(self, buffer):
         if self.on_change_func is not None:
             self.on_change_func(self)
-

@@ -78,7 +78,7 @@ class ContextIndicator(Gtk.MenuButton):
 
     def update_from_chat(self, controller) -> None:
         """Estimate context stats from the current chat without running the full trim pipeline."""
-        from ...utility.strings import count_tokens
+        from ...utility.strings import count_message_tokens
         from ...utility.context_manager import TrimResult
 
         settings = controller.newelle_settings
@@ -92,7 +92,7 @@ class ContextIndicator(Gtk.MenuButton):
 
         chat = controller.chat
         history = controller.get_history(chat=chat)
-        total = sum(count_tokens(m.get("Message", "")) + 4 for m in history)
+        total = sum(count_message_tokens(m.get("Message", "")) + 4 for m in history)
 
         GLib.idle_add(self.update_stats, TrimResult(
             original_tokens=total,

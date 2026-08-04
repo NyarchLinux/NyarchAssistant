@@ -49,6 +49,10 @@ _INLINE_LATEX_PATTERN = re.compile(
     r'\\\((.+?)\\\)'                              
 )
 
+_SINGLE_DOLLAR_PATTERN = re.compile(r'(?<![\$\\])\$(?!\$)')
+_NUMBER_AFTER_DOLLAR_PATTERN = re.compile(r'\s*\d')
+_NUMERIC_LATEX_PATTERN = re.compile(r'\d+(?:[.,]\d+)*')
+
 _THINK_PATTERN = re.compile(r'<think>(.*?)(?:</think>|\Z)', re.DOTALL)
 
 _TOOL_START_PATTERN = re.compile(r'\{\s*"(?:tool|name|function)"\s*:', re.MULTILINE)
@@ -183,6 +187,65 @@ def process_text_with_display_latex(text: str, allow_latex: bool) -> List[Messag
     return chunks
 
 
+def _looks_like_numeric_latex(content: str) -> bool:
+    """Return whether a dollar-delimited numeric expression looks intentional."""
+    content = content.strip()
+    if not content or "\n" in content:
+        return False
+    if _NUMERIC_LATEX_PATTERN.fullmatch(content):
+        return True
+    if any(marker in content for marker in ("**", "__", "`", "|")):
+        return False
+
+    # Long alphabetic words usually mean that two prices in prose were paired
+    # as delimiters (for example, "$10/month, then $20/month"). LaTeX
+    # commands remain valid because their command name is preceded by a slash.
+    prose_words = re.findall(r'(?<![A-Za-z\\])[A-Za-z]{2,}', content)
+    if prose_words:
+        return False
+
+    return bool(re.search(r'[+\-*/=^_<>×÷\\{}]', content))
+
+
+def _currency_dollar_positions(text: str) -> set[int]:
+    """Find dollar signs that introduce prices rather than inline math.
+
+    A price and a numeric equation both commonly start with a digit, so a
+    numeric expression is kept when it has a plausible closing delimiter.
+    Dollar signs before the next price are never treated as that delimiter.
+    """
+    positions = [match.start() for match in _SINGLE_DOLLAR_PATTERN.finditer(text)]
+    currency_positions = set()
+
+    for index, position in enumerate(positions):
+        if not _NUMBER_AFTER_DOLLAR_PATTERN.match(text, position + 1):
+            continue
+
+        next_position = positions[index + 1] if index + 1 < len(positions) else None
+        if next_position is not None:
+            next_starts_number = _NUMBER_AFTER_DOLLAR_PATTERN.match(
+                text, next_position + 1
+            )
+            content = text[position + 1:next_position]
+            if not next_starts_number and _looks_like_numeric_latex(content):
+                continue
+
+        currency_positions.add(position)
+
+    return currency_positions
+
+
+def _mask_currency_dollars(text: str) -> str:
+    """Hide price markers from the inline LaTeX regex without changing spans."""
+    positions = _currency_dollar_positions(text)
+    if not positions:
+        return text
+    return "".join(
+        "\uff04" if index in positions else char
+        for index, char in enumerate(text)
+    )
+
+
 def process_inline_elements(text: str, allow_latex: bool) -> List[MessageChunk]:
     chunks = []
     if not allow_latex:
@@ -191,13 +254,17 @@ def process_inline_elements(text: str, allow_latex: bool) -> List[MessageChunk]:
         return chunks
 
     last_index = 0
-    for m in _INLINE_LATEX_PATTERN.finditer(text):
+    latex_text = _mask_currency_dollars(text)
+    for m in _INLINE_LATEX_PATTERN.finditer(latex_text):
         start, end = m.span()
         if start > last_index:
             plain_text = text[last_index:start]
             chunks.append(MessageChunk(type="text", text=plain_text))
 
-        content = m.group(1) or m.group(2)
+        if latex_text.startswith("\\(", start):
+            content = text[start + 2:end - 2]
+        else:
+            content = text[start + 1:end - 1]
         if content is not None:
             if len(content) < 40:
                 chunks.append(MessageChunk(type="latex_inline", text=content.strip()))

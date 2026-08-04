@@ -1,6 +1,7 @@
 import gettext
 from ...utility.strings import quote_string
 from ...utility.system import get_spawn_command, can_escape_sandbox, is_flatpak
+from ...utility.background_process import BackgroundProcess
 from .stt import STTHandler
 from ...handlers import ErrorSeverity, ExtraSettings
 from ...ui.model_library import ModelLibraryWindow, LibraryModel
@@ -33,7 +34,6 @@ WHISPER_MODELS = [
     {"model_name": "large-v3-turbo-q5_0", "display_name": "Large v3 Turbo Q5_0", "size": "547 MiB", "size_bytes": 573513728},
 ]
 
-COMMIT = "2eeeba56e9edd762b4b38467bab96c2517163158"
 
 class WhisperCPPHandler(STTHandler):
     key = "whispercpp"
@@ -41,8 +41,8 @@ class WhisperCPPHandler(STTHandler):
     def __init__(self, settings, path):
         super().__init__(settings, path)
         self.model = None
-        self._process = None
-        self._process_lock = threading.Lock()
+        self._server = BackgroundProcess("whisper-server")
+        self._server.register_atexit()
         self._current_model = None
         self._use_server = False
         self._server_port = None
@@ -190,7 +190,7 @@ class WhisperCPPHandler(STTHandler):
         os.makedirs(os.path.join(self.path, "whisper"), exist_ok=True)
         print("Installing whisper...")
         path = os.path.join(self.path, "whisper")
-        installation_script = f"cd {path} && git clone https://github.com/ggerganov/whisper.cpp.git && cd whisper.cpp && git checkout {COMMIT} && sh ./models/download-ggml-model.sh tiny && cmake -B build && cmake --build build -j --config Release"
+        installation_script = f"cd {path} && git clone https://github.com/ggerganov/whisper.cpp.git && cd whisper.cpp && git checkout 9386f239401074690479731c1e41683fbbeac557 && sh ./models/download-ggml-model.sh tiny && cmake -B build && cmake --build build -j --config Release"
         out = subprocess.check_output(get_spawn_command() + ["bash", "-c", installation_script])
         exec_path = os.path.join(path, "whisper.cpp/build/bin/whisper-cli")
         if not os.path.exists(exec_path):
@@ -205,108 +205,109 @@ class WhisperCPPHandler(STTHandler):
 
     def _start_process(self):
         """Start the persistent whisper-server process with model loaded"""
-        with self._process_lock:
-            model_name = self.get_setting("model")
+        model_name = self.get_setting("model")
 
-            if self._process is not None:
-                if self._current_model != model_name or self._process.poll() is not None:
-                    self._stop_process()
-                else:
-                    return
-
-            path = os.path.join(self.path, "whisper")
-
-            # Try to use whisper-server if available, otherwise fall back to whisper-cli
-            if self.is_gpu_installed():
-                server_path = self.whisper_server_path
-                cli_path = os.path.join(self.whisper_cpp_path, "build", "bin", "whisper-cli")
-            else:
-                server_path = os.path.join(path, "whisper.cpp/build/bin/whisper-server")
-                cli_path = os.path.join(path, "whisper.cpp/build/bin/whisper-cli")
-
-            # Check if we should use hardware acceleration
-            use_gpu = self.get_setting("gpu_acceleration", False, False)
-            use_system_server = is_flatpak() and self.get_setting("use_system_server", False, False)
-
-            if os.path.exists(server_path) and (use_gpu or use_system_server):
-                if use_system_server:
-                    exec_path = "whisper-server"
-                    cmd = get_spawn_command() + [exec_path]
-                else:
-                    exec_path = server_path
-                    if self.get_setting("gpu_acceleration", False, False):
-                        cmd = get_spawn_command() + [exec_path]
-                    else:
-                        cmd = [exec_path]
-
-                self._use_server = True
-            else:
-                exec_path = cli_path
-                cmd = [exec_path]
-                self._use_server = False
-
-            model_path = os.path.join(self.model_folder, "ggml-" + model_name + ".bin")
-
-            if self._use_server:
-                self._server_port = self._find_free_port()
-                cmd.extend([
-                    "-m", model_path,
-                    "--host", "127.0.0.1",
-                    "--port", str(self._server_port),
-                    "-l", self.get_setting("language"),
-                ])
-                try:
-                    print(f"Starting whisper-server with model: {model_name}")
-                    self._process = subprocess.Popen(
-                        cmd,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
-                        text=True,
-                        bufsize=1
-                    )
-                    self._current_model = model_name
-                    # Wait for server to start
-                    time.sleep(3)
-                    # Check if process is still running
-                    if self._process.poll() is not None:
-                        stdout = self._process.stdout.read() if self._process.stdout else ""
-                        stderr = self._process.stderr.read() if self._process.stderr else ""
-                        print(f"Server stdout: {stdout}")
-                        print(f"Server stderr: {stderr}")
-                        raise RuntimeError(f"Server failed to start: {stderr}")
-                    print("Server started successfully")
-                except Exception as e:
-                    self.throw("Error starting Whisper server: " + str(e), ErrorSeverity.ERROR)
-                    self._process = None
-                    self._use_server = False
-            else:
-                # For whisper-cli, we can't keep it loaded persistently
-                self._process = None
-                self._current_model = model_name
+        # Restart only when the model changes or the server isn't running.
+        if self._server.is_running:
+            if self._current_model == model_name:
                 return
+            self._stop_process()
+
+        path = os.path.join(self.path, "whisper")
+
+        # Try to use whisper-server if available, otherwise fall back to whisper-cli
+        if self.is_gpu_installed():
+            server_path = self.whisper_server_path
+            cli_path = os.path.join(self.whisper_cpp_path, "build", "bin", "whisper-cli")
+        else:
+            server_path = os.path.join(path, "whisper.cpp/build/bin/whisper-server")
+            cli_path = os.path.join(path, "whisper.cpp/build/bin/whisper-cli")
+
+        # Check if we should use hardware acceleration
+        use_gpu = self.get_setting("gpu_acceleration", False, False)
+        use_system_server = is_flatpak() and self.get_setting("use_system_server", False, False)
+
+        if os.path.exists(server_path) and (use_gpu or use_system_server):
+            uses_built_binary = not use_system_server
+            # The built GPU binary is linked against host CUDA (libcudart.so, ...)
+            # and sibling libggml*.so shipped next to it in build/bin. Inside the
+            # Flatpak sandbox neither is available, so run it on the host via
+            # flatpak-spawn and expose the bin dir through LD_LIBRARY_PATH.
+            spawn_on_host = is_flatpak() and (use_system_server or (uses_built_binary and use_gpu))
+            if use_system_server:
+                cmd = get_spawn_command() + ["whisper-server"]
+            elif spawn_on_host:
+                cmd = get_spawn_command() + [server_path]
+            else:
+                cmd = [server_path]
+
+            self._use_server = True
+        else:
+            cmd = [cli_path]
+            self._use_server = False
+
+        model_path = os.path.join(self.model_folder, "ggml-" + model_name + ".bin")
+
+        if self._use_server:
+            self._server_port = self._find_free_port()
+            cmd.extend([
+                "-m", model_path,
+                "--host", "127.0.0.1",
+                "--port", str(self._server_port),
+                "-l", self.get_setting("language"),
+            ])
+            try:
+                print(f"Starting whisper-server with model: {model_name}")
+                start_kwargs = {
+                    "stdout": subprocess.PIPE,
+                    "stderr": subprocess.PIPE,
+                    "text": True,
+                }
+                # Run the built server from its bin dir and make its sibling
+                # libggml*.so discoverable via LD_LIBRARY_PATH (otherwise a
+                # system-wide libllama/ggml can be loaded, causing symbol errors).
+                if uses_built_binary:
+                    bin_dir = os.path.dirname(server_path)
+                    start_kwargs["cwd"] = bin_dir
+                    env = os.environ.copy()
+                    ld_path = env.get("LD_LIBRARY_PATH", "")
+                    env["LD_LIBRARY_PATH"] = f"{bin_dir}{os.pathsep}{ld_path}" if ld_path else bin_dir
+                    if spawn_on_host:
+                        # flatpak-spawn runs on the host; forward via --env
+                        cmd[1:1] = [f"--env=LD_LIBRARY_PATH={env['LD_LIBRARY_PATH']}"]
+                    else:
+                        start_kwargs["env"] = env
+                proc = self._server.start(cmd, **start_kwargs)
+                self._current_model = model_name
+                # Wait for server to start
+                time.sleep(3)
+                # Check if process is still running
+                if proc.poll() is not None:
+                    stdout = self._server.get_output(which="stdout")
+                    stderr = self._server.get_output(which="stderr")
+                    print(f"Server stdout: {stdout}")
+                    print(f"Server stderr: {stderr}")
+                    raise RuntimeError(f"Server failed to start: {stderr}")
+                print("Server started successfully")
+            except Exception as e:
+                self.throw("Error starting Whisper server: " + str(e), ErrorSeverity.ERROR)
+                self._server.stop()
+                self._use_server = False
+        else:
+            # For whisper-cli, we can't keep it loaded persistently
+            self._current_model = model_name
+            return
 
     def _stop_process(self):
         """Stop the persistent whisper process"""
-        with self._process_lock:
-            if self._process is not None:
-                try:
-                    self._process.terminate()
-                    try:
-                        self._process.wait(timeout=5)
-                    except subprocess.TimeoutExpired:
-                        self._process.kill()
-                        self._process.wait()
-                except Exception:
-                    pass
-                finally:
-                    self._process = None
-                    self._current_model = None
+        self._server.stop()
+        self._current_model = None
 
     def recognize_file(self, path):
         print(f"Recognizing file: {path}")
         self._start_process()
 
-        if self._use_server and self._process is not None and self._process.poll() is None:
+        if self._use_server and self._server.is_running:
             print("Using server mode")
             return self._recognize_with_server(path)
         else:
@@ -377,9 +378,14 @@ class WhisperCPPHandler(STTHandler):
         # Check if we should use GPU build
         if self.is_gpu_installed() and self.get_setting("gpu_acceleration", False, False):
             exec_path = os.path.join(self.whisper_cpp_path, "build", "bin", "whisper-cli")
-            cmd = [exec_path]
+            bin_dir = os.path.dirname(exec_path)
+            # Built GPU binary needs host CUDA + sibling libggml*.so; run on host
+            # with LD_LIBRARY_PATH pointing at its bin dir.
+            ld_path = bin_dir
             if is_flatpak():
-                cmd = get_spawn_command() + cmd
+                cmd = get_spawn_command() + [f"--env=LD_LIBRARY_PATH={ld_path}", exec_path]
+            else:
+                cmd = [exec_path]
         else:
             exec_path = os.path.join(self.path, "whisper", "whisper.cpp/build/bin/whisper-cli")
             cmd = [exec_path]
@@ -717,10 +723,9 @@ class WhisperCPPHandler(STTHandler):
             if not run_cmd(clone_cmd):
                 raise Exception("Failed to clone whisper.cpp repository")
 
-            # Checkout specific commit for reproducible builds
-            checkout_cmd = ["git", "checkout", COMMIT]
+            checkout_cmd = ["git", "checkout", "9386f239401074690479731c1e41683fbbeac557"]
             if not run_cmd(checkout_cmd, cwd=abs_whisper_cpp_path):
-                raise Exception(f"Failed to checkout whisper.cpp commit {COMMIT}")
+                raise Exception("Failed to checkout whisper.cpp commit")
 
             GLib.idle_add(set_progress, 0.2)
             GLib.idle_add(append_log, "Configuring CMake build...\n")

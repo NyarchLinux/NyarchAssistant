@@ -72,7 +72,7 @@ def has_backend(backend: str, spawn: bool = True) -> bool:
     """Check if a GPU/compute backend is available on the system.
 
     Args:
-        backend: One of "cuda", "rocm", "vulkan", "openvino"
+        backend: One of "cuda", "rocm", "vulkan", "openvino", "sycl"
         spawn: If True, use get_spawn_command() prefix for subprocess calls
 
     Returns:
@@ -114,7 +114,18 @@ def has_backend(backend: str, spawn: bool = True) -> bool:
         return False
 
     elif backend == "openvino":
+        # OpenVINO runtime ships a benchmark tool, and the Python package is
+        # commonly installed alongside it. Accept either signal.
+        if _run_check(["benchmark_app", "-h"]):
+            return True
         return _run_check(["python3", "-c", "import openvino"])
+
+    elif backend == "sycl":
+        # oneAPI / DPC++ SYCL toolchain. The sycl-ls utility lists SYCL devices
+        # and is shipped with the Intel oneAPI compiler; ocloc targets Intel GPUs.
+        if _run_check(["sycl-ls"]):
+            return True
+        return _path_check("/opt/intel/oneAPI")
 
     return False
 

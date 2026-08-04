@@ -46,11 +46,16 @@ https://github.com/user-attachments/assets/909edf0e-5a79-40c2-a3ef-cb5b2b18abfc
 - 🗣 **Voice support**: Chat hands free with your waifu, supporting many Speech To Text and TTS models, with translation option
 - 🧠 **Long Term Memory**: Remember conversations from previous chats
 - 💼 **Chat with documents**: Chat with your own documents
+- 🖼 **Image Generation**: Generate images directly in Newelle with stablediffusion or use third party services
 - 🔎 **Web Search**: Provide reliable answers using Web Search
-- 🌐 **Website Reading**: Ask any information about any website by writing #https://.. question
-- 👤 **Profile Manager**: Create settings profiles and switch between them on the go
-- 📁 **Builtin File Manager**: Manage your files with the help of AI
-- 📝 **Rich Formatting**: Support for Markdown and LaTeX
+- 🌐 **Website Reading**: Scrape informations from websites by appending the prefix #https://.. in the prompt
+- 🖍 **Dynamic Context Management**: Dynamically summarize and remove non relevant messages to fit in the context
+- 🔓 **File Permissions**: Set permissions to which files to edit/read
+- ⏰ **Scheduled Tasks**: Schedule tasks to run in the background
+- 👤 **Profile Manager**: Create settings profiles and switch between them
+- 📁 **Builtin File Manager**: Manage you files with the help of AI
+- 📝 **Rich Formatting**: Supports both Markdown and LaTeX
+- 💬 **Multichat**: Run multiple chats at the same time 
 - 🌳 **Chat Branching**: Create alternative versions of your chats strating from any message in one click
 - ✏️ **Chat editing**: Edit or remove any message and manage your prompts easily
 

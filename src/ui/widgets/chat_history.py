@@ -8,7 +8,8 @@ import gettext
 from ...utility.system import open_website
 from ..widgets import TipsCarousel, SkillWidget
 from ...utility.strings import markwon_to_pango
-from ...ui.widgets import Message, MultilineEntry
+from ...ui.widgets import Message, MultilineEntry, ToolCallsGroupWidget
+from ...utility.message_chunk import get_message_chunks
 
 _ = gettext.gettext
 SCHEMA_ID = "moe.nyarchlinux.assistant"
@@ -39,12 +40,22 @@ class ChatHistory(Gtk.Box):
         self.lazy_loaded_start = 0  # First loaded message index
         self.lazy_loaded_end = 0  # Last loaded message index (exclusive)
         self.lazy_loading_in_progress = False
+        self._initial_load_generation = 0
+        self._initial_load_source_id = None
         self.scroll_handler_id = None  # Store scroll handler ID to disconnect when needed
+        self.scroll_bounds_handler_id = None
+        self._follow_new_content = True
+        self._programmatic_scroll = False
+        self._last_scroll_value = None
+        self._scroll_to_bottom_source_id = None
         self._preamble_row_count = 0  # Number of warning/disclaimer rows at the top
 
         self.messages_box = []
         self.edit_entries = {}
         self.last_error_box = None
+        self._compact_tool_groups = {}
+        self._active_compact_tool_group = None
+        self._compact_hidden_rows = set()
         # Suggestions vars
         self.message_suggestion_buttons_array = []
         self.message_suggestion_buttons_array_placeholder = []
@@ -54,6 +65,11 @@ class ChatHistory(Gtk.Box):
 
         # Add history
         self.chat_scroll = Gtk.ScrolledWindow(vexpand=True)
+        self._user_scroll_controller = Gtk.EventControllerScroll.new(
+            Gtk.EventControllerScrollFlags.VERTICAL
+        )
+        self._user_scroll_controller.connect("scroll", self._on_user_scroll)
+        self.chat_scroll.add_controller(self._user_scroll_controller)
         self.history_block.add_named(self.chat_scroll, "history")
         
         self.chat_scroll_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -112,6 +128,10 @@ class ChatHistory(Gtk.Box):
         self.update_button_text()
 
     def populate_chat(self):
+        self._initial_load_generation += 1
+        self._compact_tool_groups = {}
+        self._active_compact_tool_group = None
+        self._compact_hidden_rows = set()
         self._preamble_row_count = 0
         if not self.controller.newelle_settings.hide_warning:
             if not self.controller.newelle_settings.virtualization:
@@ -123,16 +143,39 @@ class ChatHistory(Gtk.Box):
         if self.scroll_handler_id is not None:
             adjustment = self.chat_scroll.get_vadjustment()
             adjustment.disconnect(self.scroll_handler_id)
+        if self.scroll_bounds_handler_id is not None:
+            adjustment = self.chat_scroll.get_vadjustment()
+            adjustment.disconnect(self.scroll_bounds_handler_id)
         adjustment = self.chat_scroll.get_vadjustment()
         self.scroll_handler_id = adjustment.connect("value-changed", self._on_scroll_changed)
+        self.scroll_bounds_handler_id = adjustment.connect(
+            "notify::upper",
+            self._on_scroll_bounds_changed,
+        )
         # Lazy load if
         if self.lazy_load_enabled and total_messages > self.lazy_load_batch_size:
             # Load only the last batch_size messages initially
             # Messages are indexed from 0 (oldest) to len-1 (newest)
-            start_idx = max(0, total_messages - self.lazy_load_batch_size)
+            nominal_start = max(0, total_messages - self.lazy_load_batch_size)
+            start_idx = nominal_start
+            if self.controller.newelle_settings.compact_mode:
+                # A long tool run can contain more Console/protocol records
+                # than the raw lazy-load batch. Include the latest real user
+                # turn so its first assistant message and the compact group's
+                # true owner are present immediately when switching chats.
+                for index in range(total_messages - 1, -1, -1):
+                    entry = self.chat[index]
+                    if entry.get("User") == "User" and not entry.get(
+                        "ToolContext"
+                    ):
+                        start_idx = min(start_idx, index)
+                        break
             self.lazy_loaded_start = start_idx
             self.lazy_loaded_end = total_messages
-            self._load_message_range(start_idx, total_messages)
+            if start_idx < nominal_start:
+                self._load_message_range_incrementally(start_idx, total_messages)
+            else:
+                self._load_message_range(start_idx, total_messages)
         else:
             self.lazy_loaded_start = 0
             self.lazy_loaded_end = total_messages
@@ -168,19 +211,338 @@ class ChatHistory(Gtk.Box):
         GLib.timeout_add(200, self.scrolled_chat)
         GLib.idle_add(self.update_button_text)
 
-    def scrolled_chat(self):
-        """Scroll at the bottom of the chat"""
+    def _load_message_range_incrementally(self, start_idx: int, end_idx: int):
+        """Restore an expanded compact turn without blocking a tab switch.
+
+        Restoring a tool message may construct a custom result widget on the
+        GTK thread. Loading one visible record per frame keeps long tool runs
+        responsive while still reconstructing the complete shared group.
+        """
+        generation = self._initial_load_generation
+        next_index = start_idx
+        self.lazy_loading_in_progress = True
+
+        def load_next():
+            nonlocal next_index
+            if (
+                generation != self._initial_load_generation
+                or self.get_parent() is None
+            ):
+                self.lazy_loading_in_progress = False
+                self._initial_load_source_id = None
+                return GLib.SOURCE_REMOVE
+
+            while next_index < end_idx:
+                index = next_index
+                next_index += 1
+                entry = self.chat[index]
+                self._load_message_range(index, index + 1)
+                if (
+                    entry.get("User")
+                    in ("User", "Assistant", "Command", "File", "Folder")
+                    or (
+                        entry.get("User") == "Console"
+                        and entry.get("skill_name")
+                    )
+                ):
+                    break
+
+            if next_index >= end_idx:
+                self.lazy_loading_in_progress = False
+                self._initial_load_source_id = None
+                GLib.idle_add(self.prune_compact_empty_rows)
+                GLib.idle_add(self.scrolled_chat)
+                return GLib.SOURCE_REMOVE
+
+            self._initial_load_source_id = GLib.timeout_add(16, load_next)
+            return GLib.SOURCE_REMOVE
+
+        self._initial_load_source_id = GLib.idle_add(load_next)
+
+    def _assistant_has_tool_calls(self, index):
+        if index < 0 or index >= len(self.chat):
+            return False
+        entry = self.chat[index]
+        if entry.get("User") != "Assistant":
+            return False
+        try:
+            return any(
+                chunk.type == "tool_call"
+                for chunk in get_message_chunks(
+                    entry.get("Message", ""), allow_latex=False
+                )
+            )
+        except Exception:
+            return False
+
+    def _previous_real_message_index(self, index):
+        """Find the prior conversational entry before *index*.
+
+        Console results and synthetic tool-context user entries are execution
+        bookkeeping, not boundaries between assistant tool iterations.
+        """
+        for candidate in range(min(index - 1, len(self.chat) - 1), -1, -1):
+            entry = self.chat[candidate]
+            if entry.get("User") == "Console":
+                continue
+            if entry.get("User") == "User" and entry.get("ToolContext"):
+                continue
+            return candidate
+        return None
+
+    def _tool_chain_start(self, index):
+        start = index
+        previous = self._previous_real_message_index(start)
+        while previous is not None and self._assistant_has_tool_calls(previous):
+            start = previous
+            previous = self._previous_real_message_index(previous)
+        return start
+
+    def _message_has_tool_calls(self, message):
+        try:
+            return any(
+                chunk.type == "tool_call"
+                for chunk in get_message_chunks(message or "", allow_latex=False)
+            )
+        except Exception:
+            return False
+
+    def get_compact_tool_group(self, id_message, message="", is_user=False, streaming=False):
+        """Return the shared group for an assistant tool-call chain."""
+        if is_user:
+            self._active_compact_tool_group = None
+            return None
+        if not self.controller.newelle_settings.compact_mode:
+            return None
+        if streaming and not message:
+            return self._active_compact_tool_group
+        if not self._message_has_tool_calls(message):
+            self._active_compact_tool_group = None
+            return None
+
+        chain_start = self._tool_chain_start(id_message)
+        group = self._compact_tool_groups.get(chain_start)
+        if group is None:
+            group = ToolCallsGroupWidget()
+            self._compact_tool_groups[chain_start] = group
+        self._active_compact_tool_group = group
+        return group
+
+    def register_compact_tool_group(self, group, chain_start):
+        """Register a group created lazily when a stream first yields a tool."""
+        if not self.controller.newelle_settings.compact_mode:
+            return
+        existing = self._compact_tool_groups.get(chain_start)
+        if existing is not None and existing is not group:
+            return
+        self._compact_tool_groups[chain_start] = group
+        self._active_compact_tool_group = group
+
+    def refresh_compact_groups(self):
+        """Merge already-rendered continuation messages after a mode toggle."""
+        if not self.controller.newelle_settings.compact_mode:
+            return
+        groups = {}
+        messages = sorted(
+            self._message_widgets(),
+            key=lambda message: (
+                message.id_message if message.id_message >= 0 else float("inf")
+            ),
+        )
+        for message in messages:
+            if not message._tool_slots_in_order():
+                continue
+            chain_start = self._tool_chain_start(message.id_message)
+            group = groups.get(chain_start)
+            if group is None:
+                group = message.tool_calls_group or ToolCallsGroupWidget()
+                if getattr(group, "owner_message", None) is None:
+                    group.owner_message = message
+                groups[chain_start] = group
+            message.attach_tool_group(group)
+        self._compact_tool_groups.update(groups)
+        if groups:
+            self._active_compact_tool_group = next(reversed(groups.values()))
+
+    def finish_compact_message(self, message):
+        """Close a pre-attached chain and report whether its row is disposable."""
+        if not self.controller.newelle_settings.compact_mode:
+            return False
+        group = message.tool_calls_group
+        # The live parent is authoritative. Ownership can change while older
+        # messages are lazy-loaded or existing rows are regrouped, but a row
+        # that currently contains the expander must never be hidden.
+        if group is not None and group.get_parent() is message:
+            self._active_compact_tool_group = group
+            return False
+        slots = message._tool_slots_in_order()
+        has_outside_content = message._has_content_outside_tool_group()
+        if slots:
+            self._active_compact_tool_group = group
+            return not has_outside_content
+        if self._active_compact_tool_group is group:
+            self._active_compact_tool_group = None
+        return not has_outside_content
+
+    def remove_message_widget(self, message):
+        """Remove an empty streaming row while retaining any shared group."""
+        row = message.get_ancestor(Gtk.ListBoxRow)
+        if row is not None:
+            row.set_visible(False)
+            self._compact_hidden_rows.add(row)
+
+    def restore_message_widget(self, message):
+        """Re-show a row if deferred rendering added visible content to it."""
+        row = message.get_ancestor(Gtk.ListBoxRow)
+        if row is not None and row in self._compact_hidden_rows:
+            row.set_visible(True)
+            self._compact_hidden_rows.discard(row)
+
+    def prune_compact_message_row(self, message):
+        """Hide one protocol-only assistant row after its final render.
+
+        A streamed continuation can finish before its last ``Message`` idle
+        render has moved tool slots/text into the shared group.  In that
+        window ``finish_compact_message`` cannot reliably classify the row,
+        leaving an empty ListBox row beneath the expander.  Re-check the live
+        widgets once the UI queue has drained and hide only rows with no
+        content outside the group.  The row containing the live expander is
+        always retained.
+        """
+        if not self.controller.newelle_settings.compact_mode:
+            return GLib.SOURCE_REMOVE
+
+        if message.is_user or message.streaming:
+            return GLib.SOURCE_REMOVE
+        if message._has_content_outside_tool_group():
+            self.restore_message_widget(message)
+            return GLib.SOURCE_REMOVE
+
+        group = getattr(message, "tool_calls_group", None)
+        group_child = (
+            group
+            if group is not None and group.get_parent() is message
+            else None
+        )
+        if group_child is not None:
+            # This is the row that visibly owns the expander, regardless
+            # of whether cached ownership has caught up yet.
+            self.restore_message_widget(message)
+            return GLib.SOURCE_REMOVE
+        child = message.get_first_child()
+        while child is not None:
+            if child.get_visible():
+                self.restore_message_widget(message)
+                return GLib.SOURCE_REMOVE
+            child = child.get_next_sibling()
+
+        slots = message._tool_slots_in_order()
+        if not ((group is not None and group.slots) or slots) and str(
+            getattr(message, "message", "") or ""
+        ).strip():
+            self.restore_message_widget(message)
+            return GLib.SOURCE_REMOVE
+
+        self.remove_message_widget(message)
+        return GLib.SOURCE_REMOVE
+
+    def prune_compact_empty_rows(self):
+        """Reconcile all compact rows after regrouping or incremental load."""
+        if not self.controller.newelle_settings.compact_mode:
+            return GLib.SOURCE_REMOVE
+        for message in self._message_widgets():
+            self.prune_compact_message_row(message)
+        return GLib.SOURCE_REMOVE
+
+    def restore_hidden_compact_rows(self):
+        for row in list(self._compact_hidden_rows):
+            row.set_visible(True)
+        self._compact_hidden_rows.clear()
+
+    def _message_widgets(self):
+        roots = list(self.messages_box)
+        # The active streaming row is intentionally removed from
+        # ``messages_box`` bookkeeping until generation finishes, but it is
+        # still a live child of the ListBox and must participate in toggles.
+        row = self.chat_list_block.get_first_child()
+        while row is not None:
+            roots.append(row)
+            row = row.get_next_sibling()
+        seen = set()
+        for root in roots:
+            stack = [root]
+            while stack:
+                widget = stack.pop()
+                if isinstance(widget, Message):
+                    marker = id(widget)
+                    if marker not in seen:
+                        seen.add(marker)
+                        yield widget
+                    continue
+                child = widget.get_first_child() if widget is not None else None
+                while child is not None:
+                    stack.append(child)
+                    child = child.get_next_sibling()
+
+    def begin_streaming_scroll(self, force_follow=False):
+        """Start a stream, preserving a paused scroll during automatic continuations."""
         adjustment = self.chat_scroll.get_vadjustment()
-        # Scroll to the bottom: upper - page_size gives us the maximum value
-        # Queue a resize and scroll in idle to ensure the widget is fully allocated
+        if force_follow or self._is_at_bottom(adjustment):
+            self._follow_new_content = True
+        self.scrolled_chat()
+        return GLib.SOURCE_REMOVE
+
+    def scrolled_chat(self):
+        """Follow new content only while the user has not scrolled away."""
+        if not self._follow_new_content:
+            return GLib.SOURCE_REMOVE
+
         self.chat_scroll.queue_resize()
-        GLib.timeout_add(200, self._do_scroll)
+        if self._scroll_to_bottom_source_id is None:
+            self._scroll_to_bottom_source_id = GLib.idle_add(self._do_scroll)
+        return GLib.SOURCE_REMOVE
 
     def _do_scroll(self):
-        """Actually perform the scroll after widget allocation"""
+        """Move to the exact bottom without treating it as user input."""
+        self._scroll_to_bottom_source_id = None
+        if not self._follow_new_content:
+            return GLib.SOURCE_REMOVE
+
         adjustment = self.chat_scroll.get_vadjustment()
-        adjustment.set_value(100000)
+        bottom = max(
+            adjustment.get_lower(),
+            adjustment.get_upper() - adjustment.get_page_size(),
+        )
+        self._programmatic_scroll = True
+        adjustment.set_value(bottom)
+        self._last_scroll_value = adjustment.get_value()
+        self._programmatic_scroll = False
+        return GLib.SOURCE_REMOVE
+
+    @staticmethod
+    def _is_at_bottom(adjustment, tolerance=2.0):
+        bottom = max(
+            adjustment.get_lower(),
+            adjustment.get_upper() - adjustment.get_page_size(),
+        )
+        return bottom - adjustment.get_value() <= tolerance
+
+    def _on_scroll_bounds_changed(self, adjustment, _pspec):
+        """Keep following as streamed content increases the scrollable height."""
+        if self._follow_new_content:
+            self.scrolled_chat()
+
+    def _on_user_scroll(self, _controller, _dx, dy):
+        """Pause following as soon as the user wheels or swipes upward."""
+        if dy < 0:
+            self._pause_auto_scroll()
         return False
+
+    def _pause_auto_scroll(self):
+        self._follow_new_content = False
+        if self._scroll_to_bottom_source_id is not None:
+            GLib.source_remove(self._scroll_to_bottom_source_id)
+            self._scroll_to_bottom_source_id = None
 
     def update_button_text(self):
         """Update clear chat, regenerate message and continue buttons, add offers"""
@@ -336,7 +698,7 @@ class ChatHistory(Gtk.Box):
             {"title": _("Chat with documents!"), "subtitle": _("Add your documents to your documents folder and chat using the information contained in them!"), "on_click": lambda : self.app.settings_action_paged("Memory")},
             {"title": _("Surf the web!"), "subtitle": _("Enable web search to allow the LLM to surf the web and provide up to date answers"), "on_click": lambda : self.app.settings_action_paged("Memory")},
             {"title": _("Mini Window"), "subtitle": _("Ask questions on the fly using the mini window mode"), "on_click": lambda : open_website("https://github.com/qwersyk/Newelle/?tab=readme-ov-file#mini-window-mode")},
-            {"title": _("Text to Speech"), "subtitle": _("Newelle supports text-to-speech! Enable it in the settings"), "on_click": lambda : self.app.settings_action_paged("General")},
+            {"title": _("Text to Speech"), "subtitle": _("Newelle supports text-to-speech! Enable it in the settings"), "on_click": lambda : self.app.settings_action_paged("avatar")},
             {"title": _("Keyboard Shortcuts"), "subtitle": _("Control Newelle using Keyboard Shortcuts"), "on_click": lambda : self.app.on_shortcuts_action()},
             {"title": _("Prompt Control"), "subtitle": _("Newelle gives you 100% prompt control. Tune your prompts for your use."), "on_click": lambda : self.app.settings_action_paged("Prompts")},
             {"title": _("Thread Editing"), "subtitle": _("Check the programs and processes you run from Newelle"), "on_click": lambda : self.app.thread_editing_action()},
@@ -370,11 +732,17 @@ class ChatHistory(Gtk.Box):
         placeholder_layout.append(self.offers_entry_block_placeholder)
         self.empty_chat_placeholder.set_child(placeholder_layout)
 
-    def _finalize_message_display(self):
-        """Update UI state after message display."""
+    def _finalize_message_display(self, generation_finished=True):
+        """Update UI state after message display.
+
+        A model turn can finish rendering while its tool calls are still
+        running.  In that case the overall generation is still active and the
+        stop controls must remain visible until the tool chain has completed.
+        """
         GLib.idle_add(self.update_button_text)
-        self.status = True
-        self.chat_stop_button.set_visible(False)
+        if generation_finished:
+            self.status = True
+            self.chat_stop_button.set_visible(False)
     
     # Message display functions 
     def show_message(
@@ -432,6 +800,12 @@ class ChatHistory(Gtk.Box):
             else:
                 msg_uuid = self.chat[id_message].get("UUID", 0)
 
+        tool_group = self.get_compact_tool_group(
+            id_message,
+            message_label,
+            is_user=is_user,
+        )
+
         # Create Message widget
         # Note: Message widget acts as the 'box' that was previously built manually
         message_widget = Message(
@@ -440,8 +814,14 @@ class ChatHistory(Gtk.Box):
             self, 
             id_message=id_message, 
             chunk_uuid=msg_uuid, 
-            restore=restore
+            restore=restore,
+            tool_group=tool_group,
         )
+
+        if not is_user and self.controller.newelle_settings.compact_mode:
+            # Queue after Message's render idle so continuation rows can be
+            # pruned even when this widget is returned for lazy insertion.
+            GLib.idle_add(self.prune_compact_message_row, message_widget)
 
         if return_widget:
             return message_widget
@@ -502,10 +882,21 @@ class ChatHistory(Gtk.Box):
         cur_side = side(user_type)
         if cur_side is None:
             return False
-        # Walk back past Console/tool-output entries to the previous real sender
+        # Walk back past Console/tool-output entries and hidden empty assistant
+        # protocol rows. Empty rows are retained in stored history for tool
+        # context, but must not suppress the first visible assistant header.
         j = id_message - 1
-        while j >= 0 and self.chat[j].get("User") == "Console":
-            j -= 1
+        while j >= 0:
+            entry = self.chat[j]
+            if entry.get("User") == "Console":
+                j -= 1
+                continue
+            if entry.get("User") == "Assistant" and not str(
+                entry.get("Message", "")
+            ).strip():
+                j -= 1
+                continue
+            break
         if j < 0:
             return False
         prev = self.chat[j]
@@ -518,16 +909,25 @@ class ChatHistory(Gtk.Box):
                 return False
         return True
 
+    def _set_tray_visible(self, toolbar, visible: bool):
+        """Set the visibility of the action toolbar/tray while keeping it allocated."""
+        if visible:
+            toolbar.set_opacity(1.0)
+            toolbar.set_can_target(True)
+        else:
+            toolbar.set_opacity(0.0)
+            toolbar.set_can_target(False)
+
     def _wire_row_hover(self, row, toolbar):
         """Reveal the action toolbar on hover; keep it visible while editing."""
         ev = Gtk.EventControllerMotion.new()
 
         def _on_enter(_x, _y, _d):
-            toolbar.set_visible(True)
+            self._set_tray_visible(toolbar, True)
 
         def _on_leave(_d):
             if toolbar.get_visible_child_name() != "apply":
-                toolbar.set_visible(False)
+                self._set_tray_visible(toolbar, False)
 
         ev.connect("enter", _on_enter)
         ev.connect("leave", _on_leave)
@@ -652,7 +1052,7 @@ class ChatHistory(Gtk.Box):
             evk.set_button(3)
             box.add_controller(evk)
 
-            apply_edit_stack.set_visible(False)
+            self._set_tray_visible(apply_edit_stack, False)
             apply_edit_stack.add_css_class("message-actions")
             # Placed in the row (and hover-wired) by _arrange_message.
             box.action_toolbar = apply_edit_stack
@@ -1079,10 +1479,11 @@ class ChatHistory(Gtk.Box):
         entry.set_margin_bottom(10)
         # Size the editor to the old message, minus the entry's own margins
         # (10px each side) so it fits the original area without overflowing.
-        entry.set_size_request(max(1, wmax - 20), max(1, hmax - 20))
+        # Enforce a minimum so short messages still give a usable editor.
+        entry.set_size_request(max(400, wmax - 20), max(60, hmax - 20))
         # Change the stack to edit controls and reveal the floating toolbar
         apply_edit_stack.set_visible_child_name("apply")
-        apply_edit_stack.set_visible(True)
+        self._set_tray_visible(apply_edit_stack, True)
         entry.set_on_enter(
             lambda entry: self.apply_edit_message(gesture, box, apply_edit_stack)
         )
@@ -1119,7 +1520,7 @@ class ChatHistory(Gtk.Box):
             evk.set_button(3)
             wrapper_box.add_controller(evk)
 
-            apply_edit_stack.set_visible(False)
+            self._set_tray_visible(apply_edit_stack, False)
             apply_edit_stack.add_css_class("message-actions")
             # Placed in the row (and hover-wired) by _arrange_message.
             wrapper_box.action_toolbar = apply_edit_stack
@@ -1179,14 +1580,27 @@ class ChatHistory(Gtk.Box):
                 )
     
     def _on_scroll_changed(self, adjustment):
-        """Handle scroll events to trigger lazy loading of messages"""
+        """Track user scroll intent and trigger lazy loading of messages."""
+        value = adjustment.get_value()
+        at_bottom = self._is_at_bottom(adjustment)
+        moved_up = (
+            self._last_scroll_value is not None
+            and value < self._last_scroll_value - 1.0
+        )
+        if self._programmatic_scroll:
+            self._last_scroll_value = value
+        elif moved_up and (not at_bottom or not self._follow_new_content):
+            self._pause_auto_scroll()
+        elif at_bottom:
+            self._follow_new_content = True
+        self._last_scroll_value = value
+
         if not self.lazy_load_enabled or self.lazy_loading_in_progress:
             return
         
         if len(self.chat) <= self.lazy_load_batch_size:
             return  # No lazy loading needed for short chats
         
-        value = adjustment.get_value()
         lower = adjustment.get_lower()
         upper = adjustment.get_upper()
         page_size = adjustment.get_page_size()
@@ -1409,10 +1823,16 @@ class ChatHistory(Gtk.Box):
 
     def show_chat(self):
         """Reload and display all messages from the chat"""
+        self._initial_load_generation += 1
         # Clear existing messages from UI
         self.chat_list_block.remove_all()
         self.messages_box.clear()
         self.last_error_box = None
+        # Groups contain live Message/slot widgets, so never reuse them across
+        # a full rebuild (for example after stopping or restoring a chat).
+        self._compact_tool_groups = {}
+        self._active_compact_tool_group = None
+        self._compact_hidden_rows = set()
         if len(self.chat) == 0:
             self.show_placeholder()
         else:
@@ -1516,6 +1936,7 @@ class ChatHistory(Gtk.Box):
             self.chat_list_block.remove(child)
         self.messages_box = []
         self.edit_entries = {}
+        self._compact_hidden_rows = set()
         self.lazy_loaded_start = 0
         self.lazy_loaded_end = 0
 

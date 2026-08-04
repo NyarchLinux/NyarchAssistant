@@ -213,7 +213,7 @@ def convert_messages_openai_to_newelle(messages: list) -> tuple[str, list[dict],
                 "Message": f"[Tool: {tool_name}, ID: {tid}]\n{content}",
             })
         elif role == "assistant" and tool_calls:
-            parts = []
+            parts = [] 
             if content:
                 parts.append(content)
             for tc_index, tc in enumerate(tool_calls):
@@ -358,13 +358,14 @@ def extract_tools_from_prompts(prompts: list[str], remove_tool_prompt: bool = Tr
                 new_prompts.append(prompt)
     return tools_json, new_prompts
 
-def convert_history_openai(history: list, prompts: list, vision_support : bool = False, native_tool_calling: bool = True):
+def convert_history_openai(history: list, prompts: list, vision_support : bool = False, native_tool_calling: bool = True, keep_reasoning_content: bool = True):
     """Converts Newelle history into OpenAI format
 
     Args:
         history (list): Newelle history 
         prompts (list): list of prompts 
         vision_support (bool): True if vision support
+        keep_reasoning_content (bool): If to extract and keep reasoning_content variable
 
     Returns:
        history in openai format 
@@ -399,6 +400,9 @@ def convert_history_openai(history: list, prompts: list, vision_support : bool =
                     text_part, tool_calls, _ = parsed_calls
                     ast_msg: dict = {"role": "assistant", "content": text_part or ""}
                     ast_msg["tool_calls"] = tool_calls
+                    if "Reasoning" in message and message["Reasoning"] is not None and keep_reasoning_content:
+                        ast_msg["reasoning_content"] = message["Reasoning"]
+                        print(ast_msg)
                     result.append(ast_msg)
                     continue
 
@@ -419,10 +423,14 @@ def convert_history_openai(history: list, prompts: list, vision_support : bool =
                     ],
                 })
             else:
-                result.append({
+                m = {
                     "role": "user" if message["User"] == "User" else "assistant",
                     "content": message["Message"]
-                })
+                }
+                if "Reasoning" in message and message["Reasoning"] and keep_reasoning_content:
+                    m["reasoning_content"] = message["Reasoning"]
+
+                result.append(m)
     return aggregate_messages(result, "openai")
 
 def aggregate_messages(messages: list, format="newelle"):
