@@ -1817,6 +1817,7 @@ class NewelleController:
                     tool_args = tool_call["args"]
                     tool_uuid = str(uuid_lib.uuid4())[:8]
                     tool_context_messages = []
+                    tool_display_text = None
 
                     # Lazy loading: a tool_search call means the model just fetched
                     # a tool's schema. Expand it in the system prompt so that, on the
@@ -1871,20 +1872,24 @@ class NewelleController:
                                     on_tool_result_callback(tool_name, result)
                                 tool_result_output = result.get_output()
                                 tool_context_messages = result.get_context_messages()
+                                tool_display_text = getattr(result, "display_text", None)
                                 if tool_result_output is not None or tool_context_messages:
                                     cont = True
                     except Exception as e:
                         tool_result_output = f"Error: {str(e)}"
+                        tool_display_text = None
                         if on_tool_result_callback:
                             tr = ToolResult(output=tool_result_output)
                             on_tool_result_callback(tool_name, tr)
-                    
-                    
+
+
                     tool_call_msg = f"```json\n{{\"name\": \"{tool_name}\", \"arguments\": {json.dumps(tool_args)}}}\n```"
                     console_output = tool_result_output
                     if console_output is None and tool_context_messages:
                         console_output = "Tool returned additional context."
                     tool_result_msg = f"[Tool: {tool_name}, ID: {tool_uuid}]\n{console_output}"
+                    if tool_display_text:
+                        tool_result_msg = tool_result_msg + "\n" + tool_display_text
                     
                     current_history.append({
                         "User": "Assistant",

@@ -2,6 +2,7 @@ import io
 import json
 import os
 import queue
+import re
 import tempfile
 import threading
 import time
@@ -205,6 +206,27 @@ class GUIAPIInterface(Interface):
 
         class SetActiveModeRequest(BaseModel):
             mode: str
+
+        class SetExtensionEnabledRequest(BaseModel):
+            extension_id: str
+            enabled: bool
+
+        class ExtensionSettingsRequest(BaseModel):
+            settings: dict = Field(default_factory=dict)
+
+        class DeleteExtensionRequest(BaseModel):
+            extension_id: str
+
+        class SetSkillEnabledRequest(BaseModel):
+            name: str
+            enabled: bool
+
+        class SetSttProviderRequest(BaseModel):
+            provider: str
+
+        class SetSttSettingsRequest(BaseModel):
+            provider: Optional[str] = None
+            settings: dict = Field(default_factory=dict)
 
         # ============================================================ #
         #                         BOOTSTRAP                             #
@@ -523,6 +545,9 @@ class GUIAPIInterface(Interface):
                     "description": getattr(tool, 'description', ''),
                     "enabled": is_enabled,
                     "default_on": tool.default_on,
+                    "tools_group": getattr(tool, 'tools_group', None),
+                    "icon_name": getattr(tool, 'icon_name', None),
+                    "title": getattr(tool, 'title', None) or tool.name,
                 })
             return result
 
@@ -767,6 +792,342 @@ class GUIAPIInterface(Interface):
             # ModeButton._on_mode_activated and ChatInterface._cmd_mode flows.
             active = mm.get_active_mode()
             controller.skill_manager.set_mode_overrides(active.get("skills", {}))
+            controller.update_settings()
+            return {"status": "ok"}
+
+        # ============================================================ #
+        #                        EXTENSIONS                             #
+        # ============================================================ #
+        def _serialize_extra_settings(extra_settings, get_value):
+            """Map a handler's extra_settings list to the JSON shape the WebUI renders.
+
+            ``extra_settings`` is a list of dicts (Newelle's canonical setting format).
+            ``get_value`` is a callable taking the setting key and returning the
+            current value. Mirrors api_get_tts_settings.
+            """
+            result = []
+            for s in extra_settings:
+                if not isinstance(s, dict):
+                    continue
+                entry = {
+                    "key": s.get("key", ""),
+                    "title": s.get("title", ""),
+                    "description": s.get("description", ""),
+                    "type": s.get("type", "entry"),
+                }
+                for field in ("default", "values", "password", "min", "max", "step", "round-digits", "website", "folder"):
+                    if field in s:
+                        entry[field] = s[field]
+                entry["value"] = get_value(entry["key"])
+                result.append(entry)
+            return result
+
+        def _get_extension_loader():
+            loader = getattr(controller, "extensionloader", None)
+            if loader is None:
+                raise HTTPException(status_code=503, detail="Extensions not available")
+            return loader
+
+        @app.get("/api/extensions")
+        def api_list_extensions():
+            loader = _get_extension_loader()
+            result = []
+            for ext in loader.get_extensions():
+                try:
+                    has_settings = bool(ext.get_extra_settings())
+                except Exception:
+                    has_settings = False
+                try:
+                    installed = bool(ext.is_installed())
+                except Exception:
+                    installed = True
+                result.append({
+                    "id": ext.id,
+                    "name": getattr(ext, "name", ext.id),
+                    "description": getattr(ext, "description", ""),
+                    "enabled": ext not in loader.disabled_extensions,
+                    "installed": installed,
+                    "has_settings": has_settings,
+                })
+            return result
+
+        @app.get("/api/extensions/{extension_id}/settings")
+        def api_get_extension_settings(extension_id: str):
+            loader = _get_extension_loader()
+            ext = loader.get_extension_by_id(extension_id)
+            if ext is None:
+                raise HTTPException(status_code=404, detail="Extension not found")
+            try:
+                extra = ext.get_extra_settings()
+            except Exception:
+                extra = []
+            settings = _serialize_extra_settings(extra, lambda k: ext.get_setting(k))
+            return {"extension_id": extension_id, "settings": settings}
+
+        @app.post("/api/extensions/{extension_id}/settings")
+        def api_set_extension_settings(extension_id: str, req: ExtensionSettingsRequest):
+            loader = _get_extension_loader()
+            ext = loader.get_extension_by_id(extension_id)
+            if ext is None:
+                raise HTTPException(status_code=404, detail="Extension not found")
+            for key, value in req.settings.items():
+                ext.set_setting(key, value)
+            controller.update_settings()
+            return {"status": "ok"}
+
+        @app.post("/api/extensions/{extension_id}/set-enabled")
+        def api_set_extension_enabled(extension_id: str, req: SetExtensionEnabledRequest):
+            loader = _get_extension_loader()
+            if loader.get_extension_by_id(extension_id) is None:
+                raise HTTPException(status_code=404, detail="Extension not found")
+            if req.enabled:
+                loader.enable(extension_id)
+            else:
+                loader.disable(extension_id)
+            controller.update_settings()
+            return {"status": "ok"}
+
+        @app.post("/api/extensions/add")
+        async def api_add_extension(file: UploadFile = File(...)):
+            from ...constants import ReloadType
+            loader = _get_extension_loader()
+            filename = file.filename or "extension.py"
+            if not filename.endswith(".py"):
+                raise HTTPException(status_code=400, detail="Extension file must be a .py file")
+            tmp = tempfile.NamedTemporaryFile(suffix=".py", delete=False)
+            try:
+                content = await file.read()
+                tmp.write(content)
+                tmp.flush()
+                tmp.close()
+                loader.add_extension(tmp.name)
+                # Reload so the new extension's handlers/prompts/tools are live.
+                controller.reload(ReloadType.EXTENSIONS)
+                new_loader = controller.extensionloader
+                new_id = None
+                base = os.path.basename(filename)
+                for ext_id, fname in new_loader.filemap.items():
+                    if fname == base:
+                        new_id = ext_id
+                        break
+                if new_id is not None:
+                    added = new_loader.get_extension_by_id(new_id)
+                    if added is not None and hasattr(added, "install"):
+                        threading.Thread(target=added.install, daemon=True).start()
+                    if added is not None and hasattr(added, "set_setting"):
+                        try:
+                            added.set_setting(
+                                "reload_requested",
+                                added.get_setting("reload_requested", False, 0) + 1,
+                            )
+                        except Exception:
+                            pass
+                return {"status": "ok", "id": new_id}
+            except HTTPException:
+                raise
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=str(e))
+            finally:
+                try:
+                    os.unlink(tmp.name)
+                except Exception:
+                    pass
+
+        @app.delete("/api/extensions/{extension_id}")
+        def api_delete_extension(extension_id: str):
+            from ...constants import ReloadType
+            loader = _get_extension_loader()
+            if loader.get_extension_by_id(extension_id) is None:
+                raise HTTPException(status_code=404, detail="Extension not found")
+            loader.remove_extension(extension_id)
+            controller.reload(ReloadType.EXTENSIONS)
+            return {"status": "ok"}
+
+        # ============================================================ #
+        #                           SKILLS                              #
+        # ============================================================ #
+        def _get_skill_manager():
+            sm = getattr(controller, "skill_manager", None)
+            if sm is None:
+                raise HTTPException(status_code=503, detail="Skills not available")
+            return sm
+
+        @app.get("/api/skills")
+        def api_list_skills():
+            sm = _get_skill_manager()
+            try:
+                sm.discover()
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=str(e))
+            result = []
+            for skill in sm.skills.values():
+                result.append({
+                    "name": skill.name,
+                    "description": skill.description,
+                    "enabled": sm.is_skill_enabled(skill.name),
+                    "location": skill.location,
+                    "removable": os.path.abspath(skill.base_dir).startswith(
+                        os.path.abspath(sm.skills_dirs[0])
+                    ) if sm.skills_dirs else False,
+                })
+            return result
+
+        @app.post("/api/skills/set-enabled")
+        def api_set_skill_enabled(req: SetSkillEnabledRequest):
+            sm = _get_skill_manager()
+            sm.set_skill_enabled(req.name, req.enabled)
+            return {"status": "ok"}
+
+        @app.post("/api/skills/add")
+        async def api_add_skill(file: UploadFile = File(...)):
+            import zipfile
+            import shutil
+            sm = _get_skill_manager()
+            if not sm.skills_dirs:
+                raise HTTPException(status_code=503, detail="No skills directory configured")
+
+            filename = file.filename or "skill.zip"
+            if not filename.lower().endswith(".zip"):
+                raise HTTPException(status_code=400, detail="Skill must be a .zip file")
+
+            tmp_zip = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)
+            extract_dir = tempfile.mkdtemp(prefix="newelle_skill_")
+            try:
+                content = await file.read()
+                tmp_zip.write(content)
+                tmp_zip.flush()
+                tmp_zip.close()
+
+                try:
+                    with zipfile.ZipFile(tmp_zip.name) as zf:
+                        for member in zf.namelist():
+                            # Reject absolute paths and parent traversal to prevent
+                            # path-traversal attacks during extraction.
+                            norm = os.path.normpath(member)
+                            if norm.startswith("..") or os.path.isabs(norm):
+                                raise HTTPException(
+                                    status_code=400,
+                                    detail=f"Unsafe path in archive: {member}",
+                                )
+                        zf.extractall(extract_dir)
+                except zipfile.BadZipFile:
+                    raise HTTPException(status_code=400, detail="Invalid or corrupt zip file")
+
+                # Locate the directory containing SKILL.md (root, or first subdirectory).
+                source_dir = None
+                if os.path.isfile(os.path.join(extract_dir, "SKILL.md")):
+                    source_dir = extract_dir
+                else:
+                    for entry in os.listdir(extract_dir):
+                        candidate = os.path.join(extract_dir, entry)
+                        if os.path.isdir(candidate) and os.path.isfile(os.path.join(candidate, "SKILL.md")):
+                            source_dir = candidate
+                            break
+                if source_dir is None:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="No SKILL.md found in the zip (root or single subdirectory)",
+                    )
+
+                skill = sm.add_skill_from_path(source_dir)
+                if skill is None:
+                    raise HTTPException(status_code=400, detail="Failed to parse SKILL.md")
+                return {
+                    "status": "ok",
+                    "skill": {
+                        "name": skill.name,
+                        "description": skill.description,
+                        "enabled": sm.is_skill_enabled(skill.name),
+                        "location": skill.location,
+                    },
+                }
+            except HTTPException:
+                raise
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=str(e))
+            finally:
+                try:
+                    os.unlink(tmp_zip.name)
+                except Exception:
+                    pass
+                try:
+                    shutil.rmtree(extract_dir, ignore_errors=True)
+                except Exception:
+                    pass
+
+        @app.delete("/api/skills/{skill_name}")
+        def api_delete_skill(skill_name: str):
+            sm = _get_skill_manager()
+            ok = sm.remove_skill(skill_name)
+            if not ok:
+                raise HTTPException(status_code=404, detail="Skill not found")
+            return {"status": "ok"}
+
+        # ============================================================ #
+        #                       STT SETTINGS                            #
+        # ============================================================ #
+        @app.get("/api/stt/providers")
+        def api_list_stt_providers():
+            from ...constants import AVAILABLE_STT
+            result = []
+            for key, info in AVAILABLE_STT.items():
+                result.append({
+                    "key": key,
+                    "title": info.get("title", key),
+                    "description": info.get("description", ""),
+                    "primary": info.get("primary", True),
+                    "secondary": info.get("secondary", False),
+                    "wakeword": info.get("wakeword", False),
+                    "website": info.get("website"),
+                })
+            return result
+
+        @app.get("/api/stt/status")
+        def api_stt_status():
+            ns = controller.newelle_settings
+            secondary_on = bool(getattr(ns, "use_secondary_stt", False))
+            secondary_provider = getattr(ns, "secondary_stt_engine", "") if secondary_on else ""
+            wakeword_engine = getattr(ns, "wakeword_engine", "")
+            return {
+                "provider": getattr(ns, "stt_engine", ""),
+                "secondary_on": secondary_on,
+                "secondary_provider": secondary_provider,
+                "wakeword_engine": wakeword_engine,
+            }
+
+        @app.post("/api/stt/set-provider")
+        def api_set_stt_provider(req: SetSttProviderRequest):
+            from ...constants import AVAILABLE_STT
+            if req.provider not in AVAILABLE_STT:
+                raise HTTPException(status_code=400, detail="Unknown provider")
+            if not AVAILABLE_STT[req.provider].get("primary", True):
+                raise HTTPException(status_code=400, detail="Provider cannot be used as primary STT")
+            controller.settings.set_string("stt-engine", req.provider)
+            controller.update_settings()
+            return {"status": "ok"}
+
+        @app.get("/api/stt/settings")
+        def api_get_stt_settings(provider: Optional[str] = None):
+            target = provider or getattr(controller.newelle_settings, "stt_engine", "")
+            from ...constants import AVAILABLE_STT
+            if target not in AVAILABLE_STT:
+                raise HTTPException(status_code=404, detail="Provider not found")
+            handler_class = AVAILABLE_STT[target]["class"]
+            handler = handler_class(controller.settings, controller.handlers.directory)
+            extra = handler.get_extra_settings_list() if hasattr(handler, "get_extra_settings_list") else handler.get_extra_settings()
+            settings = _serialize_extra_settings(extra, lambda k: handler.get_setting(k))
+            return {"provider": target, "settings": settings}
+
+        @app.post("/api/stt/settings")
+        def api_set_stt_settings(req: SetSttSettingsRequest):
+            provider = req.provider or getattr(controller.newelle_settings, "stt_engine", "")
+            from ...constants import AVAILABLE_STT
+            if provider not in AVAILABLE_STT:
+                raise HTTPException(status_code=400, detail="Unknown provider")
+            handler_class = AVAILABLE_STT[provider]["class"]
+            handler = handler_class(controller.settings, controller.handlers.directory)
+            for key, value in req.settings.items():
+                handler.set_setting(key, value)
             controller.update_settings()
             return {"status": "ok"}
 
@@ -1104,10 +1465,18 @@ class GUIAPIInterface(Interface):
                         pending_interactions[interaction_id]["event"].wait()
                         output = result.get_output() if hasattr(result, 'get_output') else str(result)
                         del pending_interactions[interaction_id]
-                        q.put(("tool", {"tool": tool_name, "output": output}))
+                        q.put(("tool", {
+                            "tool": tool_name,
+                            "output": output,
+                            "display_text": getattr(result, "display_text", None),
+                        }))
                     else:
                         output = result.get_output() if hasattr(result, 'get_output') else str(result)
-                        q.put(("tool", {"tool": tool_name, "output": output}))
+                        q.put(("tool", {
+                            "tool": tool_name,
+                            "output": output,
+                            "display_text": getattr(result, "display_text", None),
+                        }))
 
                 try:
                     controller.run_llm_with_tools(
@@ -1360,6 +1729,147 @@ class GUIAPIInterface(Interface):
                     os.unlink(temp_file.name)
                 except Exception:
                     pass
+
+        # ============================================================ #
+        #                          IMAGES                               #
+        # ============================================================ #
+        # Image codeblocks use the Newelle format:
+        #     ```image
+        #     <path-or-data-url-or-url>
+        #     ```
+        # Uploaded images are stored in a per-chat directory and served back
+        # ONLY when the requested path appears inside an ```image``` (or
+        # ```video```) block within that chat's history, so the API never
+        # exposes arbitrary files on disk.
+        _IMAGE_BLOCK_RE = re.compile(r"```(?:image|video|file)\s*\n(.*?)```", re.DOTALL)
+        # Tool calls whose arguments carry a media path. Maps tool name to the
+        # argument key that holds the path.
+        _MEDIA_TOOL_ARGS = {
+            "show_image": ("image_path_or_url", "path", "image_path"),
+            "read_image": ("path", "image_path", "image_path_or_url"),
+            "show_video": ("video_path", "path"),
+            "generate_image": ("output_path", "path", "image_path"),
+            "image_generator": ("output_path", "path", "image_path"),
+        }
+        _ALLOWED_IMAGE_EXTS = {
+            ".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".svg",
+            ".mp4", ".mkv", ".webm", ".avi", ".mov",
+        }
+
+        def _chat_images_dir(chat_id):
+            return os.path.join(controller.config_dir, "chat_images", str(chat_id))
+
+        def _is_media_path(line):
+            """True if a string looks like a media filesystem path (not a data/URL)."""
+            if not line or line.startswith(("data:", "http://", "https://")):
+                return False
+            _, ext = os.path.splitext(line.lower())
+            return ext in _ALLOWED_IMAGE_EXTS
+
+        def _image_payload_lines_in_chat(chat_id):
+            """Return the set of filesystem paths referenced by media anywhere
+            in the chat's message history. Used as the allow-list for the
+            image-serving endpoint so only media actually shown in the chat
+            can be fetched.
+
+            Sources scanned:
+              - ```image / ```video / ```file codeblocks
+              - File-attachment messages (User="File")
+              - Arguments of known media tools (show_image, read_image, ...)
+            """
+            paths = set()
+            chat = None
+            try:
+                chat = controller.get_chat_by_id(chat_id)
+            except Exception:
+                chat = None
+            if not chat:
+                return paths
+            for msg in chat:
+                if not isinstance(msg, dict):
+                    continue
+                message = msg.get("Message")
+                if not isinstance(message, str):
+                    continue
+                # 1) image/video/file codeblocks
+                for block in _IMAGE_BLOCK_RE.finditer(message):
+                    for line in block.group(1).splitlines():
+                        line = line.strip()
+                        if line and not line.startswith(("data:", "http://", "https://")):
+                            paths.add(os.path.abspath(line))
+                # 2) File-attachment messages: "User" is "File", Message is the path
+                if msg.get("User") == "File":
+                    fp = message.strip()
+                    if fp and not fp.startswith(("data:", "http://", "https://")):
+                        paths.add(os.path.abspath(fp))
+                # 3) Tool-call JSON arguments for known media tools.
+                #    Tool calls are embedded as ```json blocks containing
+                #    {"name": "...", "arguments": {...}}.
+                for m in re.finditer(r'"(?:name|tool)"\s*:\s*"([\w]+)"', message):
+                    tool_name = m.group(1)
+                    if tool_name not in _MEDIA_TOOL_ARGS:
+                        continue
+                    arg_keys = _MEDIA_TOOL_ARGS[tool_name]
+                    for key in arg_keys:
+                        for am in re.finditer(
+                            rf'"{re.escape(key)}"\s*:\s*"([^"]+)"', message
+                        ):
+                            val = am.group(1).strip()
+                            if val and not val.startswith(("data:", "http://", "https://")):
+                                paths.add(os.path.abspath(val))
+            return paths
+
+        @app.post("/api/chats/{chat_id}/images")
+        async def api_upload_chat_image(chat_id: int, file: UploadFile = File(...)):
+            if chat_id not in controller.chats:
+                raise HTTPException(status_code=404, detail="Chat not found")
+            filename = file.filename or "image"
+            _, ext = os.path.splitext(filename)
+            ext = ext.lower()
+            if ext not in _ALLOWED_IMAGE_EXTS:
+                # Fall back to a reasonable default if the upload had no/unknown ext.
+                ext = ".png"
+            images_dir = _chat_images_dir(chat_id)
+            os.makedirs(images_dir, exist_ok=True)
+            stored_name = f"{uuid.uuid4().hex[:12]}{ext}"
+            dest = os.path.join(images_dir, stored_name)
+            try:
+                content = await file.read()
+                with open(dest, "wb") as f:
+                    f.write(content)
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=str(e))
+            return {"path": dest}
+
+        @app.get("/api/chats/{chat_id}/image")
+        def api_get_chat_image(chat_id: int, path: str = Query(...)):
+            if chat_id not in controller.chats:
+                raise HTTPException(status_code=404, detail="Chat not found")
+            if not path:
+                raise HTTPException(status_code=400, detail="Missing path")
+            # data: URLs and remote URLs are never served here.
+            if path.startswith("data:") or path.startswith("http://") or path.startswith("https://"):
+                raise HTTPException(status_code=403, detail="Unsupported image reference")
+            target = os.path.abspath(path)
+            allowed = _image_payload_lines_in_chat(chat_id)
+            if target not in allowed:
+                raise HTTPException(status_code=403, detail="Image is not part of this chat")
+            if not os.path.isfile(target):
+                raise HTTPException(status_code=404, detail="Image file not found")
+            try:
+                with open(target, "rb") as f:
+                    data = f.read()
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=str(e))
+            _, ext = os.path.splitext(target.lower())
+            content_type_map = {
+                ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+                ".webp": "image/webp", ".gif": "image/gif", ".bmp": "image/bmp",
+                ".svg": "image/svg+xml", ".mp4": "video/mp4", ".webm": "video/webm",
+                ".mov": "video/quicktime", ".mkv": "video/x-matroska", ".avi": "video/x-msvideo",
+            }
+            content_type = content_type_map.get(ext, "application/octet-stream")
+            return Response(content=data, media_type=content_type)
 
         # ============================================================ #
         #                 OPENAI-COMPATIBLE CHAT ENDPOINT               #

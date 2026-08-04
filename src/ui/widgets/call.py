@@ -8,6 +8,7 @@ import math
 import gettext
 import pyaudio
 import re
+import tempfile
 from collections import deque
 
 from ...utility.strings import clean_message_tts, remove_emoji, remove_markdown, remove_thinking_blocks
@@ -242,7 +243,16 @@ class CallPanel(Gtk.Box):
         self.assistant_speaking = False
         self.user_speaking = False
         self.history_visible = False
-        self.listen_during_tts = False
+        self.listen_during_tts = True
+
+        # Conversation turn state
+        self._call_generation = 0
+        self._endpoint_debounce_seconds = 0.5
+        self._turn_lock = threading.Lock()
+        self._turn_in_progress = False
+        self._active_turn_generation = None
+        self._pending_barge_in = None
+        self._barge_in_capture = False
 
         # Get username
         self.username = self.controller.newelle_settings.username
@@ -256,14 +266,12 @@ class CallPanel(Gtk.Box):
         # VAD
         self.vad = VoiceActivityDetector(self.sample_rate)
         
-        # Audio buffers
-        self.speech_buffer = []
+        # Audio stream state
         self.audio_stream = None
         self.pyaudio_instance = None
         
         # Prebuffer for 1 second before speech starts
-        prebuffer_chunks = int(self.sample_rate / self.chunk_size) + 1
-        self.audio_prebuffer = deque(maxlen=prebuffer_chunks)
+        self.prebuffer_chunks = int(self.sample_rate / self.chunk_size) + 1
         
         # Threads
         self.recording_thread = None
@@ -618,13 +626,22 @@ class CallPanel(Gtk.Box):
     
     def start_call(self):
         """Start the voice call"""
+        self._call_generation += 1
+        call_generation = self._call_generation
         self.call_active = True
         self.call_start_time = time.time()
         self.current_transcript = ""
-        self.speech_buffer = []
         self.chat_history_messages = []
-        self.audio_prebuffer.clear()
         self.vad.reset()
+        self.assistant_speaking = False
+        self.user_speaking = False
+
+        with self._turn_lock:
+            self._pending_barge_in = None
+            self._barge_in_capture = False
+            if not self._turn_in_progress:
+                self._active_turn_generation = None
+                self.processing_thread = None
 
         # Clear history box
         while self.history_box.get_first_child():
@@ -648,15 +665,31 @@ class CallPanel(Gtk.Box):
             self.tab.set_title(_("Call - Active"))
 
         # Start threads
-        self.recording_thread = threading.Thread(target=self._recording_loop, daemon=True)
+        self.recording_thread = threading.Thread(
+            target=self._recording_loop,
+            args=(call_generation,),
+            daemon=True,
+        )
         self.recording_thread.start()
 
-        self.timer_thread = threading.Thread(target=self._timer_loop, daemon=True)
+        self.timer_thread = threading.Thread(
+            target=self._timer_loop,
+            args=(call_generation,),
+            daemon=True,
+        )
         self.timer_thread.start()
     
     def end_call(self):
         """End the voice call"""
         self.call_active = False
+        self._call_generation += 1
+        ended_generation = self._call_generation
+        self.assistant_speaking = False
+        self.user_speaking = False
+
+        with self._turn_lock:
+            self._pending_barge_in = None
+            self._barge_in_capture = False
         
         # Stop audio
         if self.audio_stream:
@@ -679,12 +712,15 @@ class CallPanel(Gtk.Box):
             self.controller.handlers.tts.stop()
         
         # Update UI
-        GLib.idle_add(self._update_ui_after_end)
+        GLib.idle_add(self._update_ui_after_end, ended_generation)
         
         self.emit('call-ended')
     
-    def _update_ui_after_end(self):
+    def _update_ui_after_end(self, ended_generation):
         """Update UI after call ends"""
+        if self.call_active or ended_generation != self._call_generation:
+            return
+
         self.call_button_icon.set_from_icon_name("call-start-symbolic")
         self.call_button.remove_css_class("call-button-end")
         self.call_button.add_css_class("call-button-start")
@@ -704,55 +740,85 @@ class CallPanel(Gtk.Box):
         for bar in self.wave_bars:
             bar.set_size_request(4, 8)
     
-    def _timer_loop(self):
+    def _is_current_call(self, call_generation):
+        """Return whether work belongs to the currently active call session."""
+        return self.call_active and call_generation == self._call_generation
+
+    def _end_call_if_current(self, call_generation):
+        """End a call only when the reporting worker still belongs to it."""
+        if self._is_current_call(call_generation):
+            self.end_call()
+
+    def _set_timer_label(self, call_generation, label):
+        """Update the timer only if its call session is still active."""
+        if self._is_current_call(call_generation):
+            self.timer_label.set_label(label)
+
+    def _timer_loop(self, call_generation):
         """Update call timer"""
-        while self.call_active:
+        while self._is_current_call(call_generation):
             if self.call_start_time:
                 elapsed = int(time.time() - self.call_start_time)
                 minutes = elapsed // 60
                 seconds = elapsed % 60
                 GLib.idle_add(
-                    self.timer_label.set_label,
+                    self._set_timer_label,
+                    call_generation,
                     f"{minutes:02d}:{seconds:02d}"
                 )
             time.sleep(1)
     
-    def _recording_loop(self):
+    def _recording_loop(self, call_generation):
         """Main recording loop with VAD"""
+        audio_stream = None
+        pyaudio_instance = None
+        audio_prebuffer = deque(maxlen=self.prebuffer_chunks)
+        speech_buffer = []
+        finalize_deadline = None
+        capture_is_barge_in = False
+        microphone_was_suppressed = False
+
+        def reset_capture():
+            nonlocal speech_buffer, finalize_deadline, capture_is_barge_in
+            speech_buffer = []
+            finalize_deadline = None
+            capture_is_barge_in = False
+            audio_prebuffer.clear()
+            self.vad.reset()
+            with self._turn_lock:
+                self._barge_in_capture = False
+
         try:
-            self.pyaudio_instance = pyaudio.PyAudio()
-            self.audio_stream = self.pyaudio_instance.open(
+            pyaudio_instance = pyaudio.PyAudio()
+            audio_stream = pyaudio_instance.open(
                 format=self.audio_format,
                 channels=self.channels,
                 rate=self.sample_rate,
                 input=True,
                 frames_per_buffer=self.chunk_size
             )
+            if not self._is_current_call(call_generation):
+                return
+
+            self.pyaudio_instance = pyaudio_instance
+            self.audio_stream = audio_stream
 
             consecutive_errors = 0
             max_consecutive_errors = 10
 
-            while self.call_active:
-                if self.is_muted:
-                    time.sleep(0.03)
-                    consecutive_errors = 0
-                    continue
-
-                if not self.listen_during_tts and self.assistant_speaking:
-                    time.sleep(0.03)
-                    consecutive_errors = 0
-                    continue
-
+            while self._is_current_call(call_generation):
                 try:
-                    audio_data = self.audio_stream.read(self.chunk_size, exception_on_overflow=False)
+                    audio_data = audio_stream.read(self.chunk_size, exception_on_overflow=False)
                     consecutive_errors = 0  # Reset error counter on successful read
                 except OSError as e:
+                    if not self._is_current_call(call_generation):
+                        break
                     consecutive_errors += 1
                     print(f"Audio stream error ({consecutive_errors}/{max_consecutive_errors}): {e}")
 
                     if consecutive_errors >= max_consecutive_errors:
                         print("Too many consecutive audio errors, stopping call")
-                        GLib.idle_add(self.end_call)
+                        GLib.idle_add(self._end_call_if_current, call_generation)
                         break
 
                     # Try to recover by continuing
@@ -763,45 +829,103 @@ class CallPanel(Gtk.Box):
                     time.sleep(0.1)
                     continue
 
+                if not self._is_current_call(call_generation):
+                    break
+
+                with self._turn_lock:
+                    turn_in_progress = self._turn_in_progress
+                    barge_in_capture = self._barge_in_capture
+
+                can_barge_in = (
+                    turn_in_progress
+                    and self.listen_during_tts
+                    and (self.assistant_speaking or barge_in_capture)
+                )
+                microphone_suppressed = self.is_muted or (
+                    turn_in_progress and not can_barge_in
+                )
+
+                if microphone_suppressed:
+                    if not microphone_was_suppressed:
+                        reset_capture()
+                        microphone_was_suppressed = True
+                    continue
+
+                if microphone_was_suppressed:
+                    reset_capture()
+                    microphone_was_suppressed = False
+
                 # Update waveform visualization
                 self._update_waveform(audio_data)
 
                 # Add to prebuffer (circular buffer for pre-speech audio)
-                self.audio_prebuffer.append(audio_data)
+                audio_prebuffer.append(audio_data)
 
                 # Process VAD
                 is_speech, speech_started, speech_ended = self.vad.process_chunk(audio_data)
 
+                started_new_capture = False
                 if speech_started:
-                    GLib.idle_add(self._on_speech_started)
-                    # Prepend prebuffer to speech buffer to capture 1 second before speech
-                    self.speech_buffer = list(self.audio_prebuffer) + self.speech_buffer
+                    continuing_utterance = finalize_deadline is not None
+                    if continuing_utterance:
+                        finalize_deadline = None
+                    else:
+                        speech_buffer = list(audio_prebuffer)
+                        started_new_capture = True
+                        capture_is_barge_in = (
+                            turn_in_progress
+                            and self.listen_during_tts
+                            and self.assistant_speaking
+                        )
+                        if capture_is_barge_in:
+                            with self._turn_lock:
+                                self._barge_in_capture = True
 
-                if is_speech or self.vad.is_speaking:
-                    self.speech_buffer.append(audio_data)
+                    GLib.idle_add(self._on_speech_started, call_generation)
+
+                if (is_speech or self.vad.is_speaking or finalize_deadline is not None) and not started_new_capture:
+                    speech_buffer.append(audio_data)
 
                 if speech_ended:
-                    GLib.idle_add(self._on_speech_ended)
-                    # Process the speech buffer
-                    if len(self.speech_buffer) > 0:
-                        self._process_speech()
-                    self.speech_buffer = []
-                    self.audio_prebuffer.clear()
+                    GLib.idle_add(self._on_speech_ended, call_generation)
+                    finalize_deadline = time.monotonic() + self._endpoint_debounce_seconds
+
+                if (
+                    finalize_deadline is not None
+                    and not is_speech
+                    and time.monotonic() >= finalize_deadline
+                ):
+                    if speech_buffer:
+                        self._process_speech(
+                            b''.join(speech_buffer),
+                            call_generation,
+                            capture_is_barge_in,
+                        )
+                    reset_capture()
 
         except Exception as e:
             import traceback
             print(f"Recording loop error: {e}")
             print(traceback.format_exc())
-            GLib.idle_add(self.end_call)
+            GLib.idle_add(self._end_call_if_current, call_generation)
         finally:
             # Ensure stream is closed
-            if self.audio_stream:
+            if audio_stream:
                 try:
-                    self.audio_stream.stop_stream()
-                    self.audio_stream.close()
+                    audio_stream.stop_stream()
+                    audio_stream.close()
                 except Exception:
                     pass
-                self.audio_stream = None
+                if self.audio_stream is audio_stream:
+                    self.audio_stream = None
+
+            if pyaudio_instance:
+                try:
+                    pyaudio_instance.terminate()
+                except Exception:
+                    pass
+                if self.pyaudio_instance is pyaudio_instance:
+                    self.pyaudio_instance = None
     
     def _update_waveform(self, audio_data):
         """Update waveform visualization"""
@@ -840,8 +964,11 @@ class CallPanel(Gtk.Box):
                 height = max(8, int(self.wave_levels[i] * 40))
                 bar.set_size_request(4, height)
     
-    def _on_speech_started(self):
+    def _on_speech_started(self, call_generation):
         """Called when speech is detected"""
+        if not self._is_current_call(call_generation):
+            return
+
         self.user_speaking = True
         self._update_activity_indicator()
         self.avatar_ring.add_css_class("call-avatar-ring-speaking")
@@ -852,8 +979,11 @@ class CallPanel(Gtk.Box):
                 self.controller.handlers.tts.stop()
             self.assistant_speaking = False
     
-    def _on_speech_ended(self):
+    def _on_speech_ended(self, call_generation):
         """Called when speech ends"""
+        if not self._is_current_call(call_generation):
+            return
+
         self.user_speaking = False
         self._update_activity_indicator()
         self.avatar_ring.remove_css_class("call-avatar-ring-speaking")
@@ -877,39 +1007,124 @@ class CallPanel(Gtk.Box):
             self.activity_indicator.remove_css_class("call-speaking-indicator")
             self.activity_indicator.add_css_class("call-listening-indicator")
     
-    def _process_speech(self):
-        """Process recorded speech through STT and send to LLM"""
-        if not self.speech_buffer:
+    def _process_speech(self, audio_data, call_generation, is_barge_in=False):
+        """Start or queue one serialized STT/LLM/TTS turn."""
+        if not audio_data or not self._is_current_call(call_generation):
             return
-        
-        # Save audio to temp file
-        temp_path = os.path.join(self.controller.cache_dir, "call_recording.wav")
+
+        turn_thread = threading.Thread(
+            target=self._run_turn,
+            args=(bytes(audio_data), call_generation),
+            daemon=True,
+        )
+
+        with self._turn_lock:
+            if self._turn_in_progress:
+                if (
+                    is_barge_in
+                    and self._active_turn_generation == call_generation
+                    and self._pending_barge_in is None
+                ):
+                    self._pending_barge_in = (bytes(audio_data), call_generation)
+                return
+
+            self._turn_in_progress = True
+            self._active_turn_generation = call_generation
+            self.processing_thread = turn_thread
+
+        turn_thread.start()
+
+    def _run_turn(self, audio_data, call_generation):
+        """Write one immutable capture, process it, and release the turn."""
+        temp_path = None
         try:
-            wf = wave.open(temp_path, 'wb')
-            wf.setnchannels(self.channels)
-            wf.setsampwidth(2)  # 16-bit
-            wf.setframerate(self.sample_rate)
-            wf.writeframes(b''.join(self.speech_buffer))
-            wf.close()
+            if not self._is_current_call(call_generation):
+                return
+
+            with tempfile.NamedTemporaryFile(
+                dir=self.controller.cache_dir,
+                prefix="call_recording_",
+                suffix=".wav",
+                delete=False,
+            ) as temporary_file:
+                temp_path = temporary_file.name
+
+            with wave.open(temp_path, 'wb') as wf:
+                wf.setnchannels(self.channels)
+                wf.setsampwidth(2)  # 16-bit
+                wf.setframerate(self.sample_rate)
+                wf.writeframes(audio_data)
+
+            self._recognize_and_respond(temp_path, call_generation)
         except Exception as e:
-            print(f"Error saving audio: {e}")
+            import traceback
+            print(f"Error processing call audio: {e}")
+            print(traceback.format_exc())
+            GLib.idle_add(
+                self._add_message_to_history_if_current,
+                call_generation,
+                "System",
+                _("Recognition error. Please try again."),
+                True,
+            )
+        finally:
+            if temp_path is not None:
+                try:
+                    os.remove(temp_path)
+                except FileNotFoundError:
+                    pass
+                except Exception as e:
+                    print(f"Could not remove temporary call recording: {e}")
+            self._finish_turn(call_generation)
+
+    def _finish_turn(self, call_generation):
+        """Release the active turn or start its single pending barge-in."""
+        pending_barge_in = None
+
+        with self._turn_lock:
+            if self._active_turn_generation != call_generation:
+                return
+
+            if (
+                self._is_current_call(call_generation)
+                and self._pending_barge_in is not None
+                and self._pending_barge_in[1] == call_generation
+            ):
+                pending_barge_in = self._pending_barge_in
+                self._pending_barge_in = None
+            else:
+                self._pending_barge_in = None
+                self._turn_in_progress = False
+                self._active_turn_generation = None
+                self.processing_thread = None
+
+        if pending_barge_in is None:
             return
-        
-        # Recognize speech
-        threading.Thread(
-            target=self._recognize_and_respond,
-            args=(temp_path,),
-            daemon=True
-        ).start()
+
+        audio_data, pending_generation = pending_barge_in
+        turn_thread = threading.Thread(
+            target=self._run_turn,
+            args=(audio_data, pending_generation),
+            daemon=True,
+        )
+        with self._turn_lock:
+            if self._active_turn_generation != pending_generation:
+                return
+            self.processing_thread = turn_thread
+        turn_thread.start()
     
-    def _recognize_and_respond(self, audio_path):
+    def _recognize_and_respond(self, audio_path, call_generation):
         """Recognize speech and get AI response"""
         try:
+            if not self._is_current_call(call_generation):
+                return
+
             # Get STT handler
             stt = self.controller.handlers.stt
             if not stt or not stt.is_installed():
                 GLib.idle_add(
-                    self._add_message_to_history,
+                    self._add_message_to_history_if_current,
+                    call_generation,
                     "System",
                     _("Speech recognition not available"),
                     True
@@ -918,29 +1133,39 @@ class CallPanel(Gtk.Box):
 
             # Recognize
             text = stt.recognize_file(audio_path)
-            if not text or text.strip() == "":
+            if not self._is_current_call(call_generation) or not text or text.strip() == "":
                 return
 
             # Add user message to history
-            GLib.idle_add(self._add_message_to_history, self.username, text, False)
+            GLib.idle_add(
+                self._add_message_to_history_if_current,
+                call_generation,
+                self.username,
+                text,
+                False,
+            )
 
             # Get LLM response
-            self._get_ai_response(text)
+            self._get_ai_response(text, call_generation)
 
         except Exception as e:
             import traceback
             print(f"Recognition error: {e}")
             print(traceback.format_exc())
             GLib.idle_add(
-                self._add_message_to_history,
+                self._add_message_to_history_if_current,
+                call_generation,
                 "System",
                 _("Recognition error. Please try again."),
                 True
             )
     
-    def _get_ai_response(self, user_message):
+    def _get_ai_response(self, user_message, call_generation):
         """Get AI response and play TTS using run_llm_with_tools"""
         try:
+            if not self._is_current_call(call_generation):
+                return
+
             if self.chat_id is None:
                 self.chat_id = self.controller.create_call_chat()
             streaming_text = ""
@@ -951,7 +1176,8 @@ class CallPanel(Gtk.Box):
             def on_tool_result_callback(tool_name, result):
                 tool_output = result.get_output() if result else "Tool executed"
                 GLib.idle_add(
-                    self._add_message_to_history,
+                    self._add_message_to_history_if_current,
+                    call_generation,
                     "Tool",
                     f"[{tool_name}] {tool_output[:300]}",
                     False
@@ -971,11 +1197,16 @@ class CallPanel(Gtk.Box):
             finally:
                 self.controller.is_call_request = False
 
-            if response:
-                GLib.idle_add(self._add_message_to_history, self.profile_name, response, False)
-                if self.call_active:
-                    response = clean_message_tts(response) 
-                    self._play_tts(response)
+            if response and self._is_current_call(call_generation):
+                GLib.idle_add(
+                    self._add_message_to_history_if_current,
+                    call_generation,
+                    self.profile_name,
+                    response,
+                    False,
+                )
+                response = clean_message_tts(response)
+                self._play_tts(response, call_generation)
 
         except Exception as e:
             import traceback
@@ -984,7 +1215,8 @@ class CallPanel(Gtk.Box):
             # Ensure flag is reset
             self.controller.is_call_request = False
             GLib.idle_add(
-                self._add_message_to_history,
+                self._add_message_to_history_if_current,
+                call_generation,
                 "System",
                 _("Error getting response. Please try again."),
                 True
@@ -999,9 +1231,9 @@ class CallPanel(Gtk.Box):
         response = remove_emoji(response) 
         return response.strip()
     
-    def _play_tts(self, text):
+    def _play_tts(self, text, call_generation):
         """Play TTS for the response"""
-        if not text or not self.call_active:
+        if not text or not self._is_current_call(call_generation):
             return
 
         tts = self.controller.handlers.tts
@@ -1009,12 +1241,18 @@ class CallPanel(Gtk.Box):
             return
 
         def on_tts_start():
-            if self.call_active:
-                GLib.idle_add(self._set_assistant_speaking, True)
+            GLib.idle_add(
+                self._set_assistant_speaking,
+                call_generation,
+                True,
+            )
 
         def on_tts_stop():
-            if self.call_active:
-                GLib.idle_add(self._set_assistant_speaking, False)
+            GLib.idle_add(
+                self._set_assistant_speaking,
+                call_generation,
+                False,
+            )
 
         tts.connect("start", on_tts_start)
         tts.connect("stop", on_tts_stop)
@@ -1025,16 +1263,34 @@ class CallPanel(Gtk.Box):
             import traceback
             print(f"TTS error: {e}")
             print(traceback.format_exc())
-            GLib.idle_add(self._set_assistant_speaking, False)
+            GLib.idle_add(
+                self._set_assistant_speaking,
+                call_generation,
+                False,
+            )
     
-    def _set_assistant_speaking(self, speaking):
+    def _set_assistant_speaking(self, call_generation, speaking):
         """Update assistant speaking state"""
+        if not self._is_current_call(call_generation):
+            return
+
         self.assistant_speaking = speaking
         self._update_activity_indicator()
         if speaking:
             self.avatar_ring.add_css_class("call-avatar-ring-speaking")
         else:
             self.avatar_ring.remove_css_class("call-avatar-ring-speaking")
+
+    def _add_message_to_history_if_current(
+        self,
+        call_generation,
+        sender,
+        text,
+        is_error=False,
+    ):
+        """Add a transcript entry only for the currently active call."""
+        if self._is_current_call(call_generation):
+            self._add_message_to_history(sender, text, is_error)
     
     def _add_message_to_history(self, sender, text, is_error=False):
         """Add a message to the chat history panel"""
