@@ -7,7 +7,7 @@ Prompt text can additionally be replaced for the lifetime of the mode.
 
 import gettext
 
-from gi.repository import Gtk, Adw
+from gi.repository import Gtk, Adw, Gdk
 
 from ...modes import (
     DEFAULT_MODE_NAME,
@@ -20,19 +20,46 @@ from .multiline import MultilineEntry
 
 _ = gettext.gettext
 
-# Curated set of symbolic icons offered in the icon picker. All are standard
-# GTK/libadwaita symbolics that ship with the icon theme.
+# Curated set of symbolic icons offered in the icon picker. These are filtered
+# at runtime through the icon theme so only those that actually ship with the
+# current Adwaita/system theme are shown.
 MODE_ICON_CHOICES = [
+    # Identity / communication
     "user-available-symbolic",
-    "document-edit-symbolic",
-    "brain-augemnted-symbolic",
-    "system-search-symbolic",
-    "code-symbolic",
-    "applications-science-symbolic",
+    "user-idle-symbolic",
+    "chat-bubbles-text-symbolic",
     "chat-symbolic",
+    "mail-unread-symbolic",
+    "emblem-favorite-symbolic",
+    "face-smile-symbolic",
+    # Editing / writing
+    "document-edit-symbolic",
+    "document-open-symbolic",
+    "text-x-generic-symbolic",
+    "edit-symbolic",
+    # Thinking / ideas
+    "brain-augemnted-symbolic",
     "emoji-objects-symbolic",
     "lightbulb-symbolic",
+    "magic-wand-symbolic",
+    "starred-symbolic",
+    "bookmark-symbolic",
+    # Search / science / system
+    "system-search-symbolic",
+    "applications-science-symbolic",
+    "skills-symbolic",
+    "preferences-system-symbolic",
     "system-run-symbolic",
+    "utilities-terminal-symbolic",
+    # Code / media
+    "code-symbolic",
+    "media-playback-start-symbolic",
+    "audio-x-generic-symbolic",
+    "video-x-generic-symbolic",
+    "image-x-generic-symbolic",
+    "camera-photo-symbolic",
+    # Misc
+    "help-browser-symbolic",
     DEFAULT_MODE_ICON,
 ]
 
@@ -83,7 +110,7 @@ class ModeEditorDialog(Adw.PreferencesDialog):
         )
         self.tools_page = self._add_page(_("Tools"), "tools-symbolic", "tools")
         self.skills_page = self._add_page(
-            _("Skills"), "emoji-actions-symbolic", "skills"
+            _("Skills"), "skills-symbolic", "skills"
         )
 
         self._build_identity_group()
@@ -128,32 +155,56 @@ class ModeEditorDialog(Adw.PreferencesDialog):
         group.add(desc_row)
 
         icon_row = Adw.ActionRow(title=_("Icon"))
-        self.icon_box = Gtk.Box(
-            orientation=Gtk.Orientation.HORIZONTAL,
-            spacing=6,
-            halign=Gtk.Align.END,
-        )
         self.icon_buttons = []
-        group_leader = None
-        for icon_name in MODE_ICON_CHOICES:
+        self.icon_flow = Gtk.FlowBox(
+            max_children_per_line=8,
+            min_children_per_line=6,
+            selection_mode=Gtk.SelectionMode.NONE,
+            homogeneous=True,
+            row_spacing=4,
+            column_spacing=4,
+        )
+
+        # Only show icons that exist in the current icon theme (Adwaita/system).
+        icon_theme = Gtk.IconTheme.get_for_display(Gdk.Display.get_default())
+        current = self._working["icon"] or DEFAULT_MODE_ICON
+        available_icons = [n for n in MODE_ICON_CHOICES if icon_theme.has_icon(n)]
+        if current and current not in available_icons and icon_theme.has_icon(current):
+            available_icons.insert(0, current)
+        if not available_icons:
+            available_icons = [DEFAULT_MODE_ICON]
+
+        for icon_name in available_icons:
             button = Gtk.ToggleButton(
-                css_classes=["flat"],
-                tooltip_text=icon_name,
+                css_classes=["flat", "circular", "mode-icon-picker-btn"],
+                tooltip_text=icon_name.replace("-symbolic", "").replace("-", " ").title(),
             )
-            button.set_child(Gtk.Image(icon_name=icon_name, pixel_size=18))
-            if group_leader is None:
-                group_leader = button
-            else:
-                button.set_group(group_leader)
-            handler_id = button.connect(
-                "toggled", self._on_icon_toggled, icon_name
-            )
-            button._toggled_hid = handler_id
+            button.set_child(Gtk.Image.new_from_icon_name(icon_name))
+            if icon_name == current:
+                button.set_active(True)
+
+            def on_toggled(b, name=icon_name):
+                if b.get_active():
+                    self._working["icon"] = name
+                    for other in self.icon_buttons:
+                        if other is not b:
+                            other.set_active(False)
+                elif not any(ob.get_active() for ob in self.icon_buttons):
+                    b.set_active(True)
+
+            button.connect("toggled", on_toggled)
             self.icon_buttons.append(button)
-            self.icon_box.append(button)
-        icon_row.add_suffix(self.icon_box)
+            self.icon_flow.append(button)
+
+        icon_scroll = Gtk.ScrolledWindow(
+            hscrollbar_policy=Gtk.PolicyType.NEVER,
+            vscrollbar_policy=Gtk.PolicyType.AUTOMATIC,
+            min_content_height=120,
+            max_content_height=200,
+        )
+        icon_scroll.set_child(self.icon_flow)
+        icon_row.add_suffix(icon_scroll)
         group.add(icon_row)
-        self._sync_icon_toggles()
 
     # ------------------------------------------------------------------ #
     # Prompt state and text overrides
@@ -427,7 +478,7 @@ class ModeEditorDialog(Adw.PreferencesDialog):
                 self._build_state_row(
                     title=skill.name,
                     subtitle=skill.description,
-                    icon_name="emoji-actions-symbolic",
+                    icon_name="skills-symbolic",
                     control=control,
                 )
             )
@@ -452,7 +503,7 @@ class ModeEditorDialog(Adw.PreferencesDialog):
         control.add_css_class("state-toggle-group")
         control.set_valign(Gtk.Align.CENTER)
         for value, label, icon_name, style_class in (
-            (NO_CHANGE, _("No change"), "go-jump-symbolic", "dim-label"),
+            (NO_CHANGE, _("No change"), "edit-undo-symbolic", "dim-label"),
             (ENABLE, _("Enable"), "object-select-symbolic", "success"),
             (REMOVE, _("Disable"), "circle-crossed-symbolic", "error"),
         ):
@@ -508,20 +559,6 @@ class ModeEditorDialog(Adw.PreferencesDialog):
 
     def _on_desc_changed(self, row):
         self._working["description"] = row.get_text()
-
-    def _on_icon_toggled(self, button, icon_name):
-        if button.get_active():
-            self._working["icon"] = icon_name
-
-    def _sync_icon_toggles(self):
-        current = self._working["icon"] or DEFAULT_MODE_ICON
-        for button, icon_name in zip(self.icon_buttons, MODE_ICON_CHOICES):
-            handler_id = getattr(button, "_toggled_hid", None)
-            if handler_id is not None:
-                button.handler_block(handler_id)
-            button.set_active(icon_name == current)
-            if handler_id is not None:
-                button.handler_unblock(handler_id)
 
     # ------------------------------------------------------------------ #
     # Save / delete

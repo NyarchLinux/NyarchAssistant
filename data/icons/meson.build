@@ -47,6 +47,7 @@ install_data (
     'extension-symbolic.svg',
     'list-drag-handle-symbolic.svg',
     'folder-visiting-symbolic.svg',
+    'edit-undo-symbolic.svg',
     install_dir: symbolic_dir
 )
 install_data (

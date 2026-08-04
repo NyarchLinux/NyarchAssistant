@@ -176,6 +176,16 @@ class MyApp(Adw.Application):
           background-color: alpha(@accent_bg_color, 0.25);
         }
 
+        .mode-icon-picker-btn {
+          min-width: 36px;
+          min-height: 36px;
+          padding: 4px;
+        }
+
+        .mode-icon-picker-btn:checked {
+          background-color: alpha(@accent_bg_color, 0.25);
+        }
+
         .unfolder-drop-area {
           border-radius: 6px;
         }
