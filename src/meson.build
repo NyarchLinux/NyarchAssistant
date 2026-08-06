@@ -72,6 +72,7 @@ ui_sources = [
   'ui/stdout_monitor.py',
   'ui/model_library.py',
   'ui/mcp_catalog.py',
+  'ui/skills_catalog.py',
   'ui/extra_settings.py',
   'ui/interfaces.py',
 ]

@@ -1489,11 +1489,49 @@ class Settings(Adw.Window):
         if self.skills_page_initialized:
             return
         self.skills_page_initialized = True
+
+        self.skills_marketplace_initialized = False
+        self.skills_tabs_group = Adw.PreferencesGroup()
+        self.skills_tabs_box = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=18,
+        )
+        self.skills_view_stack = Adw.ViewStack(vhomogeneous=False)
+        self.skills_view_stack.connect(
+            "notify::visible-child-name",
+            self._on_skills_tab_changed,
+        )
+
+        self.installed_skills_page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.marketplace_skills_page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.skills_view_stack.add_titled_with_icon(
+            self.installed_skills_page,
+            name="installed",
+            title=_("Installed"),
+            icon_name="skills-symbolic",
+        )
+        self.skills_view_stack.add_titled_with_icon(
+            self.marketplace_skills_page,
+            name="marketplace",
+            title=_("Marketplace"),
+            icon_name="folder-download-symbolic",
+        )
+
+        self.skills_view_switcher = Adw.ViewSwitcher(
+            stack=self.skills_view_stack,
+            policy=Adw.ViewSwitcherPolicy.WIDE,
+            halign=Gtk.Align.CENTER,
+        )
+        self.skills_tabs_box.append(self.skills_view_switcher)
+        self.skills_tabs_box.append(self.skills_view_stack)
+        self.skills_tabs_group.add(self.skills_tabs_box)
+        self.SkillsPage.add(self.skills_tabs_group)
+
         self.skills_group = Adw.PreferencesGroup(
-            title=_("Skills"),
+            title=_("Installed Skills"),
             description=_("Manage Agent Skills (SKILL.md files)")
         )
-        self.SkillsPage.add(self.skills_group)
+        self.installed_skills_page.append(self.skills_group)
 
         actions_row = Adw.ActionRow(title=_("Skills folder"), subtitle=self.controller.skills_path)
         open_button = Gtk.Button(icon_name="folder-symbolic", valign=Gtk.Align.CENTER, css_classes=["flat"])
@@ -1515,6 +1553,28 @@ class Settings(Adw.Window):
 
         self.skills_rows = []
         self.refresh_skills_list()
+        self.skills_view_stack.set_visible_child_name("installed")
+
+    def _on_skills_tab_changed(self, stack, _pspec):
+        if (
+            stack.get_visible_child_name() != "marketplace"
+            or self.skills_marketplace_initialized
+        ):
+            return
+        self.skills_marketplace_initialized = True
+        from .skills_catalog import SkillsCatalogView
+
+        self.skills_catalog_group = Adw.PreferencesGroup(
+            title=_("Skills Marketplace"),
+            description=_("Search and install community skills from SkillsMP"),
+        )
+        self.skills_catalog = SkillsCatalogView(
+            parent=self,
+            controller=self.controller,
+            on_installed=self._on_catalog_skill_installed,
+        )
+        self.skills_catalog_group.add(self.skills_catalog)
+        self.marketplace_skills_page.append(self.skills_catalog_group)
 
     def refresh_skills_list(self):
         for row in self.skills_rows:
@@ -1529,7 +1589,7 @@ class Settings(Adw.Window):
 
     def _create_skill_row(self, skill):
         row = Adw.ExpanderRow(title=skill.name, subtitle=skill.description)
-        icon = Gtk.Image(icon_name="skills-symbolic", css_classes=["dim-label"])
+        icon = Gtk.Image(icon_name="emblem-default-symbolic", css_classes=["dim-label"])
         row.add_prefix(icon)
 
         toggle = Gtk.Switch(valign=Gtk.Align.CENTER)
@@ -1540,13 +1600,17 @@ class Settings(Adw.Window):
         info_row = Adw.ActionRow(title=_("Location"), subtitle=skill.location)
         row.add_row(info_row)
 
-        resource_count = len(self.controller.skill_manager._list_resources(skill.base_dir))
-        if resource_count > 0:
-            res_row = Adw.ActionRow(
-                title=_("Bundled resources"),
-                subtitle=str(resource_count) + " " + (_("files") if resource_count != 1 else _("file"))
-            )
-            row.add_row(res_row)
+        resource_row = Adw.ActionRow(
+            title=_("Bundled resources"),
+            subtitle=_("Expand to count files"),
+        )
+        row.add_row(resource_row)
+        row.connect(
+            "notify::expanded",
+            self._on_skill_row_expanded,
+            skill,
+            resource_row,
+        )
 
         remove_row = Adw.ActionRow(title=_("Remove skill"))
         remove_button = Gtk.Button(label=_("Remove"), valign=Gtk.Align.CENTER, css_classes=["destructive-action"])
@@ -1555,6 +1619,27 @@ class Settings(Adw.Window):
         row.add_row(remove_row)
 
         return row
+
+    def _on_skill_row_expanded(self, row, _pspec, skill, resource_row):
+        if not row.get_expanded() or getattr(row, "_resources_loading", False):
+            return
+        row._resources_loading = True
+        resource_row.set_subtitle(_("Counting files…"))
+
+        def worker():
+            count = len(self.controller.skill_manager._list_resources(skill.base_dir))
+            GLib.idle_add(self._finish_skill_resource_count, resource_row, count)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _finish_skill_resource_count(self, resource_row, count):
+        resource_row.set_subtitle(
+            str(count) + " " + (_("files") if count != 1 else _("file"))
+        )
+        return False
+
+    def _on_catalog_skill_installed(self):
+        self.refresh_skills_list()
 
     def _on_skill_toggled(self, switch, state, skill_name):
         self.controller.skill_manager.set_skill_enabled(skill_name, state)
