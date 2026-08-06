@@ -254,12 +254,16 @@ class SkillCreatorView(Gtk.Box):
         controller,
         on_saved=None,
         on_open_window=None,
+        on_path_changed=None,
+        on_context_changed=None,
     ):
         super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=18)
         self.host = host
         self.controller = controller
         self.on_saved = on_saved
         self.on_open_window = on_open_window
+        self.on_path_changed = on_path_changed
+        self.on_context_changed = on_context_changed
         self._preview_source_id = None
         self._editing_path = None
         self._draft_folder_path = None
@@ -280,6 +284,73 @@ class SkillCreatorView(Gtk.Box):
 
     def set_open_window_callback(self, callback):
         self.on_open_window = callback
+
+    def get_context_path(self):
+        """Return the concrete or expected skill folder represented by the draft."""
+        for path in (
+            self._editing_path,
+            self._draft_folder_path,
+            self._last_created_path,
+        ):
+            if path:
+                return os.path.abspath(path)
+        try:
+            name = validate_skill_name(self.name_row.get_text())
+        except SkillCreationError:
+            return os.path.abspath(self.controller.skills_path)
+        return os.path.abspath(os.path.join(self.controller.skills_path, name))
+
+    def _notify_path_changed(self):
+        if self.on_path_changed is not None:
+            self.on_path_changed(self.get_context_path())
+
+    def _notify_context_changed(self):
+        if self.on_context_changed is not None:
+            self.on_context_changed()
+
+    def get_context_snapshot(self):
+        """Return the live, potentially unsaved editor state as plain data."""
+        instructions = self._instructions()
+        metadata = [
+            "---",
+            f"name: {json.dumps(self.name_row.get_text(), ensure_ascii=False)}",
+            "description: "
+            + json.dumps(self.description_row.get_text(), ensure_ascii=False),
+        ]
+        compatibility = self.compatibility_row.get_text()
+        if compatibility:
+            metadata.append(
+                "compatibility: " + json.dumps(compatibility, ensure_ascii=False)
+            )
+        metadata.extend(("---", ""))
+        document = "\n".join(metadata) + instructions
+
+        selection_text = ""
+        selection = self.editor_buffer.get_selection_bounds()
+        if selection:
+            selection_start, selection_end = selection[-2:]
+            selection_text = self.editor_buffer.get_text(
+                selection_start,
+                selection_end,
+                True,
+            )
+
+        cursor = self.editor_buffer.get_iter_at_mark(
+            self.editor_buffer.get_insert()
+        )
+        return {
+            "path": self.get_context_path(),
+            "name": self.name_row.get_text(),
+            "description": self.description_row.get_text(),
+            "compatibility": compatibility,
+            "document": document,
+            "dirty": self.has_unsaved_changes(),
+            "validation": self.validation_label.get_text(),
+            "cursor_line": cursor.get_line() + 1,
+            "cursor_column": cursor.get_line_offset() + 1,
+            "selection": selection_text,
+            "preview_visible": self.preview_toggle.get_active(),
+        }
 
     def _toast(self, title):
         if self.host is not None and hasattr(self.host, "add_toast"):
@@ -405,6 +476,7 @@ class SkillCreatorView(Gtk.Box):
             self.editor_buffer.set_language(language)
         self.editor_buffer.set_highlight_syntax(True)
         self.editor_buffer.connect("changed", self._on_instructions_changed)
+        self.editor_buffer.connect("mark-set", self._on_editor_mark_set)
         self._setup_editor_theme()
 
         self.editor_view = GtkSource.View(buffer=self.editor_buffer)
@@ -622,6 +694,8 @@ class SkillCreatorView(Gtk.Box):
         self.new_draft_button.set_visible(False)
         self.save_button.set_label(_("Create Skill"))
         self._update_form_state()
+        self._notify_path_changed()
+        self._notify_context_changed()
 
     def load_skill(self, skill):
         """Load an installed skill for editing without copying its resources."""
@@ -650,6 +724,8 @@ class SkillCreatorView(Gtk.Box):
         self.destination_row.set_subtitle(self._editing_path)
         self.new_draft_button.set_visible(True)
         self._update_form_state()
+        self._notify_path_changed()
+        self._notify_context_changed()
         return True
 
     def has_unsaved_changes(self):
@@ -667,28 +743,44 @@ class SkillCreatorView(Gtk.Box):
             self._instructions().strip() != STARTER_INSTRUCTIONS.strip(),
         ))
 
-    def _on_new_draft(self, _button):
+    def new_draft(self):
+        """Start a fresh draft while leaving any prepared folder on disk."""
         kept_folder = self._draft_folder_path
         self._reset_draft()
         self.name_row.grab_focus()
         if kept_folder and os.path.isdir(kept_folder):
             self._toast(_("Draft folder kept at {}").format(kept_folder))
 
+    def _on_new_draft(self, _button):
+        self.new_draft()
+
     def _on_draft_changed(self, _row):
         if self._suspend_changes:
             return
         self._update_form_state()
+        self._notify_path_changed()
+        self._notify_context_changed()
 
     def _on_instructions_changed(self, _buffer):
         if self._suspend_changes:
             return
         self._update_form_state()
+        self._notify_context_changed()
         if self._preview_source_id is not None:
             GLib.source_remove(self._preview_source_id)
         self._preview_source_id = GLib.timeout_add(
             PREVIEW_DEBOUNCE_MS,
             self._render_preview,
         )
+
+    def _on_editor_mark_set(self, _buffer, _location, mark):
+        if self._suspend_changes:
+            return
+        if mark in (
+            self.editor_buffer.get_insert(),
+            self.editor_buffer.get_selection_bound(),
+        ):
+            self._notify_context_changed()
 
     def _update_folder_button(self):
         creating = self._editing_path is None and self._draft_folder_path is None
@@ -802,6 +894,7 @@ class SkillCreatorView(Gtk.Box):
             if visible
             else _("Show Markdown preview")
         )
+        self._notify_context_changed()
 
     def _on_open_window(self, _button):
         if self.on_open_window is not None:
@@ -838,6 +931,8 @@ class SkillCreatorView(Gtk.Box):
         self.destination_row.set_subtitle(destination)
         self.new_draft_button.set_visible(True)
         self._update_form_state()
+        self._notify_path_changed()
+        self._notify_context_changed()
         self._toast(_("Skill folder created. You can keep editing."))
 
     def _on_save(self, _button):
@@ -876,6 +971,8 @@ class SkillCreatorView(Gtk.Box):
         self.destination_row.set_subtitle(destination)
         self.new_draft_button.set_visible(True)
         self._update_form_state()
+        self._notify_path_changed()
+        self._notify_context_changed()
         if self.on_saved is not None:
             self.on_saved()
         self._toast(toast_title.format(self.name_row.get_text().strip()))

@@ -52,6 +52,7 @@ integrations_sources = [
   'integrations/mcp_oauth.py',
   'integrations/default_tools.py',
   'integrations/skills.py',
+  'integrations/skill_editor.py',
   'integrations/agent_tools.py',
   'integrations/file_editing.py',
   'integrations/todo_list.py'
@@ -109,6 +110,7 @@ widgets_sources = [
   'ui/widgets/code_editor.py',
   'ui/widgets/tool.py',
   'ui/widgets/skill.py',
+  'ui/widgets/skill_editor_mini_app.py',
   'ui/widgets/subagent.py',
   'ui/widgets/scheduled_task.py',
   'ui/widgets/message.py',

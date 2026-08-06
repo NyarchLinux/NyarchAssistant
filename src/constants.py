@@ -20,11 +20,12 @@ from .integrations.agent_tools import AgentToolsIntegration
 from .integrations.file_editing import FileEditingIntegration
 from .integrations.todo_list import TodoListIntegration
 from .integrations.mermaid import MermaidIntegration
+from .integrations.skill_editor import SkillEditorIntegration
 
 DIR_NAME = "Newelle"
 SCHEMA_ID = 'io.github.qwersyk.Newelle'
 
-AVAILABLE_INTEGRATIONS = [WebsiteReader, WebsearchIntegration, MermaidIntegration, MCPIntegration, SkillsIntegration, DefaultToolsIntegration, AgentToolsIntegration, FileEditingIntegration, TodoListIntegration]
+AVAILABLE_INTEGRATIONS = [WebsiteReader, WebsearchIntegration, MermaidIntegration, MCPIntegration, SkillsIntegration, SkillEditorIntegration, DefaultToolsIntegration, AgentToolsIntegration, FileEditingIntegration, TodoListIntegration]
 
 AVAILABLE_IMAGE_GENERATORS = {
     "stablediffusioncpp": {

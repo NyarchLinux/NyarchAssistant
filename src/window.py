@@ -418,6 +418,7 @@ class MainWindow(Adw.ApplicationWindow):
             (_("Start Call"), "call-start-symbolic", self.start_call_tab),
             (_("Image Generator"), "insert-image-symbolic", self.add_image_generator_tab),
         ]
+        menu_entries += self.controller.integrationsloader.get_add_tab_buttons()
         menu_entries += self.extensionloader.get_add_tab_buttons()
         
         # Create custom popover with ListBox
