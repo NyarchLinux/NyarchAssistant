@@ -44,7 +44,11 @@ def parse_frontmatter(text):
         key = line[:colon_idx].strip()
         value = line[colon_idx + 1:].strip()
         if value.startswith('"') and value.endswith('"'):
-            value = value[1:-1]
+            try:
+                decoded = json.loads(value)
+                value = decoded if isinstance(decoded, str) else value[1:-1]
+            except json.JSONDecodeError:
+                value = value[1:-1]
         elif value.startswith("'") and value.endswith("'"):
             value = value[1:-1]
         if key:

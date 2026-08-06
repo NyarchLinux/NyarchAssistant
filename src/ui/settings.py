@@ -5,6 +5,7 @@ import shutil
 import json
 import time
 import traceback
+import weakref
 from subprocess import Popen 
 
 from gi.repository import Gtk, Adw, Gio, GLib, GObject, Gdk, GtkSource
@@ -1491,6 +1492,7 @@ class Settings(Adw.Window):
         self.skills_page_initialized = True
 
         self.skills_marketplace_initialized = False
+        self.skills_creator_initialized = False
         self.skills_tabs_group = Adw.PreferencesGroup()
         self.skills_tabs_box = Gtk.Box(
             orientation=Gtk.Orientation.VERTICAL,
@@ -1504,6 +1506,7 @@ class Settings(Adw.Window):
 
         self.installed_skills_page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.marketplace_skills_page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.create_skills_page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         self.skills_view_stack.add_titled_with_icon(
             self.installed_skills_page,
             name="installed",
@@ -1515,6 +1518,12 @@ class Settings(Adw.Window):
             name="marketplace",
             title=_("Marketplace"),
             icon_name="folder-download-symbolic",
+        )
+        self.skills_view_stack.add_titled_with_icon(
+            self.create_skills_page,
+            name="create",
+            title=_("Create"),
+            icon_name="document-edit-symbolic",
         )
 
         self.skills_view_switcher = Adw.ViewSwitcher(
@@ -1556,25 +1565,145 @@ class Settings(Adw.Window):
         self.skills_view_stack.set_visible_child_name("installed")
 
     def _on_skills_tab_changed(self, stack, _pspec):
-        if (
-            stack.get_visible_child_name() != "marketplace"
-            or self.skills_marketplace_initialized
-        ):
-            return
-        self.skills_marketplace_initialized = True
-        from .skills_catalog import SkillsCatalogView
+        visible_page = stack.get_visible_child_name()
+        if visible_page == "marketplace" and not self.skills_marketplace_initialized:
+            self.skills_marketplace_initialized = True
+            from .skills_catalog import SkillsCatalogView
 
-        self.skills_catalog_group = Adw.PreferencesGroup(
-            title=_("Skills Marketplace"),
-            description=_("Search and install community skills from SkillsMP"),
-        )
-        self.skills_catalog = SkillsCatalogView(
-            parent=self,
+            self.skills_catalog_group = Adw.PreferencesGroup(
+                title=_("Skills Marketplace"),
+                description=_("Search and install community skills from SkillsMP"),
+            )
+            self.skills_catalog = SkillsCatalogView(
+                parent=self,
+                controller=self.controller,
+                on_installed=self._on_catalog_skill_installed,
+            )
+            self.skills_catalog_group.add(self.skills_catalog)
+            self.marketplace_skills_page.append(self.skills_catalog_group)
+        elif visible_page == "create" and not self.skills_creator_initialized:
+            self._ensure_skill_creator()
+
+    def _make_weak_skills_refresh_callback(self):
+        settings_ref = weakref.ref(self)
+
+        def refresh_if_open():
+            settings = settings_ref()
+            if settings is not None and settings.get_visible():
+                settings.refresh_skills_list()
+
+        return refresh_if_open
+
+    def _ensure_skill_creator(self):
+        if self.skills_creator_initialized:
+            return self.skills_creator
+        self.skills_creator_initialized = True
+        from .skill_creator import SkillCreatorView
+
+        self.skills_creator = SkillCreatorView(
+            host=self,
             controller=self.controller,
-            on_installed=self._on_catalog_skill_installed,
+            on_saved=self._make_weak_skills_refresh_callback(),
+            on_open_window=self._on_open_skill_creator_window,
         )
-        self.skills_catalog_group.add(self.skills_catalog)
-        self.marketplace_skills_page.append(self.skills_catalog_group)
+        self.create_skills_page.append(self.skills_creator)
+        return self.skills_creator
+
+    def _register_skill_editor_window(self):
+        self._open_skill_editor_count = (
+            getattr(self, "_open_skill_editor_count", 0) + 1
+        )
+        self.set_modal(False)
+        settings_ref = weakref.ref(self)
+
+        def editor_closed():
+            settings = settings_ref()
+            if settings is None:
+                return
+            settings._open_skill_editor_count = max(
+                0,
+                getattr(settings, "_open_skill_editor_count", 1) - 1,
+            )
+            if settings._open_skill_editor_count == 0 and settings.get_visible():
+                settings.set_modal(True)
+
+        return editor_closed
+
+    def _on_open_skill_creator_window(self, editor):
+        from .skill_creator import SkillEditorWindow
+
+        self.create_skills_page.remove(editor)
+        editor.set_open_window_callback(None)
+
+        placeholder = Adw.PreferencesGroup()
+        placeholder_row = Adw.ActionRow(
+            title=_("Skill editor is open in another window"),
+            subtitle=_("The editor keeps working if you close Settings."),
+        )
+        placeholder_row.add_prefix(
+            Gtk.Image(icon_name="document-edit-symbolic")
+        )
+        present_button = Gtk.Button(
+            label=_("Show Editor"),
+            icon_name="window-new-symbolic",
+            valign=Gtk.Align.CENTER,
+            css_classes=["suggested-action"],
+        )
+        placeholder_row.add_suffix(present_button)
+        placeholder.add(placeholder_row)
+        self.skill_creator_placeholder = placeholder
+        self.create_skills_page.append(placeholder)
+
+        settings_ref = weakref.ref(self)
+
+        def return_editor(returned_editor):
+            settings = settings_ref()
+            if settings is None or not settings.get_visible():
+                return False
+            settings._reattach_skill_creator(returned_editor)
+            return True
+
+        window = SkillEditorWindow(
+            application=self.app,
+            editor=editor,
+            return_editor=return_editor,
+            on_closed=self._register_skill_editor_window(),
+        )
+        self.skill_editor_window = window
+        present_button.connect("clicked", lambda _button: window.present())
+        window.present()
+
+    def _reattach_skill_creator(self, editor):
+        placeholder = getattr(self, "skill_creator_placeholder", None)
+        if placeholder is not None and placeholder.get_parent() is not None:
+            self.create_skills_page.remove(placeholder)
+        editor.set_host(self)
+        editor.set_windowed(False)
+        editor.set_open_window_callback(self._on_open_skill_creator_window)
+        self.create_skills_page.append(editor)
+        self.skills_creator = editor
+        self.skill_editor_window = None
+        self.refresh_skills_list()
+
+    def _on_edit_skill_clicked(self, _button, skill):
+        from .skill_creator import SkillCreatorView, SkillEditorWindow
+
+        editor = SkillCreatorView(
+            host=None,
+            controller=self.controller,
+            on_saved=self._make_weak_skills_refresh_callback(),
+        )
+        window = SkillEditorWindow(
+            application=self.app,
+            editor=editor,
+            on_closed=self._register_skill_editor_window(),
+            title=_("Edit {}").format(skill.name),
+        )
+        if editor.load_skill(skill):
+            window.present()
+        else:
+            window.close()
+            self.add_toast(Adw.Toast(title=_("Could not open skill for editing")))
 
     def refresh_skills_list(self):
         for row in self.skills_rows:
@@ -1589,7 +1718,7 @@ class Settings(Adw.Window):
 
     def _create_skill_row(self, skill):
         row = Adw.ExpanderRow(title=skill.name, subtitle=skill.description)
-        icon = Gtk.Image(icon_name="emblem-default-symbolic", css_classes=["dim-label"])
+        icon = Gtk.Image(icon_name="skills-symbolic", css_classes=["dim-label"])
         row.add_prefix(icon)
 
         toggle = Gtk.Switch(valign=Gtk.Align.CENTER)
@@ -1598,6 +1727,26 @@ class Settings(Adw.Window):
         row.add_suffix(toggle)
 
         info_row = Adw.ActionRow(title=_("Location"), subtitle=skill.location)
+        edit_button = Gtk.Button(
+            label=_("Edit"),
+            icon_name="document-edit-symbolic",
+            valign=Gtk.Align.CENTER,
+            css_classes=["flat"],
+        )
+        edit_button.set_tooltip_text(_("Edit skill"))
+        edit_button.connect("clicked", self._on_edit_skill_clicked, skill)
+        info_row.add_suffix(edit_button)
+        open_button = Gtk.Button(
+            icon_name="folder-visiting-symbolic",
+            valign=Gtk.Align.CENTER,
+            css_classes=["flat"],
+        )
+        open_button.set_tooltip_text(_("Open skill folder"))
+        open_button.connect(
+            "clicked",
+            lambda _button, path=skill.base_dir: open_folder(path),
+        )
+        info_row.add_suffix(open_button)
         row.add_row(info_row)
 
         resource_row = Adw.ActionRow(
