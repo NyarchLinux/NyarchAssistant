@@ -11,7 +11,10 @@ import uuid
 from datetime import datetime, timezone
 from typing import Union
 
+from gi.repository import GLib
+
 from ...utility import convert_messages_openai_to_newelle, parse_tool_calls_from_assistant_content
+from ...utility.system import is_flatpak
 from ..extra_settings import ExtraSettings
 from .chat_interface import ChatInterface
 
@@ -48,7 +51,18 @@ class APIInterface(ChatInterface):
     # Single source of truth for the on-disk log location. Used both as the
     # EntrySetting default (so the UI shows the value) and as the fallback in
     # _resolve_log_file_path() (so an empty user value still resolves sanely).
-    _DEFAULT_LOG_FILE_PATH = "~/.local/share/io.github.qwersyk.Newelle/api_logs.jsonl"
+    # Mirrors controller.init_paths(): under Flatpak GLib already returns the
+    # sandboxed data dir (~/.var/app/io.github.qwersyk.Newelle/data), and we do
+    # NOT append the app folder in that case; on native builds we append
+    # "Newelle" so logs live with the rest of the app data (~/.local/share/Newelle).
+    _LOG_FILE_NAME = "api_logs.jsonl"
+
+    @staticmethod
+    def _default_log_file_path() -> str:
+        data_dir = GLib.get_user_data_dir()
+        if not is_flatpak():
+            data_dir = os.path.join(data_dir, "Newelle")
+        return os.path.join(data_dir, "api_logs.jsonl")
 
     def get_extra_settings(self) -> list:
         return [
@@ -77,20 +91,20 @@ class APIInterface(ChatInterface):
             ExtraSettings.ToggleSetting(
                 key="log_requests",
                 title=_("Enable API logging"),
-                description=_("Log every API request and response to stdout, including the system prompt, full chat history, and the generated assistant message. Useful for debugging clients and replaying conversations."),
+                description=_("Log each request and response to stdout."),
                 default=False,
             ),
             ExtraSettings.ToggleSetting(
                 key="log_to_file",
                 title=_("Save API logs to a JSON file"),
-                description=_("Append every API request and response (system prompt, full chat history, generated message) to a newline-delimited JSON (.jsonl) file. The file grows unbounded — rotate it externally if needed."),
+                description=_("Append each request and response to a .jsonl file."),
                 default=False,
             ),
             ExtraSettings.EntrySetting(
                 key="log_file_path",
                 title=_("Log file path"),
-                description=_("Filesystem path for the NDJSON log file. ~ expands to your home directory; the parent folder is created on demand. Default: XDG data dir (Linux), home (macOS/Windows)."),
-                default=self._DEFAULT_LOG_FILE_PATH,
+                description=_("Path for the .jsonl log. ~ expands to home; the folder is created on demand."),
+                default=self._default_log_file_path(),
             ),
         ]
 
@@ -113,15 +127,16 @@ class APIInterface(ChatInterface):
     def _resolve_log_file_path(self) -> str:
         """Return the configured NDJSON log file path, expanding `~`.
 
-        Always returns the class-level default if the user value is blank,
+        Always returns the Flatpak-aware default if the user value is blank,
         so callers can rely on receiving a non-empty string.
         """
+        default = self._default_log_file_path()
         raw = self.get_setting(
             "log_file_path",
             search_default=True,
-            return_value=self._DEFAULT_LOG_FILE_PATH,
+            return_value=default,
         )
-        cleaned = (raw or "").strip() or self._DEFAULT_LOG_FILE_PATH
+        cleaned = (raw or "").strip() or default
         return os.path.expanduser(cleaned)
 
     def _ensure_log_writer_thread(self) -> "queue.Queue":
