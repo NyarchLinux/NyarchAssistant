@@ -482,6 +482,23 @@ class Message(Gtk.Box):
             if needs_citation_widget:
                 return False
             return isinstance(widget, Gtk.Label)
+        if w_type in ("latex", "latex_inline"):
+            # A completed equation does not change when later streaming tokens
+            # are appended. Keep its rendered canvas instead of replacing it
+            # (and briefly showing its asynchronous placeholder) on every
+            # update after the equation.
+            return (
+                isinstance(widget, DisplayLatex)
+                and widget.latex == new_chunk.text
+            )
+        if w_type == "inline_chunks":
+            # Inline equations live inside a TextView child anchor. The
+            # surrounding markup can be updated while reusing those equation
+            # widgets, so their rendered canvases remain visible.
+            return (
+                isinstance(widget, Gtk.Overlay)
+                and hasattr(widget, "_inline_textview")
+            )
         if w_type == "divider": return True
         if w_type == "sources": return False
         if w_type == "codeblock":
@@ -515,6 +532,8 @@ class Message(Gtk.Box):
                 widget.set_language(new_chunk.lang)
         elif w_type == "thinking":
             widget.set_thinking(new_chunk.text)
+        elif w_type == "inline_chunks":
+            self._update_inline_chunks_widget(widget, new_chunk)
         elif w_type == "tool_call" and isinstance(widget, ToolCallSlot):
             widget.update_chunk(new_chunk)
             if widget.group is not None:
@@ -987,7 +1006,7 @@ class Message(Gtk.Box):
     def _process_inline_chunks(self, chunk, box):
         if not chunk.subchunks: return
         overlay = Gtk.Overlay()
-        label = Gtk.Label(label=" ".join(ch.text for ch in chunk.subchunks), wrap=True)
+        label = Gtk.Label(wrap=True)
         label.set_opacity(0)
         overlay.set_child(label)
         textview = MarkupTextView()
@@ -995,53 +1014,116 @@ class Message(Gtk.Box):
         textview.set_hexpand(True)
         overlay.add_overlay(textview)
         overlay.set_measure_overlay(textview, True)
-        
-        # New logic: Join and process markdown across chunks
+        overlay._inline_measure = label
+        overlay._inline_textview = textview
+        overlay._inline_latex_widgets = {}
+        overlay._inline_processed_markup = None
+
+        self._update_inline_chunks_widget(overlay, chunk)
+        box.append(overlay)
+
+    def _update_inline_chunks_widget(self, overlay, chunk):
+        """Update mixed inline markup without rebuilding rendered equations."""
+        subchunks = chunk.subchunks or []
+        overlay._inline_measure.set_label(" ".join(ch.text for ch in subchunks))
+
         full_markdown = ""
         widgets_dict = {}
-        
-        for i, subchunk in enumerate(chunk.subchunks):
+        previous_latex_widgets = overlay._inline_latex_widgets
+        current_latex_widgets = {}
+        latex_index = 0
+
+        for subchunk in subchunks:
             if subchunk.type == "text":
                 full_markdown += subchunk.text
             elif subchunk.type == "latex_inline":
-                placeholder = f"WZIDZW{i}WZIDZW"
+                widget_id = str(latex_index)
+                placeholder = f"WZIDZW{widget_id}WZIDZW"
                 full_markdown += placeholder
-                
+
                 try:
-                    font_size = _inline_latex_size(self.controller.newelle_settings.zoom)
-                    latex = InlineLatex(subchunk.text, font_size)
-                    latex_overlay = Gtk.Overlay()
-                    latex_overlay.set_hexpand(False)
-                    latex_overlay.add_overlay(latex)
-                    spacer = Gtk.Box()
-                    spacer.set_size_request(latex.dims[0], latex.dims[1] + 1)
-                    latex_overlay.set_child(spacer)
-                    latex._spacer = spacer
-                    latex.set_margin_top(5)
-                    widgets_dict[str(i)] = latex_overlay
+                    previous = previous_latex_widgets.get(latex_index)
+                    if previous is not None and previous[0] == subchunk.text:
+                        latex_overlay = previous[1]
+                    else:
+                        font_size = _inline_latex_size(
+                            self.controller.newelle_settings.zoom
+                        )
+                        latex = InlineLatex(subchunk.text, font_size)
+                        latex_overlay = Gtk.Overlay()
+                        latex_overlay.set_hexpand(False)
+                        latex_overlay.add_overlay(latex)
+                        spacer = Gtk.Box()
+                        spacer.set_size_request(latex.dims[0], latex.dims[1] + 1)
+                        latex_overlay.set_child(spacer)
+                        latex._spacer = spacer
+                        latex.set_margin_top(5)
+                    widgets_dict[widget_id] = latex_overlay
+                    current_latex_widgets[latex_index] = (
+                        subchunk.text,
+                        latex_overlay,
+                    )
                 except Exception:
                     # Fallback if latex fails: use the text representation
                     # We remove the placeholder and just add the text representation
                     full_markdown = full_markdown[:-len(placeholder)]
                     full_markdown += LatexNodes2Text().latex_to_text(subchunk.text)
+                latex_index += 1
 
         full_markdown = self._inject_source_widgets(
             full_markdown,
             widgets_dict,
-            start_index=len(chunk.subchunks),
+            start_index=latex_index,
         )
-        
+
         full_markup = markwon_to_pango(full_markdown, validate=not self.streaming)
-        
+
         # Replace placeholders with <widget> tags in the pango markup
         # Note: we use regex to find placeholders because they might be inside tags
-        processed_markup = re.sub(r'WZIDZW(\d+)WZIDZW', r'<widget id="\1"/>', full_markup)
-        
-        buffer = textview.get_buffer()
-        text_iter = buffer.get_start_iter()
-        textview.add_markup_text(text_iter, processed_markup, widgets=widgets_dict)
-        
-        box.append(overlay)
+        processed_markup = re.sub(
+            r'WZIDZW(\d+)WZIDZW',
+            r'<widget id="\1"/>',
+            full_markup,
+        )
+
+        textview = overlay._inline_textview
+        previous_markup = overlay._inline_processed_markup
+        latex_widgets_unchanged = (
+            len(previous_latex_widgets) == len(current_latex_widgets)
+            and all(
+                index in previous_latex_widgets
+                and previous_latex_widgets[index][1] is latex_widget[1]
+                for index, latex_widget in current_latex_widgets.items()
+            )
+        )
+        if (
+            latex_widgets_unchanged
+            and previous_markup is not None
+            and processed_markup.startswith(previous_markup)
+        ):
+            # The usual streaming update only appends plain markup after the
+            # final equation. Insert that suffix directly so GTK never
+            # unanchors (and unmaps) the already-rendered inline widgets.
+            markup_suffix = processed_markup[len(previous_markup):]
+            if markup_suffix:
+                buffer = textview.get_buffer()
+                textview.add_markup_text(
+                    buffer.get_end_iter(),
+                    markup_suffix,
+                    widgets=widgets_dict,
+                )
+        else:
+            # Structural Markdown changes require reparsing the line. Exact
+            # equation widgets are still reused when the anchors are rebuilt.
+            buffer = textview.get_buffer()
+            buffer.set_text("")
+            textview.add_markup_text(
+                buffer.get_start_iter(),
+                processed_markup,
+                widgets=widgets_dict,
+            )
+        overlay._inline_latex_widgets = current_latex_widgets
+        overlay._inline_processed_markup = processed_markup
 
     def _process_extension_codeblock(self, chunk, box, state, restore, msg_uuid, extension):
         lang = chunk.lang
