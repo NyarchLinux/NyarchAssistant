@@ -1702,9 +1702,10 @@ class NewelleController:
         force_tools_on_main_thread: bool = False,
         tool_registry: ToolRegistry | None = None,
         skill_manager: SkillManager | None = None,
+        extension_processing: bool = True,
     ) -> str:
         """Run LLM with tool support integration.
-        
+
         Args:
             message: The user message to send
             history: Chat history (uses current chat if None)
@@ -1717,7 +1718,10 @@ class NewelleController:
             force_tools_on_main_thread: If True, execute tool calls on the GTK main thread.
             tool_registry: Optional tool registry to use for this run instead of the controller registry.
             skill_manager: Optional skill manager to bind for this run, used by skill-related tools.
-            
+            extension_processing: If True, run extension/integration preprocess_history and
+                postprocess_history hooks on the history and final response, mirroring
+                generate_response. Set to False to bypass extension processing.
+
         Returns:
             Final message from the LLM
         """
@@ -1736,6 +1740,7 @@ class NewelleController:
         if save_chat:
             self.save_chats()
         history = self.get_history(chat=self.chats[chat_id]["chat"], include_last_message=True)
+        system_prompt_was_built = system_prompt is None
         if system_prompt is None:
             _, _, _, _, _, effective_chat_id = self.prepare_generation(chat_id=chat_id)
             system_prompt = []
@@ -1745,6 +1750,13 @@ class NewelleController:
             system_prompt += self.get_memory_prompt(chat_id=effective_chat_id)
         
         current_history = history.copy()
+        # Let extensions/integrations preprocess the history and prompts before
+        # generation, mirroring generate_response. Only runs when a fresh
+        # system_prompt was built above; an explicit system_prompt means the
+        # caller took full control of the prompts.
+        if extension_processing and system_prompt_was_built:
+            current_history, system_prompt = self.integrationsloader.preprocess_history(current_history, system_prompt)
+            current_history, system_prompt = self.extensionloader.preprocess_history(current_history, system_prompt)
         model = self.get_model_for_chat(self.chats[chat_id]["chat"])
         cont = True
         try:
@@ -1809,6 +1821,16 @@ class NewelleController:
                     if save_chat:
                         self.chats[chat_id]["chat"].append({"User": "Assistant", "Message": response, "UUID": msg_uuid, "Profile": self.newelle_settings.current_profile})
                         self.save_chats()
+                    # Let extensions/integrations postprocess the final response,
+                    # mirroring generate_response.
+                    if extension_processing:
+                        final_message = text_content
+                        chat_list, final_message = self.integrationsloader.postprocess_history(self.chats[chat_id]["chat"], final_message)
+                        chat_list, final_message = self.extensionloader.postprocess_history(chat_list, final_message)
+                        if save_chat:
+                            self.set_chat_by_id(chat_id, chat_list)
+                            self.save_chats()
+                        return final_message
                     return text_content
                 assistant_msg_uuid = int(uuid_lib.uuid4())
                 
@@ -1930,6 +1952,16 @@ class NewelleController:
                 msg_uuid = int(uuid_lib.uuid4())
                 self.chats[chat_id]["chat"].append({"User": "Assistant", "Message": text_content, "UUID": msg_uuid, "Profile": self.newelle_settings.current_profile})
                 self.save_chats()
+            # Let extensions/integrations postprocess the final response,
+            # mirroring generate_response.
+            if extension_processing:
+                final_message = text_content
+                chat_list, final_message = self.integrationsloader.postprocess_history(self.chats[chat_id]["chat"], final_message)
+                chat_list, final_message = self.extensionloader.postprocess_history(chat_list, final_message)
+                if save_chat:
+                    self.set_chat_by_id(chat_id, chat_list)
+                    self.save_chats()
+                return final_message
             return text_content
         finally:
             if skills_integration is not None:
