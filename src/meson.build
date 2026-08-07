@@ -62,6 +62,7 @@ ui_sources = [
   'ui/__init__.py',
   'ui/profile.py',
   'ui/extension.py',
+  'ui/extensions_catalog.py',
   'ui/settings.py',
   'ui/presentation.py',
   'ui/thread_editing.py',
