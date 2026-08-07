@@ -113,6 +113,7 @@ widgets_sources = [
   'ui/widgets/skill_editor_mini_app.py',
   'ui/widgets/subagent.py',
   'ui/widgets/scheduled_task.py',
+  'ui/widgets/status.py',
   'ui/widgets/message.py',
   'ui/widgets/chatrow.py',
   'ui/widgets/chat_history.py',
