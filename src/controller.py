@@ -1749,6 +1749,12 @@ class NewelleController:
                 system_prompt.append(formatter.format(prompt))
             system_prompt += self.get_memory_prompt(chat_id=effective_chat_id)
         
+        # Avoid history duplication: check the last entry is the current message.
+        last_entry_is_current = bool(
+            history
+            and history[-1].get("User") == "User"
+            and history[-1].get("Message") == message
+        )
         current_history = history.copy()
         # Let extensions/integrations preprocess the history and prompts before
         # generation, mirroring generate_response. Only runs when a fresh
@@ -1757,6 +1763,13 @@ class NewelleController:
         if extension_processing and system_prompt_was_built:
             current_history, system_prompt = self.integrationsloader.preprocess_history(current_history, system_prompt)
             current_history, system_prompt = self.extensionloader.preprocess_history(current_history, system_prompt)
+
+        # Avoid history duplication: the current message is the prompt, so pop
+        # it from the sent history.
+        current_prompt = message
+        if last_entry_is_current and current_history:
+            current_prompt = current_history.pop().get("Message") or message
+
         model = self.get_model_for_chat(self.chats[chat_id]["chat"])
         cont = True
         try:
@@ -1772,7 +1785,7 @@ class NewelleController:
                         on_message_callback(text)
                 
                 if iteration == 0:
-                    prompt = message
+                    prompt = current_prompt
                 else:
                     prompt = ""
                     if (
