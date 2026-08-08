@@ -10,8 +10,9 @@ import gettext
 from gi.repository import Gtk, Adw, Gdk
 
 from ...modes import (
-    DEFAULT_MODE_NAME,
+    BUILT_IN_MODE_NAMES,
     DEFAULT_MODE_ICON,
+    MODE_ICON_CHOICES,
     NO_CHANGE,
     ENABLE,
     REMOVE,
@@ -19,50 +20,6 @@ from ...modes import (
 from .multiline import MultilineEntry
 
 _ = gettext.gettext
-
-# Curated set of symbolic icons offered in the icon picker. These are filtered
-# at runtime through the icon theme so only those that actually ship with the
-# current Adwaita/system theme are shown.
-MODE_ICON_CHOICES = [
-    # Identity / communication
-    "user-available-symbolic",
-    "user-idle-symbolic",
-    "chat-bubbles-text-symbolic",
-    "chat-symbolic",
-    "mail-unread-symbolic",
-    "emblem-favorite-symbolic",
-    "face-smile-symbolic",
-    # Editing / writing
-    "document-edit-symbolic",
-    "document-open-symbolic",
-    "text-x-generic-symbolic",
-    "edit-symbolic",
-    # Thinking / ideas
-    "brain-augemnted-symbolic",
-    "emoji-objects-symbolic",
-    "lightbulb-symbolic",
-    "magic-wand-symbolic",
-    "starred-symbolic",
-    "bookmark-symbolic",
-    # Search / science / system
-    "system-search-symbolic",
-    "applications-science-symbolic",
-    "skills-symbolic",
-    "preferences-system-symbolic",
-    "system-run-symbolic",
-    "utilities-terminal-symbolic",
-    # Code / media
-    "code-symbolic",
-    "media-playback-start-symbolic",
-    "audio-x-generic-symbolic",
-    "video-x-generic-symbolic",
-    "image-x-generic-symbolic",
-    "camera-photo-symbolic",
-    # Misc
-    "help-browser-symbolic",
-    DEFAULT_MODE_ICON,
-]
-
 
 class ModeEditorDialog(Adw.PreferencesDialog):
     """Dialog to create or edit a mode."""
@@ -75,7 +32,7 @@ class ModeEditorDialog(Adw.PreferencesDialog):
 
         self.editing = mode_name is not None
         self.original_name = mode_name
-        self.is_builtin = mode_name == DEFAULT_MODE_NAME
+        self.is_builtin = mode_name in BUILT_IN_MODE_NAMES
         self._syncing_group_controls = False
         self._tool_controls = {}
         self._tool_group_controls = {}
@@ -568,8 +525,10 @@ class ModeEditorDialog(Adw.PreferencesDialog):
         if not name:
             return None
         if self.is_builtin:
-            return DEFAULT_MODE_NAME
-        if not self.editing and name in self.mode_manager.get_modes():
+            return self.original_name
+        if name in self.mode_manager.get_modes() and (
+            not self.editing or name != self.original_name
+        ):
             return None
         return name
 
@@ -610,17 +569,12 @@ class ModeEditorDialog(Adw.PreferencesDialog):
             "prompts": prompts,
         }
 
-        if self.editing and (self.is_builtin or name == self.original_name):
-            self.mode_manager.update_mode(self.original_name, **mode_data)
-        elif self.editing:
-            was_active = (
-                self.mode_manager.get_active_mode_name() == self.original_name
+        if self.editing:
+            self.mode_manager.update_mode(
+                self.original_name,
+                new_name=name,
+                **mode_data,
             )
-            self.mode_manager.create_mode(name, **mode_data)
-            if was_active:
-                # Switch first so deleting the old name does not fall back to Normal.
-                self.mode_manager.set_active_mode(name)
-            self.mode_manager.delete_mode(self.original_name)
         else:
             self.mode_manager.create_mode(name, **mode_data)
 

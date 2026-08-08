@@ -65,7 +65,7 @@ class GUIAPIInterface(Interface):
         from fastapi.responses import JSONResponse, StreamingResponse, Response
         from fastapi.middleware.cors import CORSMiddleware
         from pydantic import BaseModel, Field
-        from typing import Optional
+        from typing import Any, Optional
         from starlette.middleware.base import BaseHTTPMiddleware
 
         controller = self.controller
@@ -206,6 +206,16 @@ class GUIAPIInterface(Interface):
 
         class SetActiveModeRequest(BaseModel):
             mode: str
+
+        class ModeMutationRequest(BaseModel):
+            # Keep these loose so malformed editor payloads receive the API's
+            # deliberate 400 responses instead of framework-level 422 errors.
+            name: Optional[Any] = None
+            description: Optional[Any] = None
+            icon: Optional[Any] = None
+            tools: Optional[Any] = None
+            skills: Optional[Any] = None
+            prompts: Optional[Any] = None
 
         class SetExtensionEnabledRequest(BaseModel):
             extension_id: str
@@ -754,13 +764,131 @@ class GUIAPIInterface(Interface):
         # ============================================================ #
         #                           MODES                               #
         # ============================================================ #
-        @app.get("/api/modes")
-        def api_list_modes():
-            """List all modes with the active one flagged."""
+        def _get_mode_manager():
             mm = getattr(controller, "mode_manager", None)
             if mm is None:
                 raise HTTPException(status_code=503, detail="Modes not available")
+            return mm
+
+        def _refresh_active_mode():
+            """Reapply all active overlays after a mode mutation or switch."""
+            mm = _get_mode_manager()
+            active = mm.get_active_mode()
+            skill_manager = getattr(controller, "skill_manager", None)
+            if skill_manager is not None:
+                skill_manager.set_mode_overrides(active.get("skills", {}))
+            controller.update_settings()
+            _refresh_mode_buttons()
+
+        def _refresh_mode_buttons():
+            """Keep any open desktop mode switchers in sync with API edits."""
+            window = _get_window(controller)
+            if window is not None and hasattr(window, "refresh_mode_buttons"):
+                window.refresh_mode_buttons()
+
+        def _serialize_mode(name, mode, mm):
+            from ...modes import BUILT_IN_MODE_NAMES
+            return {
+                "name": name,
+                "description": mode.get("description", ""),
+                "icon": mode.get("icon", ""),
+                "tools": mode.get("tools", {}),
+                "skills": mode.get("skills", {}),
+                "prompts": mode.get("prompts", {}),
+                "current": name == mm.get_active_mode_name(),
+                "builtin": name in BUILT_IN_MODE_NAMES,
+            }
+
+        def _validate_mode_mutation(req, require_name=False):
+            """Validate editor input and return normalized optional fields."""
+            from ...modes import VALID_STATES
+
+            if require_name and req.name is None:
+                raise HTTPException(status_code=400, detail="Mode name is required")
+            if req.name is not None:
+                if not isinstance(req.name, str) or not req.name.strip():
+                    raise HTTPException(
+                        status_code=400, detail="Mode name cannot be blank"
+                    )
+
+            for field_name in ("tools", "skills"):
+                state_map = getattr(req, field_name)
+                if state_map is None:
+                    continue
+                if not isinstance(state_map, dict):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"{field_name.title()} overrides must be an object",
+                    )
+                for key, state in state_map.items():
+                    if not isinstance(key, str) or state not in VALID_STATES:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=(
+                                f"Invalid {field_name[:-1]} override for "
+                                f"'{key}': expected no_change, enable, or remove"
+                            ),
+                        )
+
+            if req.prompts is not None:
+                if not isinstance(req.prompts, dict):
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Prompt overrides must be an object",
+                    )
+                for key, config in req.prompts.items():
+                    if not isinstance(key, str) or not isinstance(config, dict):
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Invalid prompt override for '{key}'",
+                        )
+                    state = config.get("state", "no_change")
+                    if state not in VALID_STATES:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=(
+                                f"Invalid prompt override for '{key}': expected "
+                                "no_change, enable, or remove"
+                            ),
+                        )
+                    if "override" in config and not isinstance(
+                        config["override"], str
+                    ):
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Prompt text override for '{key}' must be a string",
+                        )
+
+            if req.description is not None and not isinstance(req.description, str):
+                raise HTTPException(
+                    status_code=400, detail="Mode description must be a string"
+                )
+            if req.icon is not None and not isinstance(req.icon, str):
+                raise HTTPException(
+                    status_code=400, detail="Mode icon must be a string"
+                )
+
+        def _raise_mode_mutation_error(error):
+            from ...modes import (
+                InvalidModeNameError,
+                ModeAlreadyExistsError,
+                ModeNotFoundError,
+                ProtectedModeError,
+            )
+            if isinstance(error, ModeAlreadyExistsError):
+                raise HTTPException(status_code=409, detail=str(error))
+            if isinstance(error, ModeNotFoundError):
+                raise HTTPException(status_code=404, detail=str(error))
+            if isinstance(error, (InvalidModeNameError, ProtectedModeError)):
+                raise HTTPException(status_code=400, detail=str(error))
+            raise error
+
+        @app.get("/api/modes")
+        def api_list_modes():
+            """List all modes with the active one flagged."""
+            mm = _get_mode_manager()
             active = mm.get_active_mode_name()
+            from ...modes import BUILT_IN_MODE_NAMES
             result = []
             for name, mode in mm.get_modes().items():
                 result.append({
@@ -768,21 +896,157 @@ class GUIAPIInterface(Interface):
                     "description": mode.get("description", ""),
                     "icon": mode.get("icon", ""),
                     "current": name == active,
+                    "builtin": name in BUILT_IN_MODE_NAMES,
                 })
             return result
 
         @app.get("/api/modes/current")
         def api_get_current_mode():
-            mm = getattr(controller, "mode_manager", None)
-            if mm is None:
-                raise HTTPException(status_code=503, detail="Modes not available")
+            mm = _get_mode_manager()
             return {"mode": mm.get_active_mode_name()}
+
+        @app.get("/api/modes/editor-options")
+        def api_get_mode_editor_options():
+            """Return profile prompts and every currently available override target."""
+            from ...constants import AVAILABLE_PROMPTS, PROMPTS
+            from ...modes import MODE_ICON_CHOICES, VALID_STATES
+
+            ns = getattr(controller, "newelle_settings", None)
+            profile_prompts = getattr(ns, "prompts", {}) if ns is not None else {}
+            prompts = []
+            for prompt in AVAILABLE_PROMPTS:
+                key = prompt.get("key")
+                fallback = PROMPTS.get(key, "")
+                profile_text = (
+                    profile_prompts.get(key, fallback)
+                    if isinstance(profile_prompts, dict)
+                    else fallback
+                )
+                if not isinstance(profile_text, str):
+                    profile_text = fallback if isinstance(fallback, str) else ""
+                prompts.append({
+                    "key": key,
+                    "name": str(prompt.get("title", key)),
+                    "description": str(prompt.get("description", "")),
+                    "profile_text": profile_text,
+                })
+
+            grouped_tools = {}
+            for tool in controller.tools.get_all_tools():
+                group_name = getattr(tool, "tools_group", None) or ""
+                grouped_tools.setdefault(group_name, []).append({
+                    "name": tool.name,
+                    "title": getattr(tool, "title", None) or tool.name,
+                    "description": getattr(tool, "description", ""),
+                    "icon": getattr(tool, "icon_name", None),
+                })
+            tools = [
+                {
+                    "name": group_name,
+                    "title": group_name or "Other",
+                    "tools": group_tools,
+                }
+                for group_name, group_tools in grouped_tools.items()
+            ]
+
+            skill_manager = getattr(controller, "skill_manager", None)
+            skills = [] if skill_manager is None else [
+                {
+                    "name": skill.name,
+                    "description": skill.description,
+                }
+                for skill in skill_manager.skills.values()
+            ]
+            return {
+                "prompts": prompts,
+                "tools": tools,
+                "skills": skills,
+                "icons": list(MODE_ICON_CHOICES),
+                "states": list(VALID_STATES),
+            }
+
+        @app.get("/api/modes/{name}")
+        def api_get_mode(name: str):
+            mm = _get_mode_manager()
+            mode = mm.get_mode(name)
+            if mode is None:
+                raise HTTPException(
+                    status_code=404, detail=f"Mode '{name}' not found"
+                )
+            return _serialize_mode(name, mode, mm)
+
+        @app.post("/api/modes")
+        def api_create_mode(req: ModeMutationRequest):
+            from ...modes import DEFAULT_MODE_ICON, ModeError
+
+            _validate_mode_mutation(req, require_name=True)
+            mm = _get_mode_manager()
+            try:
+                name = mm.create_mode(
+                    req.name,
+                    description=req.description or "",
+                    icon=req.icon or DEFAULT_MODE_ICON,
+                    tools=req.tools or {},
+                    skills=req.skills or {},
+                    prompts=req.prompts or {},
+                )
+            except ModeError as error:
+                _raise_mode_mutation_error(error)
+            _refresh_mode_buttons()
+            return _serialize_mode(name, mm.get_mode(name), mm)
+
+        @app.put("/api/modes/{name}")
+        def api_update_mode(name: str, req: ModeMutationRequest):
+            from ...modes import ModeError
+
+            _validate_mode_mutation(req)
+            mm = _get_mode_manager()
+            was_active = mm.get_active_mode_name() == name
+            try:
+                updated_name = mm.update_mode(
+                    name,
+                    new_name=req.name,
+                    description=req.description,
+                    icon=req.icon,
+                    tools=req.tools,
+                    skills=req.skills,
+                    prompts=req.prompts,
+                )
+            except ModeError as error:
+                _raise_mode_mutation_error(error)
+            if was_active:
+                _refresh_active_mode()
+            else:
+                _refresh_mode_buttons()
+            return _serialize_mode(
+                updated_name, mm.get_mode(updated_name), mm
+            )
+
+        @app.delete("/api/modes/{name}")
+        def api_delete_mode(name: str):
+            from ...modes import BUILT_IN_MODE_NAMES
+
+            mm = _get_mode_manager()
+            if mm.get_mode(name) is None:
+                raise HTTPException(
+                    status_code=404, detail=f"Mode '{name}' not found"
+                )
+            if name in BUILT_IN_MODE_NAMES:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Built-in mode '{name}' cannot be deleted",
+                )
+            was_active = mm.get_active_mode_name() == name
+            mm.delete_mode(name)
+            if was_active:
+                _refresh_active_mode()
+            else:
+                _refresh_mode_buttons()
+            return {"status": "ok", "mode": mm.get_active_mode_name()}
 
         @app.post("/api/modes/set-active")
         def api_set_active_mode(req: SetActiveModeRequest):
-            mm = getattr(controller, "mode_manager", None)
-            if mm is None:
-                raise HTTPException(status_code=503, detail="Modes not available")
+            mm = _get_mode_manager()
             try:
                 mm.set_active_mode(req.mode)
             except ValueError:
@@ -790,9 +1054,7 @@ class GUIAPIInterface(Interface):
             # Propagate skill overrides and rebuild prompts/tools so the next
             # generation reflects the newly active mode. Mirrors the desktop
             # ModeButton._on_mode_activated and ChatInterface._cmd_mode flows.
-            active = mm.get_active_mode()
-            controller.skill_manager.set_mode_overrides(active.get("skills", {}))
-            controller.update_settings()
+            _refresh_active_mode()
             return {"status": "ok"}
 
         # ============================================================ #
@@ -1970,8 +2232,9 @@ class GUIAPIInterface(Interface):
 # ================================================================== #
 def _get_window(controller):
     """Safely get the window object from the controller."""
-    if controller.ui_controller is not None and hasattr(controller.ui_controller, 'window'):
-        return controller.ui_controller.window
+    ui_controller = getattr(controller, "ui_controller", None)
+    if ui_controller is not None and hasattr(ui_controller, 'window'):
+        return ui_controller.window
     return None
 
 
