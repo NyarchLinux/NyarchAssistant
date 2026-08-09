@@ -745,10 +745,10 @@ DEFAULT_AVAILABLE_WEBSEARCH = AVAILABLE_WEBSEARCH.copy()
 DEFAULT_AVAILABLE_INTERFACES = AVAILABLE_INTERFACES.copy()
 DEFAULT_AVAILABLE_IMAGE_GENERATORS = AVAILABLE_IMAGE_GENERATORS.copy()
 DEFAULT_AVAILABLE_PROMPTS = AVAILABLE_PROMPTS.copy()
+DEFAULT_PROMPTS = PROMPTS.copy()
 
 def restore_handlers():
-    global AVAILABLE_LLMS, AVAILABLE_TTS, AVAILABLE_STT, AVAILABLE_EMBEDDINGS, AVAILABLE_MEMORIES, AVAILABLE_RAGS, AVAILABLE_WEBSEARCH, AVAILABLE_INTERFACES, AVAILABLE_PROMPTS, AVAILABLE_IMAGE_GENERATORS
-    AVAILABLE_PROMPTS.clear()
+    global AVAILABLE_LLMS, AVAILABLE_TTS, AVAILABLE_STT, AVAILABLE_EMBEDDINGS, AVAILABLE_MEMORIES, AVAILABLE_RAGS, AVAILABLE_WEBSEARCH, AVAILABLE_INTERFACES, AVAILABLE_IMAGE_GENERATORS
     AVAILABLE_LLMS.clear()
     AVAILABLE_TTS.clear()
     AVAILABLE_STT.clear()
@@ -758,7 +758,6 @@ def restore_handlers():
     AVAILABLE_WEBSEARCH.clear()
     AVAILABLE_INTERFACES.clear()
     AVAILABLE_IMAGE_GENERATORS.clear()
-    AVAILABLE_PROMPTS += deepcopy(DEFAULT_AVAILABLE_PROMPTS)
     AVAILABLE_LLMS.update(deepcopy(DEFAULT_AVAILABLE_LLM))
     AVAILABLE_TTS.update(deepcopy(DEFAULT_AVAILABLE_TTS))
     AVAILABLE_STT.update(deepcopy(DEFAULT_AVAILABLE_STT))
@@ -768,6 +767,13 @@ def restore_handlers():
     AVAILABLE_WEBSEARCH.update(deepcopy(DEFAULT_AVAILABLE_WEBSEARCH))
     AVAILABLE_INTERFACES.update(deepcopy(DEFAULT_AVAILABLE_INTERFACES))
     AVAILABLE_IMAGE_GENERATORS.update(deepcopy(DEFAULT_AVAILABLE_IMAGE_GENERATORS))
+
+def restore_prompts():
+    """Restore prompt registries before re-applying extension/user prompts."""
+    AVAILABLE_PROMPTS.clear()
+    AVAILABLE_PROMPTS.extend(deepcopy(DEFAULT_AVAILABLE_PROMPTS))
+    PROMPTS.clear()
+    PROMPTS.update(DEFAULT_PROMPTS)
 
 SETTINGS_GROUPS = {
         "LLM": {
@@ -816,13 +822,13 @@ SETTINGS_GROUPS = {
             "description": _("Extensions settings"),
         },
         "interface": {
-            "title": _("Inteface"),
-            "settings": ["hidden-files", "reverse-order", "display-latex", "expand-reasoning", "compact-mode", "external-terminal-on", "external-terminal", "zoom","send-on-enter", "initial-browser-page", "external-browser", "browser-search-string", "browser-session-persist", "edit-color-scheme", "hide-history-on-launch"],
+            "title": _("Interface"),
+            "settings": ["hidden-files", "reverse-order", "display-latex", "expand-reasoning", "compact-mode", "external-terminal-on", "external-terminal", "zoom", "send-on-enter", "initial-browser-page", "external-browser", "browser-search-string", "browser-session-persist", "editor-color-scheme", "hide-history-on-launch", "remember-profile", "user-name", "font-family", "font-size", "line-height", "monospace-font-family", "monospace-font-size", "monospace-line-height", "hide-warning", "interfaces-settings"],
             "description": _("Interface settings, hidden files, reverse order, zoom..."),
         },
         "general": {
             "title": _("General"),
-            "settings": ["virtualization", "offers", "memory", "remove-thinking", "auto-generate-name", "path", "auto-run", "max-run-times", "parallel-tool-execution"],
+            "settings": ["virtualization", "offers", "memory", "remove-thinking", "auto-generate-name", "path", "auto-run", "max-run-times", "parallel-tool-execution", "context-mode", "context-max", "context-suggested", "context-summarization"],
             "description": _("General settings, virtualization, offers, memory length, automatically generate chat name, current folder..."),
         },
         "prompts": {
@@ -832,7 +838,7 @@ SETTINGS_GROUPS = {
         },
         "tools": {
             "title": _("Tools"),
-            "settings": ["tools-settings", "mcp-servers", "skills-settings", "file-permissions"],
+            "settings": ["tools-settings", "mcp-servers", "skills-settings", "file-permissions", "command-execution-permissions", "path-security-levels", "default-risk-level"],
             "description": _("Tools settings, tools groups..."),
         },
         "wakeword": {

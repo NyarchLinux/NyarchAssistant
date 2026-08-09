@@ -27,7 +27,7 @@ from .utility.system import is_flatpak
 from .utility.pip import install_module
 from .utility.profile_settings import get_settings_dict_by_groups
 from .utility.source_attribution import format_source_context
-from .constants import AVAILABLE_INTEGRATIONS, AVAILABLE_WEBSEARCH, AVAILABLE_IMAGE_GENERATORS, DIR_NAME, SCHEMA_ID, PROMPTS, AVAILABLE_STT, AVAILABLE_TTS, AVAILABLE_LLMS, AVAILABLE_RAGS, AVAILABLE_PROMPTS, AVAILABLE_MEMORIES, AVAILABLE_EMBEDDINGS, AVAILABLE_INTERFACES, SETTINGS_GROUPS, restore_handlers
+from .constants import AVAILABLE_INTEGRATIONS, AVAILABLE_WEBSEARCH, AVAILABLE_IMAGE_GENERATORS, DIR_NAME, SCHEMA_ID, PROMPTS, AVAILABLE_STT, AVAILABLE_TTS, AVAILABLE_LLMS, AVAILABLE_RAGS, AVAILABLE_PROMPTS, AVAILABLE_MEMORIES, AVAILABLE_EMBEDDINGS, AVAILABLE_INTERFACES, SETTINGS_GROUPS, restore_handlers, restore_prompts
 import threading
 import pickle
 import tempfile
@@ -930,6 +930,124 @@ class NewelleController:
         self.handlers.llm.load_model(None)
         GLib.idle_add(self.ui_controller.set_model_loading, False)
 
+    def reload_extensions(self, extension_ids=None) -> set[str]:
+        """Reload extensions and refresh only the resources they contribute.
+
+        Args:
+            extension_ids: Optional IDs known to have changed. When omitted,
+                additions, removals, and enabled-state changes are detected.
+
+        Returns:
+            The resource types that were refreshed.
+        """
+        old_loader = self.extensionloader
+        old_ids = set(old_loader.extensionsmap)
+        old_enabled = {
+            extension.id for extension in old_loader.get_enabled_extensions()
+        }
+
+        new_loader = ExtensionLoader(
+            self.extension_path,
+            pip_path=self.pip_path,
+            extension_cache=self.extensions_cache,
+            settings=self.settings,
+        )
+        new_loader.load_extensions()
+        if self.ui_controller is not None:
+            new_loader.set_ui_controller(self.ui_controller)
+
+        new_ids = set(new_loader.extensionsmap)
+        new_enabled = {
+            extension.id for extension in new_loader.get_enabled_extensions()
+        }
+        if extension_ids is None:
+            affected_ids = (old_ids ^ new_ids) | (old_enabled ^ new_enabled)
+            # ReloadType.EXTENSIONS is also used after replacing an extension
+            # file in place. In that case IDs alone cannot identify the change.
+            if not affected_ids:
+                affected_ids = old_ids | new_ids
+        else:
+            affected_ids = set(extension_ids)
+
+        refreshes = old_loader.get_contribution_types(
+            affected_ids, include_disabled=True
+        )
+        refreshes.update(
+            new_loader.get_contribution_types(
+                affected_ids, include_disabled=True
+            )
+        )
+        old_handlers = old_loader.get_handler_contributions(
+            affected_ids, include_disabled=True
+        )
+        new_handlers = new_loader.get_handler_contributions(
+            affected_ids, include_disabled=True
+        )
+        if old_handlers["llm"] or new_handlers["llm"]:
+            refreshes.add("llm_handlers")
+
+        self.extensionloader = new_loader
+        self.handlers.extensionloader = new_loader
+        self.newelle_settings.extensions_settings = self.settings.get_string(
+            "extensions-settings"
+        )
+
+        active_handlers_changed = False
+        if refreshes & {"handlers", "interfaces"}:
+            # Rebuilding these descriptor dictionaries is cheap; actual handler
+            # instances are invalidated selectively below.
+            restore_handlers()
+            new_loader.add_handlers(
+                AVAILABLE_LLMS,
+                AVAILABLE_TTS,
+                AVAILABLE_STT,
+                AVAILABLE_MEMORIES,
+                AVAILABLE_EMBEDDINGS,
+                AVAILABLE_RAGS,
+                AVAILABLE_WEBSEARCH,
+                AVAILABLE_IMAGE_GENERATORS=AVAILABLE_IMAGE_GENERATORS,
+                AVAILABLE_INTERFACES=AVAILABLE_INTERFACES,
+            )
+            active_handlers_changed = self.handlers.refresh_extension_handlers(
+                old_handlers,
+                new_handlers,
+                self.newelle_settings,
+            )
+        else:
+            new_loader.set_handlers(
+                self.handlers.llm,
+                self.handlers.stt,
+                self.handlers.tts,
+                self.handlers.secondary_llm,
+                self.handlers.embedding,
+                self.handlers.rag,
+                self.handlers.memory,
+                self.handlers.websearch,
+            )
+
+        if "prompts" in refreshes:
+            restore_prompts()
+            new_loader.add_prompts(PROMPTS, AVAILABLE_PROMPTS)
+            self.newelle_settings.load_prompts()
+
+        if "modes" in refreshes and hasattr(self, "mode_manager"):
+            new_loader.add_modes(self.mode_manager)
+
+        if "tools" in refreshes or active_handlers_changed:
+            self.require_tool_update()
+            refreshes.add("tools")
+
+        if self.ui_controller is not None and hasattr(
+            self.ui_controller, "refresh_extension_resources"
+        ):
+            GLib.idle_add(
+                self.ui_controller.refresh_extension_resources,
+                set(refreshes),
+            )
+
+        print(f"Extensions reload ({', '.join(sorted(refreshes)) or 'loader only'})")
+        return refreshes
+
     def reload(self, reload_type: ReloadType):
         """Reload the specified settings
 
@@ -937,20 +1055,7 @@ class NewelleController:
             reload_type: type of reload
         """
         if reload_type == ReloadType.EXTENSIONS:
-            self.extensionloader = ExtensionLoader(self.extension_path, pip_path=self.pip_path,
-                                                   extension_cache=self.extensions_cache, settings=self.settings)
-            self.extensionloader.load_extensions()
-            restore_handlers()
-            self.extensionloader.add_handlers(AVAILABLE_LLMS, AVAILABLE_TTS, AVAILABLE_STT, AVAILABLE_MEMORIES, AVAILABLE_EMBEDDINGS, AVAILABLE_RAGS, AVAILABLE_WEBSEARCH, AVAILABLE_IMAGE_GENERATORS=AVAILABLE_IMAGE_GENERATORS, AVAILABLE_INTERFACES=AVAILABLE_INTERFACES)
-            self.extensionloader.add_prompts(PROMPTS, AVAILABLE_PROMPTS)
-            self.newelle_settings.load_prompts()
-            if hasattr(self, "mode_manager"):
-                self.extensionloader.add_modes(self.mode_manager)
-            self.extensionloader.add_tools(self.tools)
-            self.handlers.extensionloader = self.extensionloader
-            self.handlers.select_handlers(self.newelle_settings)
-            self.extensionloader.set_ui_controller(self.ui_controller)
-            print("Extensions reload")
+            return self.reload_extensions()
         elif reload_type == ReloadType.LLM:
             self.handlers.llm.destroy()
             self.handlers.select_handlers(self.newelle_settings)
@@ -2382,18 +2487,7 @@ class HandlersManager:
         self.rag : RAGHandler = self.get_object(AVAILABLE_RAGS, newelle_settings.rag_model)
         self.websearch : WebSearchHandler = self.get_object(AVAILABLE_WEBSEARCH, newelle_settings.websearch_model)
         self.image_generator : ImageGeneratorHandler = self.get_object(AVAILABLE_IMAGE_GENERATORS, newelle_settings.image_generator)
-        # Initialize interfaces
-        for key in AVAILABLE_INTERFACES:
-            interface = self.get_object(AVAILABLE_INTERFACES, key)
-            interface.set_controller(self.controller)
-            if not skip_auto_start_interfaces:
-                enabled = interface.get_setting("enabled", False, False) 
-                if enabled:
-                    if Interface.check_external_running(key, self.directory):
-                        print(f"Interface '{key}' is already running externally, skipping auto-start")
-                    else:
-                        print("Interface started")
-                        interface.start()
+        self.refresh_interfaces(auto_start=not skip_auto_start_interfaces)
         # Assign handlers 
         self.integrationsloader.set_handlers(self.llm, self.stt, self.tts, self.secondary_llm, self.embedding, self.rag, self.memory, self.websearch)
         self.extensionloader.set_handlers(self.llm, self.stt, self.tts, self.secondary_llm, self.embedding, self.rag, self.memory, self.websearch)
@@ -2402,6 +2496,115 @@ class HandlersManager:
         self.rag.set_handlers(self.llm, self.embedding)
         #self.image_generator.set_ui_controller(self.controller.ui_controller)
         threading.Thread(target=self.install_missing_handlers).start()
+
+    def refresh_interfaces(self, auto_start=True):
+        """Synchronize interface instances without restarting unchanged ones."""
+        available_keys = set(AVAILABLE_INTERFACES)
+        for key in set(self.interfaces) - available_keys:
+            interface = self.interfaces.pop(key)
+            try:
+                interface.stop()
+            except Exception as error:
+                print(f"Error stopping removed interface '{key}': {error}")
+            self.handlers.pop((key, "interface", False), None)
+
+        for key in AVAILABLE_INTERFACES:
+            is_new = key not in self.interfaces
+            interface = self.get_object(AVAILABLE_INTERFACES, key)
+            interface.set_controller(self.controller)
+            self.interfaces[key] = interface
+            if not auto_start or not is_new:
+                continue
+            enabled = interface.get_setting("enabled", False, False)
+            if not enabled:
+                continue
+            if Interface.check_external_running(key, self.directory):
+                print(
+                    f"Interface '{key}' is already running externally, "
+                    "skipping auto-start"
+                )
+            else:
+                print("Interface started")
+                interface.start()
+
+    def refresh_extension_handlers(
+        self,
+        old_contributions: dict[str, set[str]],
+        new_contributions: dict[str, set[str]],
+        newelle_settings: NewelleSettings,
+    ) -> bool:
+        """Invalidate changed extension handlers and preserve unrelated ones.
+
+        Returns True when one of the selected handlers had to be recreated.
+        """
+        affected = {
+            category: set(old_contributions.get(category, set()))
+            | set(new_contributions.get(category, set()))
+            for category in ExtensionLoader._HANDLER_CONTRIBUTION_METHODS
+        }
+        selected = {
+            "llm": {
+                newelle_settings.language_model,
+                newelle_settings.secondary_language_model,
+            },
+            "tts": {newelle_settings.tts_program},
+            "stt": {
+                newelle_settings.stt_engine,
+                newelle_settings.secondary_stt_engine,
+                newelle_settings.wakeword_engine,
+            },
+            "memory": {newelle_settings.memory_model},
+            "embedding": {newelle_settings.embedding_model},
+            "rag": {newelle_settings.rag_model},
+            "websearch": {newelle_settings.websearch_model},
+            "image_generator": {newelle_settings.image_generator},
+        }
+        active_changed = any(
+            affected[category] & keys for category, keys in selected.items()
+        )
+
+        invalidated = []
+        invalidated_ids = set()
+        for cache_key, handler in list(self.handlers.items()):
+            key, category, _secondary = cache_key
+            if key not in affected.get(category, set()):
+                continue
+            self.handlers.pop(cache_key, None)
+            if id(handler) not in invalidated_ids:
+                invalidated.append(handler)
+                invalidated_ids.add(id(handler))
+
+        for key in affected["interface"]:
+            interface = self.interfaces.pop(key, None)
+            if interface is not None and id(interface) not in invalidated_ids:
+                invalidated.append(interface)
+                invalidated_ids.add(id(interface))
+
+        for handler in invalidated:
+            try:
+                if isinstance(handler, Interface):
+                    handler.stop()
+                else:
+                    handler.destroy()
+            except Exception as error:
+                print(f"Error disposing extension handler: {error}")
+
+        if active_changed:
+            self.select_handlers(newelle_settings)
+        else:
+            if affected["interface"]:
+                self.refresh_interfaces()
+            self.extensionloader.set_handlers(
+                self.llm,
+                self.stt,
+                self.tts,
+                self.secondary_llm,
+                self.embedding,
+                self.rag,
+                self.memory,
+                self.websearch,
+            )
+        return active_changed
 
     def set_error_func(self, func):
         def async_set():

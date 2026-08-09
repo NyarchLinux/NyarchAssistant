@@ -5,7 +5,6 @@ from threading import Thread
 from gi.repository import Adw, GLib, Gtk
 
 from ..controller import NewelleController
-from ..extensions import ExtensionLoader
 from ..utility.system import can_escape_sandbox, get_spawn_command
 from .extensions_catalog import ExtensionMarketplaceView, install_extension_files
 from .extra_settings import ExtraSettingsBuilder
@@ -131,8 +130,18 @@ class ExtensionPage(Adw.PreferencesPage):
             marketplace_group.add(self.marketplace)
             self.marketplace_page.append(marketplace_group)
 
-    def _on_marketplace_installed(self):
+    def _on_marketplace_installed(self, installed_files=None):
         self._reload_user_extensions()
+        installed_names = {
+            os.path.basename(path) for path in (installed_files or [])
+        }
+        for extension_id, filename in self.extensionloader.filemap.items():
+            if filename not in installed_names:
+                continue
+            extension = self.extensionloader.get_extension_by_id(extension_id)
+            if extension is None:
+                continue
+            Thread(target=extension.install, daemon=True).start()
         self.update()
 
     def update(self):
@@ -306,23 +315,18 @@ class ExtensionPage(Adw.PreferencesPage):
             self.extensionloader.enable(extension_id)
         else:
             self.extensionloader.disable(extension_id)
+        self._reload_user_extensions({extension_id})
+        GLib.idle_add(self.update)
         return False
 
-    def _reload_user_extensions(self):
-        loader = ExtensionLoader(
-            self.extension_path,
-            pip_path=self.pip_directory,
-            extension_cache=self.extensions_cache,
-            settings=self.settings,
-        )
-        loader.load_extensions()
-        loader.set_ui_controller(self.controller.ui_controller)
-        self.controller.set_extensionsloader(loader)
-        self.extensionloader = loader
+    def _reload_user_extensions(self, extension_ids=None):
+        refreshes = self.controller.reload_extensions(extension_ids)
+        self.extensionloader = self.controller.extensionloader
+        return refreshes
 
     def delete_extension(self, _button, extension_id):
         self.extensionloader.remove_extension(extension_id)
-        self._reload_user_extensions()
+        self._reload_user_extensions({extension_id})
         self.update()
 
     def on_folder_button_clicked(self, _button):
@@ -362,10 +366,6 @@ class ExtensionPage(Adw.PreferencesPage):
             return
 
         Thread(target=added_extension.install, daemon=True).start()
-        added_extension.set_setting(
-            "reload_requested",
-            added_extension.get_setting("reload_requested", False, 0) + 1,
-        )
         self._add_toast(_("Extension added. New extensions will run"))
         self.update()
 

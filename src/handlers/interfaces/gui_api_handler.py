@@ -238,6 +238,32 @@ class GUIAPIInterface(Interface):
             provider: Optional[str] = None
             settings: dict = Field(default_factory=dict)
 
+        class ProviderSettingsRequest(BaseModel):
+            provider: Optional[str] = None
+            enabled: Optional[bool] = None
+            settings: dict = Field(default_factory=dict)
+            details: dict = Field(default_factory=dict)
+
+        class ProviderActionRequest(BaseModel):
+            provider: Optional[str] = None
+            key: str
+            action: str = "primary"
+
+        class InterfaceSettingsRequest(BaseModel):
+            settings: dict = Field(default_factory=dict)
+
+        class InterfaceActionRequest(BaseModel):
+            key: str
+            action: str = "primary"
+
+        class PermissionSettingsRequest(BaseModel):
+            auto_run: Optional[Any] = None
+            max_run_times: Optional[Any] = None
+            default_action: Optional[Any] = None
+            file_rules: Optional[Any] = None
+            command_rules: Optional[Any] = None
+            path_rules: Optional[Any] = None
+
         # ============================================================ #
         #                         BOOTSTRAP                             #
         # ============================================================ #
@@ -632,33 +658,93 @@ class GUIAPIInterface(Interface):
         def api_list_interfaces():
             from ...constants import AVAILABLE_INTERFACES
             result = []
-            enabled_map = {}
-            if hasattr(controller, 'newelle_settings'):
-                enabled_map = getattr(controller.newelle_settings, 'interfaces_enabled', {}) or {}
             for key, info in AVAILABLE_INTERFACES.items():
                 iface = controller.handlers.interfaces.get(key) if hasattr(controller.handlers, 'interfaces') else None
+                enabled = iface.get_setting("enabled", False, False) if iface else False
                 result.append({
                     "key": key,
                     "name": info.get("title", key),
                     "title": info.get("title", key),
                     "description": info.get("description", ""),
-                    "enabled": bool(enabled_map.get(key, True)),
+                    "enabled": bool(enabled),
                     "running": iface.is_running() if iface else False,
                     "error": getattr(iface, '_error', None) if iface else None,
+                    "has_settings": bool(iface and iface.get_extra_settings()),
                 })
             return result
 
         @app.post("/api/interfaces/set-enabled")
         def api_set_interface_enabled(req: SetInterfaceEnabledRequest):
-            if not hasattr(controller, 'newelle_settings'):
-                raise HTTPException(status_code=503, detail="Settings not loaded")
-            enabled_map = controller.newelle_settings.interfaces_enabled
-            if req.enabled:
-                enabled_map[req.interface_key] = True
-            else:
-                enabled_map[req.interface_key] = False
-            controller.newelle_settings.interfaces_enabled = enabled_map
-            controller.settings.set_string("interfaces-enabled", json.dumps(enabled_map))
+            iface = (
+                controller.handlers.interfaces.get(req.interface_key)
+                if hasattr(controller.handlers, "interfaces")
+                else None
+            )
+            if iface is None:
+                raise HTTPException(status_code=404, detail="Interface not found")
+            iface.set_setting("enabled", req.enabled)
+            return {"status": "ok"}
+
+        @app.get("/api/interfaces/{interface_key}/settings")
+        def api_get_interface_settings(interface_key: str):
+            iface = (
+                controller.handlers.interfaces.get(interface_key)
+                if hasattr(controller.handlers, "interfaces")
+                else None
+            )
+            if iface is None:
+                raise HTTPException(status_code=404, detail="Interface not found")
+            return {
+                "interface": interface_key,
+                "settings": _serialize_extra_settings(
+                    iface.get_extra_settings(), lambda key: iface.get_setting(key)
+                ),
+            }
+
+        @app.put("/api/interfaces/{interface_key}/settings")
+        def api_set_interface_settings(
+            interface_key: str, req: InterfaceSettingsRequest
+        ):
+            iface = (
+                controller.handlers.interfaces.get(interface_key)
+                if hasattr(controller.handlers, "interfaces")
+                else None
+            )
+            if iface is None:
+                raise HTTPException(status_code=404, detail="Interface not found")
+            allowed = {
+                setting["key"]
+                for setting in _flatten_extra_settings(iface.get_extra_settings())
+                if setting.get("type") not in ("button", "download")
+            }
+            unknown = set(req.settings) - allowed
+            if unknown:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Unknown interface setting: {sorted(unknown)[0]}",
+                )
+            for key, value in req.settings.items():
+                iface.set_setting(key, value)
+            return {"status": "ok"}
+
+        @app.post("/api/interfaces/{interface_key}/settings/action")
+        def api_run_interface_setting_action(
+            interface_key: str, req: InterfaceActionRequest
+        ):
+            iface = (
+                controller.handlers.interfaces.get(interface_key)
+                if hasattr(controller.handlers, "interfaces")
+                else None
+            )
+            if iface is None:
+                raise HTTPException(status_code=404, detail="Interface not found")
+            setting = _find_extra_setting(iface.get_extra_settings(), req.key)
+            if setting is None:
+                raise HTTPException(status_code=404, detail="Setting action not found")
+            callback = setting.get("refresh") if req.action == "refresh" else setting.get("callback")
+            if not callable(callback):
+                raise HTTPException(status_code=400, detail="Setting has no such action")
+            threading.Thread(target=callback, args=(None,), daemon=True).start()
             return {"status": "ok"}
 
         @app.get("/api/interfaces/{interface_key}/running")
@@ -697,9 +783,12 @@ class GUIAPIInterface(Interface):
 
         @app.get("/api/interfaces/enabled-map")
         def api_get_interfaces_enabled_map():
-            if hasattr(controller, 'newelle_settings'):
-                return controller.newelle_settings.interfaces_enabled
-            return {}
+            if not hasattr(controller.handlers, "interfaces"):
+                return {}
+            return {
+                key: bool(iface.get_setting("enabled", False, False))
+                for key, iface in controller.handlers.interfaces.items()
+            }
 
         # ============================================================ #
         #                         PROFILES                              #
@@ -1060,6 +1149,40 @@ class GUIAPIInterface(Interface):
         # ============================================================ #
         #                        EXTENSIONS                             #
         # ============================================================ #
+        def _flatten_extra_settings(extra_settings, section=None):
+            """Flatten nested handler settings while retaining section labels."""
+            flattened = []
+            for setting in extra_settings or []:
+                if not isinstance(setting, dict):
+                    continue
+                if setting.get("type") == "nested":
+                    nested_section = setting.get("title") or section
+                    flattened.extend(
+                        _flatten_extra_settings(
+                            setting.get("extra_settings", []), nested_section
+                        )
+                    )
+                    continue
+                entry = dict(setting)
+                if section:
+                    entry["section"] = section
+                flattened.append(entry)
+            return flattened
+
+        def _find_extra_setting(extra_settings, key):
+            for setting in extra_settings or []:
+                if not isinstance(setting, dict):
+                    continue
+                if setting.get("key") == key:
+                    return setting
+                if setting.get("type") == "nested":
+                    found = _find_extra_setting(
+                        setting.get("extra_settings", []), key
+                    )
+                    if found is not None:
+                        return found
+            return None
+
         def _serialize_extra_settings(extra_settings, get_value):
             """Map a handler's extra_settings list to the JSON shape the WebUI renders.
 
@@ -1068,21 +1191,272 @@ class GUIAPIInterface(Interface):
             current value. Mirrors api_get_tts_settings.
             """
             result = []
-            for s in extra_settings:
-                if not isinstance(s, dict):
-                    continue
+            for s in _flatten_extra_settings(extra_settings):
                 entry = {
                     "key": s.get("key", ""),
                     "title": s.get("title", ""),
                     "description": s.get("description", ""),
                     "type": s.get("type", "entry"),
                 }
-                for field in ("default", "values", "password", "min", "max", "step", "round-digits", "website", "folder"):
+                for field in (
+                    "default", "values", "password", "min", "max", "step",
+                    "round-digits", "website", "folder", "section", "label",
+                    "icon", "is_installed",
+                ):
                     if field in s:
                         entry[field] = s[field]
-                entry["value"] = get_value(entry["key"])
+                value = get_value(entry["key"])
+                entry["value"] = entry.get("default") if value is None else value
+                if entry["type"] in ("button", "download"):
+                    entry["action"] = True
+                    entry["has_refresh"] = callable(s.get("refresh"))
+                if entry["type"] == "download" and callable(
+                    s.get("download_percentage")
+                ):
+                    try:
+                        entry["progress"] = s["download_percentage"](None)
+                    except Exception:
+                        entry["progress"] = 0
                 result.append(entry)
             return result
+
+        def _provider_category(category):
+            from ...constants import (
+                AVAILABLE_EMBEDDINGS,
+                AVAILABLE_IMAGE_GENERATORS,
+                AVAILABLE_LLMS,
+                AVAILABLE_MEMORIES,
+                AVAILABLE_RAGS,
+                AVAILABLE_WEBSEARCH,
+            )
+
+            categories = {
+                "embedding": {
+                    "providers": AVAILABLE_EMBEDDINGS,
+                    "provider_key": "embedding-model",
+                    "settings_key": "embedding-settings",
+                },
+                "memory": {
+                    "providers": AVAILABLE_MEMORIES,
+                    "provider_key": "memory-model",
+                    "settings_key": "memory-settings",
+                    "enabled_key": "memory-on",
+                },
+                "rag": {
+                    "providers": AVAILABLE_RAGS,
+                    "provider_key": "rag-model",
+                    "settings_key": "rag-settings",
+                    "enabled_key": "rag-on",
+                },
+                "image-generation": {
+                    "providers": AVAILABLE_IMAGE_GENERATORS,
+                    "provider_key": "image-generator",
+                    "settings_key": "image-generator-settings",
+                },
+                "websearch": {
+                    "providers": AVAILABLE_WEBSEARCH,
+                    "provider_key": "websearch-model",
+                    "settings_key": "websearch-settings",
+                    "enabled_key": "websearch-on",
+                },
+                "secondary-llm": {
+                    "providers": AVAILABLE_LLMS,
+                    "provider_key": "secondary-language-model",
+                    "settings_key": "llm-secondary-settings",
+                    "enabled_key": "secondary-llm-on",
+                    "secondary": True,
+                },
+            }
+            config = categories.get(category)
+            if config is None:
+                raise HTTPException(
+                    status_code=404, detail="Unknown provider settings category"
+                )
+            return config
+
+        def _provider_handler(config, provider):
+            providers = config["providers"]
+            if provider not in providers:
+                raise HTTPException(status_code=404, detail="Provider not found")
+            handler = controller.handlers.get_object(
+                providers, provider, config.get("secondary", False)
+            )
+            if config["provider_key"] == "rag-model":
+                handler.set_handlers(
+                    controller.handlers.llm, controller.handlers.embedding
+                )
+            return handler
+
+        def _provider_payload(category, provider=None):
+            config = _provider_category(category)
+            selected = provider or controller.settings.get_string(
+                config["provider_key"]
+            )
+            if selected not in config["providers"]:
+                selected = next(iter(config["providers"]), "")
+            handler = _provider_handler(config, selected)
+            extra = list(handler.get_extra_settings() or [])
+            if category == "rag" and hasattr(handler, "get_index_row"):
+                extra.append(handler.get_index_row())
+
+            providers = [
+                {
+                    "key": key,
+                    "title": info.get("title", key),
+                    "description": info.get("description", ""),
+                }
+                for key, info in config["providers"].items()
+            ]
+            payload = {
+                "category": category,
+                "provider": selected,
+                "providers": providers,
+                "enabled": (
+                    controller.settings.get_boolean(config["enabled_key"])
+                    if config.get("enabled_key")
+                    else None
+                ),
+                "settings": _serialize_extra_settings(
+                    extra, lambda key: handler.get_setting(key)
+                ),
+                "models": [],
+                "details": {},
+            }
+            if category == "secondary-llm" and hasattr(
+                handler, "get_models_list"
+            ):
+                try:
+                    payload["models"] = [
+                        {
+                            "id": model[0],
+                            "name": model[1] if len(model) > 1 else model[0],
+                        }
+                        for model in handler.get_models_list()
+                    ]
+                except Exception:
+                    payload["models"] = []
+                payload["details"] = {
+                    "use_for_vision": controller.settings.get_boolean(
+                        "secondary-llm-vision"
+                    )
+                }
+            elif category == "rag":
+                payload["details"] = {
+                    "use_for_unsupported": controller.settings.get_boolean(
+                        "rag-on-documents"
+                    ),
+                    "documents_context_limit": controller.settings.get_int(
+                        "documents-context-limit"
+                    ),
+                    "custom_document_folders": controller.settings.get_strv(
+                        "custom-document-folders"
+                    ),
+                    "documents_path": getattr(handler, "documents_path", ""),
+                }
+            return payload
+
+        @app.get("/api/provider-settings/{category}")
+        def api_get_provider_settings(category: str, provider: Optional[str] = None):
+            return _provider_payload(category, provider)
+
+        @app.put("/api/provider-settings/{category}")
+        def api_set_provider_settings(category: str, req: ProviderSettingsRequest):
+            config = _provider_category(category)
+            selected = req.provider or controller.settings.get_string(
+                config["provider_key"]
+            )
+            handler = _provider_handler(config, selected)
+            if req.provider is not None:
+                controller.settings.set_string(config["provider_key"], selected)
+            if req.enabled is not None:
+                enabled_key = config.get("enabled_key")
+                if enabled_key is None:
+                    raise HTTPException(
+                        status_code=400, detail="Category cannot be enabled or disabled"
+                    )
+                controller.settings.set_boolean(enabled_key, req.enabled)
+
+            extra = list(handler.get_extra_settings() or [])
+            editable = {
+                setting["key"]
+                for setting in _flatten_extra_settings(extra)
+                if setting.get("type") not in ("button", "download")
+            }
+            unknown = set(req.settings) - editable
+            if unknown:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Unknown provider setting: {sorted(unknown)[0]}",
+                )
+            for key, value in req.settings.items():
+                handler.set_setting(key, value)
+
+            if category == "secondary-llm" and "use_for_vision" in req.details:
+                value = req.details["use_for_vision"]
+                if not isinstance(value, bool):
+                    raise HTTPException(
+                        status_code=400, detail="use_for_vision must be boolean"
+                    )
+                controller.settings.set_boolean("secondary-llm-vision", value)
+            elif category == "rag":
+                if "use_for_unsupported" in req.details:
+                    value = req.details["use_for_unsupported"]
+                    if not isinstance(value, bool):
+                        raise HTTPException(
+                            status_code=400,
+                            detail="use_for_unsupported must be boolean",
+                        )
+                    controller.settings.set_boolean("rag-on-documents", value)
+                if "documents_context_limit" in req.details:
+                    value = req.details["documents_context_limit"]
+                    if not isinstance(value, int) or not 0 <= value <= 50000:
+                        raise HTTPException(
+                            status_code=400,
+                            detail="documents_context_limit must be between 0 and 50000",
+                        )
+                    controller.settings.set_int("documents-context-limit", value)
+                if "custom_document_folders" in req.details:
+                    folders = req.details["custom_document_folders"]
+                    if not isinstance(folders, list) or not all(
+                        isinstance(folder, str) and folder.strip()
+                        for folder in folders
+                    ):
+                        raise HTTPException(
+                            status_code=400,
+                            detail="custom_document_folders must contain non-empty paths",
+                        )
+                    controller.settings.set_strv(
+                        "custom-document-folders",
+                        list(dict.fromkeys(folder.strip() for folder in folders)),
+                    )
+
+            controller.update_settings()
+            return _provider_payload(category, selected)
+
+        @app.post("/api/provider-settings/{category}/action")
+        def api_run_provider_setting_action(
+            category: str, req: ProviderActionRequest
+        ):
+            config = _provider_category(category)
+            selected = req.provider or controller.settings.get_string(
+                config["provider_key"]
+            )
+            handler = _provider_handler(config, selected)
+            extra = list(handler.get_extra_settings() or [])
+            if category == "rag" and hasattr(handler, "get_index_row"):
+                extra.append(handler.get_index_row())
+            setting = _find_extra_setting(extra, req.key)
+            if setting is None:
+                raise HTTPException(status_code=404, detail="Setting action not found")
+            callback = (
+                setting.get("refresh")
+                if req.action == "refresh"
+                else setting.get("callback")
+            )
+            if not callable(callback):
+                raise HTTPException(status_code=400, detail="Setting has no such action")
+            threading.Thread(target=callback, args=(None,), daemon=True).start()
+            return {"status": "ok"}
 
         def _get_extension_loader():
             loader = getattr(controller, "extensionloader", None)
@@ -1146,12 +1520,11 @@ class GUIAPIInterface(Interface):
                 loader.enable(extension_id)
             else:
                 loader.disable(extension_id)
-            controller.update_settings()
+            controller.reload_extensions({extension_id})
             return {"status": "ok"}
 
         @app.post("/api/extensions/add")
         async def api_add_extension(file: UploadFile = File(...)):
-            from ...constants import ReloadType
             loader = _get_extension_loader()
             filename = file.filename or "extension.py"
             if not filename.endswith(".py"):
@@ -1162,9 +1535,9 @@ class GUIAPIInterface(Interface):
                 tmp.write(content)
                 tmp.flush()
                 tmp.close()
-                loader.add_extension(tmp.name)
+                loader.add_extension(tmp.name, filename)
                 # Reload so the new extension's handlers/prompts/tools are live.
-                controller.reload(ReloadType.EXTENSIONS)
+                controller.reload_extensions()
                 new_loader = controller.extensionloader
                 new_id = None
                 base = os.path.basename(filename)
@@ -1176,14 +1549,6 @@ class GUIAPIInterface(Interface):
                     added = new_loader.get_extension_by_id(new_id)
                     if added is not None and hasattr(added, "install"):
                         threading.Thread(target=added.install, daemon=True).start()
-                    if added is not None and hasattr(added, "set_setting"):
-                        try:
-                            added.set_setting(
-                                "reload_requested",
-                                added.get_setting("reload_requested", False, 0) + 1,
-                            )
-                        except Exception:
-                            pass
                 return {"status": "ok", "id": new_id}
             except HTTPException:
                 raise
@@ -1197,12 +1562,11 @@ class GUIAPIInterface(Interface):
 
         @app.delete("/api/extensions/{extension_id}")
         def api_delete_extension(extension_id: str):
-            from ...constants import ReloadType
             loader = _get_extension_loader()
             if loader.get_extension_by_id(extension_id) is None:
                 raise HTTPException(status_code=404, detail="Extension not found")
             loader.remove_extension(extension_id)
-            controller.reload(ReloadType.EXTENSIONS)
+            controller.reload_extensions({extension_id})
             return {"status": "ok"}
 
         # ============================================================ #
@@ -1667,8 +2031,157 @@ class GUIAPIInterface(Interface):
         def api_patch_settings(req: PatchSettingsRequest):
             from ...utility.profile_settings import restore_settings_from_dict
             restore_settings_from_dict(controller.settings, req.settings)
+            if set(req.settings) & {
+                "command-execution-permissions",
+                "path-security-levels",
+                "default-risk-level",
+            }:
+                from ...utility.command_permissions import CommandPermissionManager
+                CommandPermissionManager.invalidate_cache()
             controller.update_settings()
             return {"status": "ok"}
+
+        def _load_json_list_setting(key, fallback):
+            try:
+                value = json.loads(controller.settings.get_string(key))
+            except (json.JSONDecodeError, TypeError):
+                value = fallback
+            return value if isinstance(value, list) else fallback
+
+        def _permissions_payload():
+            return {
+                "auto_run": controller.settings.get_boolean("auto-run"),
+                "max_run_times": controller.settings.get_int("max-run-times"),
+                "default_action": controller.settings.get_string(
+                    "default-risk-level"
+                ) or "ask",
+                "file_rules": _load_json_list_setting(
+                    "file-permissions",
+                    [
+                        {"path": "*", "read": "allow", "write": "ask"},
+                        {
+                            "path": "{{main_path}}",
+                            "read": "allow",
+                            "write": "ask",
+                        },
+                    ],
+                ),
+                "command_rules": _load_json_list_setting(
+                    "command-execution-permissions", []
+                ),
+                "path_rules": _load_json_list_setting(
+                    "path-security-levels",
+                    [
+                        {"path": "{{main_path}}", "level": "trusted"},
+                        {"path": "/tmp", "level": "sandboxed"},
+                    ],
+                ),
+            }
+
+        @app.get("/api/permissions")
+        def api_get_permissions():
+            return _permissions_payload()
+
+        @app.put("/api/permissions")
+        def api_set_permissions(req: PermissionSettingsRequest):
+            actions = {"allow", "ask", "block"}
+            path_levels = {"yolo", "trusted", "sandboxed", "restricted"}
+
+            if req.auto_run is not None:
+                if not isinstance(req.auto_run, bool):
+                    raise HTTPException(
+                        status_code=400, detail="auto_run must be boolean"
+                    )
+                controller.settings.set_boolean("auto-run", req.auto_run)
+            if req.max_run_times is not None:
+                if (
+                    not isinstance(req.max_run_times, int)
+                    or not 0 <= req.max_run_times <= 30
+                ):
+                    raise HTTPException(
+                        status_code=400,
+                        detail="max_run_times must be between 0 and 30",
+                    )
+                controller.settings.set_int("max-run-times", req.max_run_times)
+            if req.default_action is not None:
+                if req.default_action not in actions:
+                    raise HTTPException(
+                        status_code=400, detail="Invalid default action"
+                    )
+                controller.settings.set_string(
+                    "default-risk-level", req.default_action
+                )
+
+            if req.file_rules is not None:
+                if not isinstance(req.file_rules, list):
+                    raise HTTPException(
+                        status_code=400, detail="file_rules must be a list"
+                    )
+                for rule in req.file_rules:
+                    if (
+                        not isinstance(rule, dict)
+                        or not isinstance(rule.get("path"), str)
+                        or not rule["path"].strip()
+                        or rule.get("read") not in actions
+                        or rule.get("write") not in actions
+                    ):
+                        raise HTTPException(
+                            status_code=400, detail="Invalid file permission rule"
+                        )
+                controller.settings.set_string(
+                    "file-permissions", json.dumps(req.file_rules)
+                )
+
+            if req.command_rules is not None:
+                if not isinstance(req.command_rules, list):
+                    raise HTTPException(
+                        status_code=400, detail="command_rules must be a list"
+                    )
+                for rule in req.command_rules:
+                    if (
+                        not isinstance(rule, dict)
+                        or not isinstance(rule.get("pattern"), str)
+                        or rule.get("action") not in actions
+                    ):
+                        raise HTTPException(
+                            status_code=400,
+                            detail="Invalid command permission rule",
+                        )
+                    try:
+                        re.compile(rule["pattern"])
+                    except re.error as error:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Invalid command pattern: {error}",
+                        )
+                controller.settings.set_string(
+                    "command-execution-permissions",
+                    json.dumps(req.command_rules),
+                )
+
+            if req.path_rules is not None:
+                if not isinstance(req.path_rules, list):
+                    raise HTTPException(
+                        status_code=400, detail="path_rules must be a list"
+                    )
+                for rule in req.path_rules:
+                    if (
+                        not isinstance(rule, dict)
+                        or not isinstance(rule.get("path"), str)
+                        or not rule["path"].strip()
+                        or rule.get("level") not in path_levels
+                    ):
+                        raise HTTPException(
+                            status_code=400, detail="Invalid path security rule"
+                        )
+                controller.settings.set_string(
+                    "path-security-levels", json.dumps(req.path_rules)
+                )
+
+            from ...utility.command_permissions import CommandPermissionManager
+            CommandPermissionManager.invalidate_cache()
+            controller.update_settings()
+            return _permissions_payload()
 
         # ============================================================ #
         #                       SSE STREAMING                           #

@@ -851,6 +851,20 @@ class Settings(Adw.Window):
         self.refresh_tools_list()
         self._building_tools_page = False
 
+    def refresh_extension_resources(self, refreshes):
+        """Refresh only settings sections affected by extension changes."""
+        self.extensionloader = self.controller.extensionloader
+        self.handlers = self.controller.handlers
+        if "tools" in refreshes and self.tools_page_initialized:
+            self.refresh_tools_list()
+        if "prompts" in refreshes:
+            self.custom_prompts = self.controller.newelle_settings.custom_prompts
+            self.prompts_settings = self.controller.newelle_settings.prompts_settings
+            self.prompts = self.controller.newelle_settings.prompts
+            self.build_prompts_settings()
+        if "interfaces" in refreshes and hasattr(self.InterfacesPage, "refresh"):
+            self.InterfacesPage.refresh()
+
     def build_permissions_page(self):
         if self.permissions_page_initialized or self._building_permissions_page:
             return

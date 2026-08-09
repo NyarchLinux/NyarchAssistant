@@ -45,6 +45,22 @@ class InterfacesPage(Adw.PreferencesPage):
     def _save_interface_settings(self):
         self.settings.set_string("interfaces-settings", json.dumps(self._interface_settings))
 
+    def refresh(self):
+        """Rebuild the page when extension-provided interfaces change."""
+        if hasattr(self, "interfaces_group"):
+            self.remove(self.interfaces_group)
+        self.settingsrows = {}
+        self.extra_settings_builder = ExtraSettingsBuilder(
+            settingsrows=self.settingsrows,
+            convert_constants=self._convert_constants,
+        )
+        self._interface_rows = {}
+        self._play_buttons = {}
+        self._enabled_switches = {}
+        self._interfaces = {}
+        self._load_interface_settings()
+        self._build_ui()
+
     def _get_interface_setting(self, key, field, default=None):
         if key in self._interface_settings and field in self._interface_settings[key]:
             return self._interface_settings[key][field]

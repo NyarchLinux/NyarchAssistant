@@ -1261,9 +1261,9 @@ class ExtensionMarketplaceView(Gtk.Box):
             return GLib.SOURCE_REMOVE
         install_button.set_label(_("Installed {count} files").format(count=len(installed)))
         install_button.set_sensitive(False)
-        self.toast_overlay.add_toast(
-            Adw.Toast(title=_("Extension files added. Restart Newelle to activate them."))
-        )
         if self.on_installed is not None:
-            self.on_installed()
+            self.on_installed(installed)
+        self.toast_overlay.add_toast(
+            Adw.Toast(title=_("Extension files added and activated."))
+        )
         return GLib.SOURCE_REMOVE

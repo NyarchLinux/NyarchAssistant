@@ -11,6 +11,48 @@ class UIController:
     def require_tool_update(self):
         self.window.controller.require_tool_update()
 
+    def refresh_extension_resources(self, refreshes):
+        """Refresh extension-backed UI surfaces that are currently alive."""
+        self.window.extensionloader = self.window.controller.extensionloader
+        if "prompts" in refreshes:
+            self.window.prompts = self.window.controller.newelle_settings.prompts
+        if "handlers" in refreshes:
+            handlers = self.window.controller.handlers
+            self.window.tts = handlers.tts
+            self.window.stt = handlers.stt
+            self.window.model = handlers.llm
+            self.window.secondary_model = handlers.secondary_llm
+            self.window.embeddings = handlers.embedding
+            self.window.memory_handler = handlers.memory
+            self.window.rag_handler = handlers.rag
+        if "mini_apps" in refreshes and hasattr(
+            self.window, "refresh_add_tab_menu"
+        ):
+            self.window.refresh_add_tab_menu()
+        if "llm_handlers" in refreshes and all(
+            hasattr(self.window, attribute)
+            for attribute in ("build_model_popup", "chat_header")
+        ):
+            self.window.chat_header.set_title_widget(
+                self.window.build_model_popup()
+            )
+
+        settings_views = []
+        popup_settings = getattr(self.window, "model_popup_settings", None)
+        if popup_settings is not None:
+            settings_views.append(popup_settings)
+        app_settings = getattr(getattr(self.window, "app", None), "settingswindow", None)
+        if (
+            app_settings is not None
+            and app_settings.get_visible()
+            and all(app_settings is not view for view in settings_views)
+        ):
+            settings_views.append(app_settings)
+        for settings_view in settings_views:
+            refresh = getattr(settings_view, "refresh_extension_resources", None)
+            if refresh is not None:
+                refresh(refreshes)
+
     def set_model_loading(self, status):
         self.window.set_model_loading_spinner(status)
 
@@ -150,6 +192,9 @@ class HeadlessController(UIController):
 
     def require_tool_update(self):
         self.controller.require_tool_update()
+
+    def refresh_extension_resources(self, refreshes):
+        pass
 
     def set_model_loading(self, status):
         pass
