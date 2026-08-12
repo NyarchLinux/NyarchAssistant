@@ -1179,10 +1179,16 @@ class Message(Gtk.Box):
         else:
             if action == CommandAction.BLOCK:
                 if not restore:
-                    self.controller.chat.append({"User": "Console", "Message": f"Command blocked: {reason}"})
+                    self.controller.append_chat_message(
+                        chat_tab.chat_id,
+                        {"User": "Console", "Message": f"Command blocked: {reason}"},
+                    )
             else:
                 if not restore:
-                    self.controller.chat.append({"User": "Console", "Message": "None"})
+                    self.controller.append_chat_message(
+                        chat_tab.chat_id,
+                        {"User": "Console", "Message": "None"},
+                    )
             copybox = self._create_copybox(command, "console", state=state, codeblock_id=state["codeblock_id"], allow_edit=state["editable"], enable_run_callback=True)
             if action == CommandAction.BLOCK:
                 copybox.complete_execution(None)
@@ -1284,6 +1290,8 @@ class Message(Gtk.Box):
         if slot is not None and not slot.active:
             return
 
+        chat_tab = self._get_chat_tab()
+        chat_id = chat_tab.chat_id
         placeholder = slot.widget
         group = slot.group if slot is not None else None
         state["has_terminal_command"] = True
@@ -1308,7 +1316,7 @@ class Message(Gtk.Box):
                         result = tool.restore(
                             msg_uuid=msg_uuid,
                             tool_uuid=tool_uuid,
-                            chat_id=self._get_chat_tab().chat_id,
+                            chat_id=chat_id,
                             **args,
                         )
                     except Exception as e:
@@ -1333,7 +1341,7 @@ class Message(Gtk.Box):
                             result = tool.execute(
                                 msg_uuid=msg_uuid,
                                 tool_uuid=tool_uuid,
-                                chat_id=self._get_chat_tab().chat_id,
+                                chat_id=chat_id,
                                 **args,
                             )
                         except Exception as e:
@@ -1348,7 +1356,7 @@ class Message(Gtk.Box):
                 
                 if not restore:
                     # Append result to active tool results in main thread if needed
-                    self._get_chat_tab().active_tool_results.append(result)
+                    chat_tab.active_tool_results.append(result)
                     
                     if getattr(result, "requires_interaction", False):
                         def _notify_if_unfocused():
@@ -1401,13 +1409,15 @@ class Message(Gtk.Box):
                                 slot, "completed" if code[0] else "error"
                             )
                 
-                reply_from_console = self.controller.get_tool_response(self._get_chat_tab().chat_id, state["id_message"], tool.name, tool_uuid)
+                reply_from_console = self.controller.get_tool_response(
+                    chat_id, state["id_message"], tool.name, tool_uuid
+                )
                 def get_response(reply_from_console):
                     if not restore:
                         response = result.get_output()
                         context_messages = result.get_context_messages()
                         if not restore:
-                            try: self._get_chat_tab().active_tool_results.remove(result)
+                            try: chat_tab.active_tool_results.remove(result)
                             except: pass
                         if result.is_cancelled:
                             if current_group() is not None:
@@ -1420,13 +1430,19 @@ class Message(Gtk.Box):
                             code = (not tool_failed, response)
                             console_output = response or "Tool returned additional context."
                             formatted = f"[Tool: {tool.name}, ID: {tool_uuid}]\n{console_output}"
-                            self.controller.chat.append({"User": "Console", "Message": formatted})
+                            self.controller.append_chat_message(
+                                chat_id,
+                                {"User": "Console", "Message": formatted},
+                            )
                             for context_message in context_messages:
-                                self.controller.chat.append({
-                                    "User": "User",
-                                    "Message": context_message,
-                                    "ToolContext": True,
-                                })
+                                self.controller.append_chat_message(
+                                    chat_id,
+                                    {
+                                        "User": "User",
+                                        "Message": context_message,
+                                        "ToolContext": True,
+                                    },
+                                )
                     else:
                         code = (True, reply_from_console)
                     
@@ -1441,7 +1457,10 @@ class Message(Gtk.Box):
                 if not restore:
                     state["should_continue"] = True
                     formatted = f"[Tool: {tool.name}, ID: {tool_uuid}]\n{error_text}"
-                    self.controller.chat.append({"User": "Console", "Message": formatted})
+                    self.controller.append_chat_message(
+                        chat_id,
+                        {"User": "Console", "Message": formatted},
+                    )
                 if current_group() is not None:
                     GLib.idle_add(self._set_tool_slot_state, slot, "error")
                 GLib.idle_add(placeholder.set_result, False, error_text)
@@ -1515,10 +1534,14 @@ class Message(Gtk.Box):
 
     def _run_console_command(self, cmd, restore, console_reply, expander, state):
          # Logic from window.py _process_console_codeblock closure
+         chat_id = self._get_chat_tab().chat_id
          def run_command():
             if not restore:
                 code = self._get_main_window().execute_terminal_command(cmd)
-                self.controller.chat.append({"User": "Console", "Message": " " + str(code[1])})
+                self.controller.append_chat_message(
+                    chat_id,
+                    {"User": "Console", "Message": " " + str(code[1])},
+                )
             else:
                  code = (True, console_reply)
             
