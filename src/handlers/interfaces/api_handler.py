@@ -228,8 +228,8 @@ class APIInterface(ChatInterface):
         if self._is_logging_to_file():
             self._write_log_file_entry("event", msg)
 
-    def _chat_completion_log_print(self, label: str, obj, max_chars: int = 8000) -> None:
-        """Structured logging for the OpenAI-compatible chat completions endpoint.
+    def _structured_log_print(self, endpoint: str, label: str, obj, max_chars: int = 8000) -> None:
+        """Structured logging for an OpenAI-compatible API endpoint.
 
         Always appends the un-truncated payload as one NDJSON line to the log file
         when the 'log_to_file' toggle is enabled. Additionally prints a
@@ -247,7 +247,15 @@ class APIInterface(ChatInterface):
         orig_len = len(text)
         if orig_len > max_chars:
             text = text[:max_chars] + f"\n... [truncated, {orig_len} chars total]"
-        print(f"[API chat/completions] {label}\n{text}")
+        print(f"[API {endpoint}] {label}\n{text}")
+
+    def _chat_completion_log_print(self, label: str, obj, max_chars: int = 8000) -> None:
+        """Structured logging for the chat completions endpoint."""
+        self._structured_log_print("chat/completions", label, obj, max_chars)
+
+    def _embedding_log_print(self, label: str, obj, max_chars: int = 8000) -> None:
+        """Structured logging for the embeddings endpoint."""
+        self._structured_log_print("embeddings", label, obj, max_chars)
 
 
     def _create_app(self):
@@ -551,6 +559,9 @@ class APIInterface(ChatInterface):
 
         @app.post("/v1/embeddings")
         async def create_embeddings(request: EmbeddingRequest):
+            req_dump = request.model_dump() if hasattr(request, "model_dump") else request.dict()
+            self._embedding_log_print("request (raw body)", req_dump)
+
             embedding_handler = controller.handlers.embedding
             if embedding_handler is None:
                 return JSONResponse(
@@ -580,6 +591,8 @@ class APIInterface(ChatInterface):
                     status_code=400,
                     content={"error": {"message": "'input' must be a string or list of strings", "type": "invalid_request_error"}},
                 )
+
+            self._embedding_log_print("request (texts to embed)", {"texts": texts})
 
             try:
                 embeddings = embedding_handler.get_embedding(texts)

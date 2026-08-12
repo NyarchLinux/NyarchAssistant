@@ -74,6 +74,10 @@ class Settings(Adw.Window):
             convert_constants=self.convert_constants,
             on_before_rebuild=self._on_extra_settings_rebuild,
         )
+        self._llm_primary_rows = []
+        self._llm_primary_other_rows = []
+        self._llm_secondary_rows = []
+        self._llm_secondary_other_rows = []
         # Build the LLMs settings
         self.LLM = Adw.PreferencesGroup(title=_('Language Model'))
         # Add Help Button 
@@ -85,12 +89,15 @@ class Settings(Adw.Window):
         group = Gtk.CheckButton()
         selected = self.settings.get_string("language-model")
         others_row = Adw.ExpanderRow(title=_('Other LLMs'), subtitle=_("Other available LLM providers"))
+        self._llm_primary_other_group = others_row
         for model_key in AVAILABLE_LLMS:
            row = self.build_row(AVAILABLE_LLMS, model_key, selected, group)
            if "secondary" in AVAILABLE_LLMS[model_key] and AVAILABLE_LLMS[model_key]["secondary"]:
                others_row.add_row(row)
+               self._llm_primary_other_rows.append(row)
            else:
                 self.LLM.add(row)
+                self._llm_primary_rows.append(row)
         self.LLM.add(others_row)
         # Secondary LLM settings
         self.SECONDARY_LLM = Adw.PreferencesGroup(title=_('Secondary LLM'))
@@ -105,12 +112,16 @@ class Settings(Adw.Window):
         group = Gtk.CheckButton()
         selected = self.settings.get_string("secondary-language-model")
         others_row = Adw.ExpanderRow(title=_('Other LLMs'), subtitle=_("Other available LLM providers"))
+        self._llm_secondary_model_group = secondary_LLM
+        self._llm_secondary_other_group = others_row
         for model_key in AVAILABLE_LLMS:
            row = self.build_row(AVAILABLE_LLMS, model_key, selected, group, True)
            if "secondary" in AVAILABLE_LLMS[model_key] and AVAILABLE_LLMS[model_key]["secondary"]:
                others_row.add_row(row)
+               self._llm_secondary_other_rows.append(row)
            else:
                secondary_LLM.add_row(row)
+               self._llm_secondary_rows.append(row)
         secondary_LLM.add_row(others_row)
         self.SECONDARY_LLM.add(secondary_LLM)
 
@@ -855,6 +866,8 @@ class Settings(Adw.Window):
         """Refresh only settings sections affected by extension changes."""
         self.extensionloader = self.controller.extensionloader
         self.handlers = self.controller.handlers
+        if "llm_handlers" in refreshes:
+            self.refresh_llm_rows()
         if "tools" in refreshes and self.tools_page_initialized:
             self.refresh_tools_list()
         if "prompts" in refreshes:
@@ -864,6 +877,66 @@ class Settings(Adw.Window):
             self.build_prompts_settings()
         if "interfaces" in refreshes and hasattr(self.InterfacesPage, "refresh"):
             self.InterfacesPage.refresh()
+
+    def refresh_llm_rows(self):
+        """Refresh primary and secondary LLM choices in this live window."""
+        for row in self._llm_primary_rows:
+            self.LLM.remove(row)
+        for row in self._llm_primary_other_rows:
+            self._llm_primary_other_group.remove(row)
+        for row in self._llm_secondary_rows:
+            self._llm_secondary_model_group.remove(row)
+        for row in self._llm_secondary_other_rows:
+            self._llm_secondary_other_group.remove(row)
+        # Keep the catch-all expander after all regular providers.  If it stays
+        # attached while rows are rebuilt, newly added providers are appended
+        # after it and make “Other LLMs” jump up the list.
+        self.LLM.remove(self._llm_primary_other_group)
+        self._llm_secondary_model_group.remove(self._llm_secondary_other_group)
+
+        llm_constant = self.convert_constants(AVAILABLE_LLMS)
+        for settings_key in list(self.settingsrows):
+            if (
+                len(settings_key) == 3
+                and settings_key[1] == llm_constant
+                and settings_key[2] in (False, True)
+            ):
+                del self.settingsrows[settings_key]
+
+        self._llm_primary_rows = []
+        self._llm_primary_other_rows = []
+        self._llm_secondary_rows = []
+        self._llm_secondary_other_rows = []
+
+        primary_group = Gtk.CheckButton()
+        selected = self.settings.get_string("language-model")
+        for model_key in AVAILABLE_LLMS:
+            row = self.build_row(AVAILABLE_LLMS, model_key, selected, primary_group)
+            if AVAILABLE_LLMS[model_key].get("secondary", False):
+                self._llm_primary_other_group.add_row(row)
+                self._llm_primary_other_rows.append(row)
+            else:
+                self.LLM.add(row)
+                self._llm_primary_rows.append(row)
+        self.LLM.add(self._llm_primary_other_group)
+
+        secondary_group = Gtk.CheckButton()
+        selected = self.settings.get_string("secondary-language-model")
+        for model_key in AVAILABLE_LLMS:
+            row = self.build_row(
+                AVAILABLE_LLMS,
+                model_key,
+                selected,
+                secondary_group,
+                True,
+            )
+            if AVAILABLE_LLMS[model_key].get("secondary", False):
+                self._llm_secondary_other_group.add_row(row)
+                self._llm_secondary_other_rows.append(row)
+            else:
+                self._llm_secondary_model_group.add_row(row)
+                self._llm_secondary_rows.append(row)
+        self._llm_secondary_model_group.add_row(self._llm_secondary_other_group)
 
     def build_permissions_page(self):
         if self.permissions_page_initialized or self._building_permissions_page:

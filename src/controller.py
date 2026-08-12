@@ -1869,11 +1869,14 @@ class NewelleController:
             current_history, system_prompt = self.integrationsloader.preprocess_history(current_history, system_prompt)
             current_history, system_prompt = self.extensionloader.preprocess_history(current_history, system_prompt)
 
-        # Avoid history duplication: the current message is the prompt, so pop
-        # it from the sent history.
+        # Avoid history duplication without removing the message from the
+        # canonical working history. Later tool iterations still need the
+        # original user request and every preceding tool result.
         current_prompt = message
+        current_prompt_index = None
         if last_entry_is_current and current_history:
-            current_prompt = current_history.pop().get("Message") or message
+            current_prompt_index = len(current_history) - 1
+            current_prompt = current_history[current_prompt_index].get("Message") or message
 
         model = self.get_model_for_chat(self.chats[chat_id]["chat"])
         cont = True
@@ -1889,22 +1892,28 @@ class NewelleController:
                     if on_message_callback:
                         on_message_callback(text)
                 
+                # Each handler appends ``prompt`` to the history it receives.
+                # Remove that prompt only from this request-local copy; mutating
+                # ``current_history`` here would corrupt subsequent tool turns.
+                request_history = current_history.copy()
                 if iteration == 0:
                     prompt = current_prompt
+                    if current_prompt_index is not None:
+                        request_history.pop(current_prompt_index)
                 else:
                     prompt = ""
                     if (
-                        current_history
-                        and current_history[-1].get("ToolContext")
+                        request_history
+                        and request_history[-1].get("ToolContext")
                     ):
-                        prompt = current_history.pop()["Message"]
+                        prompt = request_history.pop()["Message"]
                     else:
-                        for i in range(len(current_history) - 1, -1, -1):
-                            if current_history[i]["User"] == "Console":
-                                prompt = current_history.pop(i)["Message"]
+                        for i in range(len(request_history) - 1, -1, -1):
+                            if request_history[i]["User"] == "Console":
+                                prompt = request_history.pop(i)["Message"]
                                 break
 
-                send_history, _ = self._trim_context(current_history, system_prompt, message)
+                send_history, _ = self._trim_context(request_history, system_prompt, message)
 
                 if model.stream_enabled():
                     response = model.send_message_stream(
@@ -1932,6 +1941,13 @@ class NewelleController:
                         tool_calls.append({"name": chunk.tool_name, "args": chunk.tool_args})
                     elif chunk.type in ("text", "markdown"):
                         text_content += "\n" + chunk.text
+
+                # Some streaming handlers throttle their callbacks and can
+                # leave the final character or provider chunk unreported.
+                # Flush the complete cumulative response once generation is
+                # done. Consumers already de-duplicate cumulative updates.
+                if model.stream_enabled() and not tool_calls and on_message_callback:
+                    on_message_callback(response)
                 
                 if not tool_calls:
                     msg_uuid = int(uuid_lib.uuid4())
