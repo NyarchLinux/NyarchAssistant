@@ -27,7 +27,7 @@ from .utility.system import is_flatpak
 from .utility.pip import install_module
 from .utility.profile_settings import get_settings_dict_by_groups
 from .utility.source_attribution import format_source_context
-from .constants import AVAILABLE_INTEGRATIONS, AVAILABLE_WEBSEARCH, AVAILABLE_IMAGE_GENERATORS, DIR_NAME, SCHEMA_ID, PROMPTS, AVAILABLE_STT, AVAILABLE_TTS, AVAILABLE_LLMS, AVAILABLE_RAGS, AVAILABLE_PROMPTS, AVAILABLE_MEMORIES, AVAILABLE_EMBEDDINGS, AVAILABLE_INTERFACES, SETTINGS_GROUPS, restore_handlers
+from .constants import AVAILABLE_INTEGRATIONS, AVAILABLE_WEBSEARCH, AVAILABLE_IMAGE_GENERATORS, DIR_NAME, SCHEMA_ID, PROMPTS, AVAILABLE_STT, AVAILABLE_TTS, AVAILABLE_LLMS, AVAILABLE_RAGS, AVAILABLE_PROMPTS, AVAILABLE_MEMORIES, AVAILABLE_EMBEDDINGS, AVAILABLE_INTERFACES, SETTINGS_GROUPS, restore_handlers, restore_prompts
 import threading
 import pickle
 import tempfile
@@ -159,6 +159,18 @@ class NewelleController:
         """
         if hasattr(self, 'chats') and self.chats and chat_id in self.chats:
             self.chats[chat_id]["chat"] = value
+
+    def append_chat_message(self, chat_id: int, message: dict) -> bool:
+        """Append a message to a specific chat, regardless of selected tab.
+
+        Tool continuations may run in background chats or across a mode switch.
+        Those callers must not use ``self.chat``, whose target follows the
+        globally selected chat in the current settings.
+        """
+        if not hasattr(self, "chats") or chat_id not in self.chats:
+            return False
+        self.chats[chat_id]["chat"].append(message)
+        return True
 
     def get_console_reply(self, chat_id, id_message):
         """Get existing console reply from chat history if available."""
@@ -930,6 +942,124 @@ class NewelleController:
         self.handlers.llm.load_model(None)
         GLib.idle_add(self.ui_controller.set_model_loading, False)
 
+    def reload_extensions(self, extension_ids=None) -> set[str]:
+        """Reload extensions and refresh only the resources they contribute.
+
+        Args:
+            extension_ids: Optional IDs known to have changed. When omitted,
+                additions, removals, and enabled-state changes are detected.
+
+        Returns:
+            The resource types that were refreshed.
+        """
+        old_loader = self.extensionloader
+        old_ids = set(old_loader.extensionsmap)
+        old_enabled = {
+            extension.id for extension in old_loader.get_enabled_extensions()
+        }
+
+        new_loader = ExtensionLoader(
+            self.extension_path,
+            pip_path=self.pip_path,
+            extension_cache=self.extensions_cache,
+            settings=self.settings,
+        )
+        new_loader.load_extensions()
+        if self.ui_controller is not None:
+            new_loader.set_ui_controller(self.ui_controller)
+
+        new_ids = set(new_loader.extensionsmap)
+        new_enabled = {
+            extension.id for extension in new_loader.get_enabled_extensions()
+        }
+        if extension_ids is None:
+            affected_ids = (old_ids ^ new_ids) | (old_enabled ^ new_enabled)
+            # ReloadType.EXTENSIONS is also used after replacing an extension
+            # file in place. In that case IDs alone cannot identify the change.
+            if not affected_ids:
+                affected_ids = old_ids | new_ids
+        else:
+            affected_ids = set(extension_ids)
+
+        refreshes = old_loader.get_contribution_types(
+            affected_ids, include_disabled=True
+        )
+        refreshes.update(
+            new_loader.get_contribution_types(
+                affected_ids, include_disabled=True
+            )
+        )
+        old_handlers = old_loader.get_handler_contributions(
+            affected_ids, include_disabled=True
+        )
+        new_handlers = new_loader.get_handler_contributions(
+            affected_ids, include_disabled=True
+        )
+        if old_handlers["llm"] or new_handlers["llm"]:
+            refreshes.add("llm_handlers")
+
+        self.extensionloader = new_loader
+        self.handlers.extensionloader = new_loader
+        self.newelle_settings.extensions_settings = self.settings.get_string(
+            "extensions-settings"
+        )
+
+        active_handlers_changed = False
+        if refreshes & {"handlers", "interfaces"}:
+            # Rebuilding these descriptor dictionaries is cheap; actual handler
+            # instances are invalidated selectively below.
+            restore_handlers()
+            new_loader.add_handlers(
+                AVAILABLE_LLMS,
+                AVAILABLE_TTS,
+                AVAILABLE_STT,
+                AVAILABLE_MEMORIES,
+                AVAILABLE_EMBEDDINGS,
+                AVAILABLE_RAGS,
+                AVAILABLE_WEBSEARCH,
+                AVAILABLE_IMAGE_GENERATORS=AVAILABLE_IMAGE_GENERATORS,
+                AVAILABLE_INTERFACES=AVAILABLE_INTERFACES,
+            )
+            active_handlers_changed = self.handlers.refresh_extension_handlers(
+                old_handlers,
+                new_handlers,
+                self.newelle_settings,
+            )
+        else:
+            new_loader.set_handlers(
+                self.handlers.llm,
+                self.handlers.stt,
+                self.handlers.tts,
+                self.handlers.secondary_llm,
+                self.handlers.embedding,
+                self.handlers.rag,
+                self.handlers.memory,
+                self.handlers.websearch,
+            )
+
+        if "prompts" in refreshes:
+            restore_prompts()
+            new_loader.add_prompts(PROMPTS, AVAILABLE_PROMPTS)
+            self.newelle_settings.load_prompts()
+
+        if "modes" in refreshes and hasattr(self, "mode_manager"):
+            new_loader.add_modes(self.mode_manager)
+
+        if "tools" in refreshes or active_handlers_changed:
+            self.require_tool_update()
+            refreshes.add("tools")
+
+        if self.ui_controller is not None and hasattr(
+            self.ui_controller, "refresh_extension_resources"
+        ):
+            GLib.idle_add(
+                self.ui_controller.refresh_extension_resources,
+                set(refreshes),
+            )
+
+        print(f"Extensions reload ({', '.join(sorted(refreshes)) or 'loader only'})")
+        return refreshes
+
     def reload(self, reload_type: ReloadType):
         """Reload the specified settings
 
@@ -937,20 +1067,7 @@ class NewelleController:
             reload_type: type of reload
         """
         if reload_type == ReloadType.EXTENSIONS:
-            self.extensionloader = ExtensionLoader(self.extension_path, pip_path=self.pip_path,
-                                                   extension_cache=self.extensions_cache, settings=self.settings)
-            self.extensionloader.load_extensions()
-            restore_handlers()
-            self.extensionloader.add_handlers(AVAILABLE_LLMS, AVAILABLE_TTS, AVAILABLE_STT, AVAILABLE_MEMORIES, AVAILABLE_EMBEDDINGS, AVAILABLE_RAGS, AVAILABLE_WEBSEARCH, AVAILABLE_IMAGE_GENERATORS=AVAILABLE_IMAGE_GENERATORS, AVAILABLE_INTERFACES=AVAILABLE_INTERFACES)
-            self.extensionloader.add_prompts(PROMPTS, AVAILABLE_PROMPTS)
-            self.newelle_settings.load_prompts()
-            if hasattr(self, "mode_manager"):
-                self.extensionloader.add_modes(self.mode_manager)
-            self.extensionloader.add_tools(self.tools)
-            self.handlers.extensionloader = self.extensionloader
-            self.handlers.select_handlers(self.newelle_settings)
-            self.extensionloader.set_ui_controller(self.ui_controller)
-            print("Extensions reload")
+            return self.reload_extensions()
         elif reload_type == ReloadType.LLM:
             self.handlers.llm.destroy()
             self.handlers.select_handlers(self.newelle_settings)
@@ -1542,6 +1659,19 @@ class NewelleController:
             return self.get_vision_model()
         return self.handlers.llm
 
+    def _build_tool_system_prompt(self, chat_id: int) -> list[str]:
+        """Build the live system prompt used by the agent tool loop.
+
+        Unlike a caller-supplied prompt, this prompt is derived from the active
+        mode and may need to be rebuilt between tool iterations.
+        """
+        prompts = []
+        formatter = PromptFormatter(replace_variables_dict(), self.get_variable)
+        for prompt in self.newelle_settings.bot_prompts:
+            prompts.append(formatter.format(prompt))
+        prompts += self.get_memory_prompt(chat_id=chat_id)
+        return prompts
+
     def prepare_generation(self, chat_id=None):
         """Prepare contexts and prompts for generation.
 
@@ -1702,9 +1832,10 @@ class NewelleController:
         force_tools_on_main_thread: bool = False,
         tool_registry: ToolRegistry | None = None,
         skill_manager: SkillManager | None = None,
+        extension_processing: bool = True,
     ) -> str:
         """Run LLM with tool support integration.
-        
+
         Args:
             message: The user message to send
             history: Chat history (uses current chat if None)
@@ -1717,7 +1848,10 @@ class NewelleController:
             force_tools_on_main_thread: If True, execute tool calls on the GTK main thread.
             tool_registry: Optional tool registry to use for this run instead of the controller registry.
             skill_manager: Optional skill manager to bind for this run, used by skill-related tools.
-            
+            extension_processing: If True, run extension/integration preprocess_history and
+                postprocess_history hooks on the history and final response, mirroring
+                generate_response. Set to False to bypass extension processing.
+
         Returns:
             Final message from the LLM
         """
@@ -1736,15 +1870,41 @@ class NewelleController:
         if save_chat:
             self.save_chats()
         history = self.get_history(chat=self.chats[chat_id]["chat"], include_last_message=True)
+        system_prompt_was_built = system_prompt is None
         if system_prompt is None:
             _, _, _, _, _, effective_chat_id = self.prepare_generation(chat_id=chat_id)
-            system_prompt = []
-            formatter = PromptFormatter(replace_variables_dict(), self.get_variable)
-            for prompt in self.newelle_settings.bot_prompts:
-                system_prompt.append(formatter.format(prompt))
-            system_prompt += self.get_memory_prompt(chat_id=effective_chat_id)
+            system_prompt = self._build_tool_system_prompt(effective_chat_id)
         
+        # Avoid history duplication: check the last entry is the current message.
+        last_entry_is_current = bool(
+            history
+            and history[-1].get("User") == "User"
+            and history[-1].get("Message") == message
+        )
         current_history = history.copy()
+        # Let extensions/integrations preprocess the history and prompts before
+        # generation, mirroring generate_response. Only runs when a fresh
+        # system_prompt was built above; an explicit system_prompt means the
+        # caller took full control of the prompts.
+        if extension_processing and system_prompt_was_built:
+            current_history, system_prompt = self.integrationsloader.preprocess_history(current_history, system_prompt)
+            current_history, system_prompt = self.extensionloader.preprocess_history(current_history, system_prompt)
+
+        # Avoid history duplication without removing the message from the
+        # canonical working history. Later tool iterations still need the
+        # original user request and every preceding tool result.
+        current_prompt = message
+        current_prompt_index = None
+        if last_entry_is_current and current_history:
+            current_prompt_index = len(current_history) - 1
+            current_prompt = current_history[current_prompt_index].get("Message") or message
+
+        mode_manager = getattr(self, "mode_manager", None)
+        active_mode_name = (
+            mode_manager.get_active_mode_name()
+            if mode_manager is not None
+            else None
+        )
         model = self.get_model_for_chat(self.chats[chat_id]["chat"])
         cont = True
         try:
@@ -1753,28 +1913,63 @@ class NewelleController:
                 if not cont:
                     break
                 cont = False
+
+                # ``switch_mode`` updates the controller while this method is
+                # still running. Refresh every mode-derived snapshot before the
+                # follow-up model call, but keep ``current_history`` intact so
+                # the model receives the switch result and all earlier results.
+                current_mode_name = (
+                    mode_manager.get_active_mode_name()
+                    if mode_manager is not None
+                    else None
+                )
+                if current_mode_name != active_mode_name:
+                    active_mode_name = current_mode_name
+                    if system_prompt_was_built:
+                        system_prompt = self._build_tool_system_prompt(chat_id)
+                        if extension_processing:
+                            # Extensions can add prompt context based on history.
+                            # Give them a deep copy because this pass is only meant
+                            # to rebuild prompts, not process the history twice.
+                            prompt_history = copy.deepcopy(current_history)
+                            prompt_history, system_prompt = self.integrationsloader.preprocess_history(
+                                prompt_history, system_prompt
+                            )
+                            prompt_history, system_prompt = self.extensionloader.preprocess_history(
+                                prompt_history, system_prompt
+                            )
+                    if tool_registry is None:
+                        active_tool_registry = self.tools
+                    model = self.get_model_for_chat(self.chats[chat_id]["chat"])
+
                 def stream_callback(text: str):
                     nonlocal full_response
                     full_response += text
                     if on_message_callback:
                         on_message_callback(text)
                 
+                # Each handler appends ``prompt`` to the history it receives.
+                # Remove that prompt only from this request-local copy; mutating
+                # ``current_history`` here would corrupt subsequent tool turns.
+                request_history = current_history.copy()
                 if iteration == 0:
-                    prompt = message
+                    prompt = current_prompt
+                    if current_prompt_index is not None:
+                        request_history.pop(current_prompt_index)
                 else:
                     prompt = ""
                     if (
-                        current_history
-                        and current_history[-1].get("ToolContext")
+                        request_history
+                        and request_history[-1].get("ToolContext")
                     ):
-                        prompt = current_history.pop()["Message"]
+                        prompt = request_history.pop()["Message"]
                     else:
-                        for i in range(len(current_history) - 1, -1, -1):
-                            if current_history[i]["User"] == "Console":
-                                prompt = current_history.pop(i)["Message"]
+                        for i in range(len(request_history) - 1, -1, -1):
+                            if request_history[i]["User"] == "Console":
+                                prompt = request_history.pop(i)["Message"]
                                 break
 
-                send_history, _ = self._trim_context(current_history, system_prompt, message)
+                send_history, _ = self._trim_context(request_history, system_prompt, message)
 
                 if model.stream_enabled():
                     response = model.send_message_stream(
@@ -1802,6 +1997,13 @@ class NewelleController:
                         tool_calls.append({"name": chunk.tool_name, "args": chunk.tool_args})
                     elif chunk.type in ("text", "markdown"):
                         text_content += "\n" + chunk.text
+
+                # Some streaming handlers throttle their callbacks and can
+                # leave the final character or provider chunk unreported.
+                # Flush the complete cumulative response once generation is
+                # done. Consumers already de-duplicate cumulative updates.
+                if model.stream_enabled() and not tool_calls and on_message_callback:
+                    on_message_callback(response)
                 
                 if not tool_calls:
                     msg_uuid = int(uuid_lib.uuid4())
@@ -1809,6 +2011,16 @@ class NewelleController:
                     if save_chat:
                         self.chats[chat_id]["chat"].append({"User": "Assistant", "Message": response, "UUID": msg_uuid, "Profile": self.newelle_settings.current_profile})
                         self.save_chats()
+                    # Let extensions/integrations postprocess the final response,
+                    # mirroring generate_response.
+                    if extension_processing:
+                        final_message = text_content
+                        chat_list, final_message = self.integrationsloader.postprocess_history(self.chats[chat_id]["chat"], final_message)
+                        chat_list, final_message = self.extensionloader.postprocess_history(chat_list, final_message)
+                        if save_chat:
+                            self.set_chat_by_id(chat_id, chat_list)
+                            self.save_chats()
+                        return final_message
                     return text_content
                 assistant_msg_uuid = int(uuid_lib.uuid4())
                 
@@ -1817,6 +2029,7 @@ class NewelleController:
                     tool_args = tool_call["args"]
                     tool_uuid = str(uuid_lib.uuid4())[:8]
                     tool_context_messages = []
+                    tool_display_text = None
 
                     # Lazy loading: a tool_search call means the model just fetched
                     # a tool's schema. Expand it in the system prompt so that, on the
@@ -1871,20 +2084,24 @@ class NewelleController:
                                     on_tool_result_callback(tool_name, result)
                                 tool_result_output = result.get_output()
                                 tool_context_messages = result.get_context_messages()
+                                tool_display_text = getattr(result, "display_text", None)
                                 if tool_result_output is not None or tool_context_messages:
                                     cont = True
                     except Exception as e:
                         tool_result_output = f"Error: {str(e)}"
+                        tool_display_text = None
                         if on_tool_result_callback:
                             tr = ToolResult(output=tool_result_output)
                             on_tool_result_callback(tool_name, tr)
-                    
-                    
+
+
                     tool_call_msg = f"```json\n{{\"name\": \"{tool_name}\", \"arguments\": {json.dumps(tool_args)}}}\n```"
                     console_output = tool_result_output
                     if console_output is None and tool_context_messages:
                         console_output = "Tool returned additional context."
                     tool_result_msg = f"[Tool: {tool_name}, ID: {tool_uuid}]\n{console_output}"
+                    if tool_display_text:
+                        tool_result_msg = tool_result_msg + "\n" + tool_display_text
                     
                     current_history.append({
                         "User": "Assistant",
@@ -1925,6 +2142,16 @@ class NewelleController:
                 msg_uuid = int(uuid_lib.uuid4())
                 self.chats[chat_id]["chat"].append({"User": "Assistant", "Message": text_content, "UUID": msg_uuid, "Profile": self.newelle_settings.current_profile})
                 self.save_chats()
+            # Let extensions/integrations postprocess the final response,
+            # mirroring generate_response.
+            if extension_processing:
+                final_message = text_content
+                chat_list, final_message = self.integrationsloader.postprocess_history(self.chats[chat_id]["chat"], final_message)
+                chat_list, final_message = self.extensionloader.postprocess_history(chat_list, final_message)
+                if save_chat:
+                    self.set_chat_by_id(chat_id, chat_list)
+                    self.save_chats()
+                return final_message
             return text_content
         finally:
             if skills_integration is not None:
@@ -2332,18 +2559,7 @@ class HandlersManager:
         self.rag : RAGHandler = self.get_object(AVAILABLE_RAGS, newelle_settings.rag_model)
         self.websearch : WebSearchHandler = self.get_object(AVAILABLE_WEBSEARCH, newelle_settings.websearch_model)
         self.image_generator : ImageGeneratorHandler = self.get_object(AVAILABLE_IMAGE_GENERATORS, newelle_settings.image_generator)
-        # Initialize interfaces
-        for key in AVAILABLE_INTERFACES:
-            interface = self.get_object(AVAILABLE_INTERFACES, key)
-            interface.set_controller(self.controller)
-            if not skip_auto_start_interfaces:
-                enabled = interface.get_setting("enabled", False, False) 
-                if enabled:
-                    if Interface.check_external_running(key, self.directory):
-                        print(f"Interface '{key}' is already running externally, skipping auto-start")
-                    else:
-                        print("Interface started")
-                        interface.start()
+        self.refresh_interfaces(auto_start=not skip_auto_start_interfaces)
         # Assign handlers 
         self.integrationsloader.set_handlers(self.llm, self.stt, self.tts, self.secondary_llm, self.embedding, self.rag, self.memory, self.websearch)
         self.extensionloader.set_handlers(self.llm, self.stt, self.tts, self.secondary_llm, self.embedding, self.rag, self.memory, self.websearch)
@@ -2352,6 +2568,115 @@ class HandlersManager:
         self.rag.set_handlers(self.llm, self.embedding)
         #self.image_generator.set_ui_controller(self.controller.ui_controller)
         threading.Thread(target=self.install_missing_handlers).start()
+
+    def refresh_interfaces(self, auto_start=True):
+        """Synchronize interface instances without restarting unchanged ones."""
+        available_keys = set(AVAILABLE_INTERFACES)
+        for key in set(self.interfaces) - available_keys:
+            interface = self.interfaces.pop(key)
+            try:
+                interface.stop()
+            except Exception as error:
+                print(f"Error stopping removed interface '{key}': {error}")
+            self.handlers.pop((key, "interface", False), None)
+
+        for key in AVAILABLE_INTERFACES:
+            is_new = key not in self.interfaces
+            interface = self.get_object(AVAILABLE_INTERFACES, key)
+            interface.set_controller(self.controller)
+            self.interfaces[key] = interface
+            if not auto_start or not is_new:
+                continue
+            enabled = interface.get_setting("enabled", False, False)
+            if not enabled:
+                continue
+            if Interface.check_external_running(key, self.directory):
+                print(
+                    f"Interface '{key}' is already running externally, "
+                    "skipping auto-start"
+                )
+            else:
+                print("Interface started")
+                interface.start()
+
+    def refresh_extension_handlers(
+        self,
+        old_contributions: dict[str, set[str]],
+        new_contributions: dict[str, set[str]],
+        newelle_settings: NewelleSettings,
+    ) -> bool:
+        """Invalidate changed extension handlers and preserve unrelated ones.
+
+        Returns True when one of the selected handlers had to be recreated.
+        """
+        affected = {
+            category: set(old_contributions.get(category, set()))
+            | set(new_contributions.get(category, set()))
+            for category in ExtensionLoader._HANDLER_CONTRIBUTION_METHODS
+        }
+        selected = {
+            "llm": {
+                newelle_settings.language_model,
+                newelle_settings.secondary_language_model,
+            },
+            "tts": {newelle_settings.tts_program},
+            "stt": {
+                newelle_settings.stt_engine,
+                newelle_settings.secondary_stt_engine,
+                newelle_settings.wakeword_engine,
+            },
+            "memory": {newelle_settings.memory_model},
+            "embedding": {newelle_settings.embedding_model},
+            "rag": {newelle_settings.rag_model},
+            "websearch": {newelle_settings.websearch_model},
+            "image_generator": {newelle_settings.image_generator},
+        }
+        active_changed = any(
+            affected[category] & keys for category, keys in selected.items()
+        )
+
+        invalidated = []
+        invalidated_ids = set()
+        for cache_key, handler in list(self.handlers.items()):
+            key, category, _secondary = cache_key
+            if key not in affected.get(category, set()):
+                continue
+            self.handlers.pop(cache_key, None)
+            if id(handler) not in invalidated_ids:
+                invalidated.append(handler)
+                invalidated_ids.add(id(handler))
+
+        for key in affected["interface"]:
+            interface = self.interfaces.pop(key, None)
+            if interface is not None and id(interface) not in invalidated_ids:
+                invalidated.append(interface)
+                invalidated_ids.add(id(interface))
+
+        for handler in invalidated:
+            try:
+                if isinstance(handler, Interface):
+                    handler.stop()
+                else:
+                    handler.destroy()
+            except Exception as error:
+                print(f"Error disposing extension handler: {error}")
+
+        if active_changed:
+            self.select_handlers(newelle_settings)
+        else:
+            if affected["interface"]:
+                self.refresh_interfaces()
+            self.extensionloader.set_handlers(
+                self.llm,
+                self.stt,
+                self.tts,
+                self.secondary_llm,
+                self.embedding,
+                self.rag,
+                self.memory,
+                self.websearch,
+            )
+        return active_changed
 
     def set_error_func(self, func):
         def async_set():

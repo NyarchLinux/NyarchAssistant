@@ -974,7 +974,7 @@ class ConnectApplicationView(Gtk.Box):
 
             if self._is_application_connected(application):
                 connected = Gtk.Image(
-                    icon_name="emblem-ok-symbolic",
+                    icon_name="emblem-default-symbolic",
                     tooltip_text=_("Connected"),
                     valign=Gtk.Align.CENTER,
                 )

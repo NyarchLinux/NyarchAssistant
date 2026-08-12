@@ -5,8 +5,8 @@ from threading import Thread
 from gi.repository import Adw, GLib, Gtk
 
 from ..controller import NewelleController
-from ..extensions import ExtensionLoader
 from ..utility.system import can_escape_sandbox, get_spawn_command
+from .extensions_catalog import ExtensionMarketplaceView, install_extension_files
 from .extra_settings import ExtraSettingsBuilder
 from .widgets import CopyBox
 
@@ -33,6 +33,46 @@ class ExtensionPage(Adw.PreferencesPage):
         self.extensions_cache = controller.extensions_cache
         self.sandbox = can_escape_sandbox()
         self.page_groups = []
+        self.marketplace_initialized = False
+        self.installed_page = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=12,
+        )
+        self.marketplace_page = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=12,
+        )
+        self.extensions_view_stack = Adw.ViewStack(vhomogeneous=False)
+        self.extensions_view_stack.add_titled_with_icon(
+            self.installed_page,
+            name="installed",
+            title=_("Installed"),
+            icon_name="extension-symbolic",
+        )
+        self.extensions_view_stack.add_titled_with_icon(
+            self.marketplace_page,
+            name="marketplace",
+            title=_("Marketplace"),
+            icon_name="folder-download-symbolic",
+        )
+        self.extensions_view_stack.connect(
+            "notify::visible-child-name", self._on_extensions_tab_changed
+        )
+        tabs_box = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=18,
+        )
+        tabs_box.append(
+            Adw.ViewSwitcher(
+                stack=self.extensions_view_stack,
+                policy=Adw.ViewSwitcherPolicy.WIDE,
+                halign=Gtk.Align.CENTER,
+            )
+        )
+        tabs_box.append(self.extensions_view_stack)
+        self.tabs_group = Adw.PreferencesGroup()
+        self.tabs_group.add(tabs_box)
+        super().add(self.tabs_group)
         self.update()
 
     def _add_toast(self, title):
@@ -44,13 +84,65 @@ class ExtensionPage(Adw.PreferencesPage):
         return root if isinstance(root, Gtk.Window) else None
 
     def _clear_page(self):
-        for group in self.page_groups:
-            self.remove(group)
+        child = self.installed_page.get_first_child()
+        while child is not None:
+            next_child = child.get_next_sibling()
+            self.installed_page.remove(child)
+            child = next_child
         self.page_groups = []
 
     def _add_group(self, group):
-        self.add(group)
+        self.installed_page.append(group)
         self.page_groups.append(group)
+
+    def _on_extensions_tab_changed(self, stack, _pspec):
+        if (
+            stack.get_visible_child_name() == "marketplace"
+            and not self.marketplace_initialized
+        ):
+            self.marketplace_initialized = True
+            warning_group = Adw.PreferencesGroup()
+            warning_group.add(
+                Adw.ActionRow(
+                    title=_("Third-party extensions"),
+                    subtitle=_(
+                        "Extensions are created by third-party users. Newelle does not review or control their code."
+                    ),
+                    icon_name="dialog-warning-symbolic",
+                )
+            )
+            self.marketplace_page.append(warning_group)
+
+            marketplace_group = Adw.PreferencesGroup(
+                title=_("Extension Marketplace"),
+                description=_(
+                    "Browse GitHub repositories tagged newelle-extension and choose which files to install"
+                ),
+            )
+            self.marketplace = ExtensionMarketplaceView(
+                parent=self,
+                controller=self.controller,
+                install_callback=lambda files: install_extension_files(
+                    files, self.extension_path
+                ),
+                on_installed=self._on_marketplace_installed,
+            )
+            marketplace_group.add(self.marketplace)
+            self.marketplace_page.append(marketplace_group)
+
+    def _on_marketplace_installed(self, installed_files=None):
+        self._reload_user_extensions()
+        installed_names = {
+            os.path.basename(path) for path in (installed_files or [])
+        }
+        for extension_id, filename in self.extensionloader.filemap.items():
+            if filename not in installed_names:
+                continue
+            extension = self.extensionloader.get_extension_by_id(extension_id)
+            if extension is None:
+                continue
+            Thread(target=extension.install, daemon=True).start()
+        self.update()
 
     def update(self):
         self._clear_page()
@@ -223,23 +315,18 @@ class ExtensionPage(Adw.PreferencesPage):
             self.extensionloader.enable(extension_id)
         else:
             self.extensionloader.disable(extension_id)
+        self._reload_user_extensions({extension_id})
+        GLib.idle_add(self.update)
         return False
 
-    def _reload_user_extensions(self):
-        loader = ExtensionLoader(
-            self.extension_path,
-            pip_path=self.pip_directory,
-            extension_cache=self.extensions_cache,
-            settings=self.settings,
-        )
-        loader.load_extensions()
-        loader.set_ui_controller(self.controller.ui_controller)
-        self.controller.set_extensionsloader(loader)
-        self.extensionloader = loader
+    def _reload_user_extensions(self, extension_ids=None):
+        refreshes = self.controller.reload_extensions(extension_ids)
+        self.extensionloader = self.controller.extensionloader
+        return refreshes
 
     def delete_extension(self, _button, extension_id):
         self.extensionloader.remove_extension(extension_id)
-        self._reload_user_extensions()
+        self._reload_user_extensions({extension_id})
         self.update()
 
     def on_folder_button_clicked(self, _button):
@@ -279,10 +366,6 @@ class ExtensionPage(Adw.PreferencesPage):
             return
 
         Thread(target=added_extension.install, daemon=True).start()
-        added_extension.set_setting(
-            "reload_requested",
-            added_extension.get_setting("reload_requested", False, 0) + 1,
-        )
         self._add_toast(_("Extension added. New extensions will run"))
         self.update()
 

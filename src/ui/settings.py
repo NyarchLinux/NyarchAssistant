@@ -5,6 +5,7 @@ import shutil
 import json
 import time
 import traceback
+import weakref
 from subprocess import Popen 
 
 from gi.repository import Gtk, Adw, Gio, GLib, GObject, Gdk, GtkSource
@@ -73,6 +74,10 @@ class Settings(Adw.Window):
             convert_constants=self.convert_constants,
             on_before_rebuild=self._on_extra_settings_rebuild,
         )
+        self._llm_primary_rows = []
+        self._llm_primary_other_rows = []
+        self._llm_secondary_rows = []
+        self._llm_secondary_other_rows = []
         # Build the LLMs settings
         self.LLM = Adw.PreferencesGroup(title=_('Language Model'))
         # Add Help Button 
@@ -84,12 +89,15 @@ class Settings(Adw.Window):
         group = Gtk.CheckButton()
         selected = self.settings.get_string("language-model")
         others_row = Adw.ExpanderRow(title=_('Other LLMs'), subtitle=_("Other available LLM providers"))
+        self._llm_primary_other_group = others_row
         for model_key in AVAILABLE_LLMS:
            row = self.build_row(AVAILABLE_LLMS, model_key, selected, group)
            if "secondary" in AVAILABLE_LLMS[model_key] and AVAILABLE_LLMS[model_key]["secondary"]:
                others_row.add_row(row)
+               self._llm_primary_other_rows.append(row)
            else:
                 self.LLM.add(row)
+                self._llm_primary_rows.append(row)
         self.LLM.add(others_row)
         # Secondary LLM settings
         self.SECONDARY_LLM = Adw.PreferencesGroup(title=_('Secondary LLM'))
@@ -104,12 +112,16 @@ class Settings(Adw.Window):
         group = Gtk.CheckButton()
         selected = self.settings.get_string("secondary-language-model")
         others_row = Adw.ExpanderRow(title=_('Other LLMs'), subtitle=_("Other available LLM providers"))
+        self._llm_secondary_model_group = secondary_LLM
+        self._llm_secondary_other_group = others_row
         for model_key in AVAILABLE_LLMS:
            row = self.build_row(AVAILABLE_LLMS, model_key, selected, group, True)
            if "secondary" in AVAILABLE_LLMS[model_key] and AVAILABLE_LLMS[model_key]["secondary"]:
                others_row.add_row(row)
+               self._llm_secondary_other_rows.append(row)
            else:
                secondary_LLM.add_row(row)
+               self._llm_secondary_rows.append(row)
         secondary_LLM.add_row(others_row)
         self.SECONDARY_LLM.add(secondary_LLM)
 
@@ -850,6 +862,82 @@ class Settings(Adw.Window):
         self.refresh_tools_list()
         self._building_tools_page = False
 
+    def refresh_extension_resources(self, refreshes):
+        """Refresh only settings sections affected by extension changes."""
+        self.extensionloader = self.controller.extensionloader
+        self.handlers = self.controller.handlers
+        if "llm_handlers" in refreshes:
+            self.refresh_llm_rows()
+        if "tools" in refreshes and self.tools_page_initialized:
+            self.refresh_tools_list()
+        if "prompts" in refreshes:
+            self.custom_prompts = self.controller.newelle_settings.custom_prompts
+            self.prompts_settings = self.controller.newelle_settings.prompts_settings
+            self.prompts = self.controller.newelle_settings.prompts
+            self.build_prompts_settings()
+        if "interfaces" in refreshes and hasattr(self.InterfacesPage, "refresh"):
+            self.InterfacesPage.refresh()
+
+    def refresh_llm_rows(self):
+        """Refresh primary and secondary LLM choices in this live window."""
+        for row in self._llm_primary_rows:
+            self.LLM.remove(row)
+        for row in self._llm_primary_other_rows:
+            self._llm_primary_other_group.remove(row)
+        for row in self._llm_secondary_rows:
+            self._llm_secondary_model_group.remove(row)
+        for row in self._llm_secondary_other_rows:
+            self._llm_secondary_other_group.remove(row)
+        # Keep the catch-all expander after all regular providers.  If it stays
+        # attached while rows are rebuilt, newly added providers are appended
+        # after it and make “Other LLMs” jump up the list.
+        self.LLM.remove(self._llm_primary_other_group)
+        self._llm_secondary_model_group.remove(self._llm_secondary_other_group)
+
+        llm_constant = self.convert_constants(AVAILABLE_LLMS)
+        for settings_key in list(self.settingsrows):
+            if (
+                len(settings_key) == 3
+                and settings_key[1] == llm_constant
+                and settings_key[2] in (False, True)
+            ):
+                del self.settingsrows[settings_key]
+
+        self._llm_primary_rows = []
+        self._llm_primary_other_rows = []
+        self._llm_secondary_rows = []
+        self._llm_secondary_other_rows = []
+
+        primary_group = Gtk.CheckButton()
+        selected = self.settings.get_string("language-model")
+        for model_key in AVAILABLE_LLMS:
+            row = self.build_row(AVAILABLE_LLMS, model_key, selected, primary_group)
+            if AVAILABLE_LLMS[model_key].get("secondary", False):
+                self._llm_primary_other_group.add_row(row)
+                self._llm_primary_other_rows.append(row)
+            else:
+                self.LLM.add(row)
+                self._llm_primary_rows.append(row)
+        self.LLM.add(self._llm_primary_other_group)
+
+        secondary_group = Gtk.CheckButton()
+        selected = self.settings.get_string("secondary-language-model")
+        for model_key in AVAILABLE_LLMS:
+            row = self.build_row(
+                AVAILABLE_LLMS,
+                model_key,
+                selected,
+                secondary_group,
+                True,
+            )
+            if AVAILABLE_LLMS[model_key].get("secondary", False):
+                self._llm_secondary_other_group.add_row(row)
+                self._llm_secondary_other_rows.append(row)
+            else:
+                self._llm_secondary_model_group.add_row(row)
+                self._llm_secondary_rows.append(row)
+        self._llm_secondary_model_group.add_row(self._llm_secondary_other_group)
+
     def build_permissions_page(self):
         if self.permissions_page_initialized or self._building_permissions_page:
             return
@@ -1489,11 +1577,57 @@ class Settings(Adw.Window):
         if self.skills_page_initialized:
             return
         self.skills_page_initialized = True
+
+        self.skills_marketplace_initialized = False
+        self.skills_creator_initialized = False
+        self.skills_tabs_group = Adw.PreferencesGroup()
+        self.skills_tabs_box = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=18,
+        )
+        self.skills_view_stack = Adw.ViewStack(vhomogeneous=False)
+        self.skills_view_stack.connect(
+            "notify::visible-child-name",
+            self._on_skills_tab_changed,
+        )
+
+        self.installed_skills_page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.marketplace_skills_page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.create_skills_page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.skills_view_stack.add_titled_with_icon(
+            self.installed_skills_page,
+            name="installed",
+            title=_("Installed"),
+            icon_name="skills-symbolic",
+        )
+        self.skills_view_stack.add_titled_with_icon(
+            self.marketplace_skills_page,
+            name="marketplace",
+            title=_("Marketplace"),
+            icon_name="folder-download-symbolic",
+        )
+        self.skills_view_stack.add_titled_with_icon(
+            self.create_skills_page,
+            name="create",
+            title=_("Create"),
+            icon_name="document-edit-symbolic",
+        )
+
+        self.skills_view_switcher = Adw.ViewSwitcher(
+            stack=self.skills_view_stack,
+            policy=Adw.ViewSwitcherPolicy.WIDE,
+            halign=Gtk.Align.CENTER,
+        )
+        self.skills_tabs_box.append(self.skills_view_switcher)
+        self.skills_tabs_box.append(self.skills_view_stack)
+        self.skills_tabs_group.add(self.skills_tabs_box)
+        self.SkillsPage.add(self.skills_tabs_group)
+
         self.skills_group = Adw.PreferencesGroup(
-            title=_("Skills"),
+            title=_("Installed Skills"),
             description=_("Manage Agent Skills (SKILL.md files)")
         )
-        self.SkillsPage.add(self.skills_group)
+        self.installed_skills_page.append(self.skills_group)
 
         actions_row = Adw.ActionRow(title=_("Skills folder"), subtitle=self.controller.skills_path)
         open_button = Gtk.Button(icon_name="folder-symbolic", valign=Gtk.Align.CENTER, css_classes=["flat"])
@@ -1515,6 +1649,148 @@ class Settings(Adw.Window):
 
         self.skills_rows = []
         self.refresh_skills_list()
+        self.skills_view_stack.set_visible_child_name("installed")
+
+    def _on_skills_tab_changed(self, stack, _pspec):
+        visible_page = stack.get_visible_child_name()
+        if visible_page == "marketplace" and not self.skills_marketplace_initialized:
+            self.skills_marketplace_initialized = True
+            from .skills_catalog import SkillsCatalogView
+
+            self.skills_catalog_group = Adw.PreferencesGroup(
+                title=_("Skills Marketplace"),
+                description=_("Search and install community skills from SkillsMP"),
+            )
+            self.skills_catalog = SkillsCatalogView(
+                parent=self,
+                controller=self.controller,
+                on_installed=self._on_catalog_skill_installed,
+            )
+            self.skills_catalog_group.add(self.skills_catalog)
+            self.marketplace_skills_page.append(self.skills_catalog_group)
+        elif visible_page == "create" and not self.skills_creator_initialized:
+            self._ensure_skill_creator()
+
+    def _make_weak_skills_refresh_callback(self):
+        settings_ref = weakref.ref(self)
+
+        def refresh_if_open():
+            settings = settings_ref()
+            if settings is not None and settings.get_visible():
+                settings.refresh_skills_list()
+
+        return refresh_if_open
+
+    def _ensure_skill_creator(self):
+        if self.skills_creator_initialized:
+            return self.skills_creator
+        self.skills_creator_initialized = True
+        from .skill_creator import SkillCreatorView
+
+        self.skills_creator = SkillCreatorView(
+            host=self,
+            controller=self.controller,
+            on_saved=self._make_weak_skills_refresh_callback(),
+            on_open_window=self._on_open_skill_creator_window,
+        )
+        self.create_skills_page.append(self.skills_creator)
+        return self.skills_creator
+
+    def _register_skill_editor_window(self):
+        self._open_skill_editor_count = (
+            getattr(self, "_open_skill_editor_count", 0) + 1
+        )
+        self.set_modal(False)
+        settings_ref = weakref.ref(self)
+
+        def editor_closed():
+            settings = settings_ref()
+            if settings is None:
+                return
+            settings._open_skill_editor_count = max(
+                0,
+                getattr(settings, "_open_skill_editor_count", 1) - 1,
+            )
+            if settings._open_skill_editor_count == 0 and settings.get_visible():
+                settings.set_modal(True)
+
+        return editor_closed
+
+    def _on_open_skill_creator_window(self, editor):
+        from .skill_creator import SkillEditorWindow
+
+        self.create_skills_page.remove(editor)
+        editor.set_open_window_callback(None)
+
+        placeholder = Adw.PreferencesGroup()
+        placeholder_row = Adw.ActionRow(
+            title=_("Skill editor is open in another window"),
+            subtitle=_("The editor keeps working if you close Settings."),
+        )
+        placeholder_row.add_prefix(
+            Gtk.Image(icon_name="document-edit-symbolic")
+        )
+        present_button = Gtk.Button(
+            label=_("Show Editor"),
+            icon_name="window-new-symbolic",
+            valign=Gtk.Align.CENTER,
+            css_classes=["suggested-action"],
+        )
+        placeholder_row.add_suffix(present_button)
+        placeholder.add(placeholder_row)
+        self.skill_creator_placeholder = placeholder
+        self.create_skills_page.append(placeholder)
+
+        settings_ref = weakref.ref(self)
+
+        def return_editor(returned_editor):
+            settings = settings_ref()
+            if settings is None or not settings.get_visible():
+                return False
+            settings._reattach_skill_creator(returned_editor)
+            return True
+
+        window = SkillEditorWindow(
+            application=self.app,
+            editor=editor,
+            return_editor=return_editor,
+            on_closed=self._register_skill_editor_window(),
+        )
+        self.skill_editor_window = window
+        present_button.connect("clicked", lambda _button: window.present())
+        window.present()
+
+    def _reattach_skill_creator(self, editor):
+        placeholder = getattr(self, "skill_creator_placeholder", None)
+        if placeholder is not None and placeholder.get_parent() is not None:
+            self.create_skills_page.remove(placeholder)
+        editor.set_host(self)
+        editor.set_windowed(False)
+        editor.set_open_window_callback(self._on_open_skill_creator_window)
+        self.create_skills_page.append(editor)
+        self.skills_creator = editor
+        self.skill_editor_window = None
+        self.refresh_skills_list()
+
+    def _on_edit_skill_clicked(self, _button, skill):
+        from .skill_creator import SkillCreatorView, SkillEditorWindow
+
+        editor = SkillCreatorView(
+            host=None,
+            controller=self.controller,
+            on_saved=self._make_weak_skills_refresh_callback(),
+        )
+        window = SkillEditorWindow(
+            application=self.app,
+            editor=editor,
+            on_closed=self._register_skill_editor_window(),
+            title=_("Edit {}").format(skill.name),
+        )
+        if editor.load_skill(skill):
+            window.present()
+        else:
+            window.close()
+            self.add_toast(Adw.Toast(title=_("Could not open skill for editing")))
 
     def refresh_skills_list(self):
         for row in self.skills_rows:
@@ -1538,15 +1814,39 @@ class Settings(Adw.Window):
         row.add_suffix(toggle)
 
         info_row = Adw.ActionRow(title=_("Location"), subtitle=skill.location)
+        edit_button = Gtk.Button(
+            label=_("Edit"),
+            icon_name="document-edit-symbolic",
+            valign=Gtk.Align.CENTER,
+            css_classes=["flat"],
+        )
+        edit_button.set_tooltip_text(_("Edit skill"))
+        edit_button.connect("clicked", self._on_edit_skill_clicked, skill)
+        info_row.add_suffix(edit_button)
+        open_button = Gtk.Button(
+            icon_name="folder-visiting-symbolic",
+            valign=Gtk.Align.CENTER,
+            css_classes=["flat"],
+        )
+        open_button.set_tooltip_text(_("Open skill folder"))
+        open_button.connect(
+            "clicked",
+            lambda _button, path=skill.base_dir: open_folder(path),
+        )
+        info_row.add_suffix(open_button)
         row.add_row(info_row)
 
-        resource_count = len(self.controller.skill_manager._list_resources(skill.base_dir))
-        if resource_count > 0:
-            res_row = Adw.ActionRow(
-                title=_("Bundled resources"),
-                subtitle=str(resource_count) + " " + (_("files") if resource_count != 1 else _("file"))
-            )
-            row.add_row(res_row)
+        resource_row = Adw.ActionRow(
+            title=_("Bundled resources"),
+            subtitle=_("Expand to count files"),
+        )
+        row.add_row(resource_row)
+        row.connect(
+            "notify::expanded",
+            self._on_skill_row_expanded,
+            skill,
+            resource_row,
+        )
 
         remove_row = Adw.ActionRow(title=_("Remove skill"))
         remove_button = Gtk.Button(label=_("Remove"), valign=Gtk.Align.CENTER, css_classes=["destructive-action"])
@@ -1555,6 +1855,27 @@ class Settings(Adw.Window):
         row.add_row(remove_row)
 
         return row
+
+    def _on_skill_row_expanded(self, row, _pspec, skill, resource_row):
+        if not row.get_expanded() or getattr(row, "_resources_loading", False):
+            return
+        row._resources_loading = True
+        resource_row.set_subtitle(_("Counting files…"))
+
+        def worker():
+            count = len(self.controller.skill_manager._list_resources(skill.base_dir))
+            GLib.idle_add(self._finish_skill_resource_count, resource_row, count)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _finish_skill_resource_count(self, resource_row, count):
+        resource_row.set_subtitle(
+            str(count) + " " + (_("files") if count != 1 else _("file"))
+        )
+        return False
+
+    def _on_catalog_skill_installed(self):
+        self.refresh_skills_list()
 
     def _on_skill_toggled(self, switch, state, skill_name):
         self.controller.skill_manager.set_skill_enabled(skill_name, state)

@@ -213,6 +213,9 @@ class TelegramInterface(ChatInterface):
         async def profile_cmd(update: Update, context):
             await _reply(update, context, "profile", context.args)
 
+        async def mode_cmd(update: Update, context):
+            await _reply(update, context, "mode", context.args)
+
         async def prompts_cmd(update: Update, context):
             await _reply(update, context, "prompts", context.args)
 
@@ -413,6 +416,7 @@ class TelegramInterface(ChatInterface):
             accumulated = ""
             sent_message = None
             last_sent = ""
+            last_rendered = ""
             done = False
             error = None
 
@@ -447,6 +451,7 @@ class TelegramInterface(ChatInterface):
                                 pass
                         sent_message = None
                         last_sent = ""
+                        last_rendered = ""
                         draft_id = random.randint(1, 1_000_000)
                         accumulated = ""
 
@@ -474,6 +479,7 @@ class TelegramInterface(ChatInterface):
                                 parse_mode="markdown"
                             )
                         last_sent = accumulated
+                        last_rendered = text_to_send
                     except Exception:
                         pass
 
@@ -486,7 +492,7 @@ class TelegramInterface(ChatInterface):
 
             # Final send / edit
             if use_edit_message:
-                if accumulated != last_sent:
+                if accumulated != last_rendered:
                     if len(accumulated) <= 4000:
                         if sent_message is not None:
                             await _safe_edit_message(sent_message, accumulated)
@@ -502,7 +508,7 @@ class TelegramInterface(ChatInterface):
                             for chunk in chunks:
                                 await _safe_send_message(context.bot, tg_chat_id, chunk)
             else:
-                if accumulated != last_sent:
+                if accumulated != last_rendered:
                     if len(accumulated) > 4000:
                         for chunk in [accumulated[i:i + 4000] for i in range(0, len(accumulated), 4000)]:
                             await _safe_send_message(context.bot, tg_chat_id, chunk)
@@ -522,6 +528,7 @@ class TelegramInterface(ChatInterface):
         app.add_handler(CommandHandler("models", models_cmd))
         app.add_handler(CommandHandler("model", model_cmd))
         app.add_handler(CommandHandler("profile", profile_cmd))
+        app.add_handler(CommandHandler("mode", mode_cmd))
         app.add_handler(CommandHandler("prompts", prompts_cmd))
         app.add_handler(CommandHandler("tools", tools_cmd))
         app.add_handler(CommandHandler("scheduled", scheduled_cmd))
