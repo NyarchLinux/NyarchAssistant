@@ -234,6 +234,48 @@ class TelegramInterface(ChatInterface):
     def _has_media_blocks(self, message: str) -> bool:
         return self._MEDIA_BLOCK_RE.search(message) is not None
 
+    async def _finalize_streamed_text(
+        self,
+        *,
+        bot,
+        chat_id,
+        accumulated,
+        use_edit_message,
+        sent_message,
+        last_rendered,
+        send_message,
+        edit_message,
+    ):
+        """Publish the completed stream as a persistent Telegram message."""
+        visible_text = self._message_text(accumulated)
+
+        # A Telegram draft is only a transient streaming preview. In draft
+        # mode the completed text must always be delivered with send_message,
+        # even when it is identical to the last draft. Edit mode already
+        # operates on a persistent message, so an unchanged edit can be
+        # skipped.
+        if not visible_text or (
+            use_edit_message and visible_text == last_rendered
+        ):
+            return sent_message, last_rendered
+
+        chunks = [
+            visible_text[i:i + 4000]
+            for i in range(0, len(visible_text), 4000)
+        ]
+        if use_edit_message:
+            if sent_message is not None:
+                await edit_message(sent_message, chunks[0])
+            else:
+                sent_message = await send_message(bot, chat_id, chunks[0])
+            for chunk in chunks[1:]:
+                await send_message(bot, chat_id, chunk)
+        else:
+            for chunk in chunks:
+                await send_message(bot, chat_id, chunk)
+
+        return sent_message, visible_text
+
     async def _send_media_blocks(self, bot, chat_id, message):
         """Upload Newelle image, video, and file blocks as native Telegram media."""
         for match in self._MEDIA_BLOCK_RE.finditer(message):
@@ -633,26 +675,16 @@ class TelegramInterface(ChatInterface):
             async def _finalize_current_message():
                 """Finish text delivery, then upload any completed media blocks."""
                 nonlocal sent_message, last_rendered
-                visible_text = iface._message_text(accumulated)
-                if visible_text != last_rendered:
-                    chunks = [
-                        visible_text[i:i + 4000]
-                        for i in range(0, len(visible_text), 4000)
-                    ]
-                    if use_edit_message:
-                        if chunks:
-                            if sent_message is not None:
-                                await _safe_edit_message(sent_message, chunks[0])
-                            else:
-                                sent_message = await _safe_send_message(
-                                    context.bot, tg_chat_id, chunks[0]
-                                )
-                            for chunk in chunks[1:]:
-                                await _safe_send_message(context.bot, tg_chat_id, chunk)
-                    else:
-                        for chunk in chunks:
-                            await _safe_send_message(context.bot, tg_chat_id, chunk)
-                    last_rendered = visible_text
+                sent_message, last_rendered = await iface._finalize_streamed_text(
+                    bot=context.bot,
+                    chat_id=tg_chat_id,
+                    accumulated=accumulated,
+                    use_edit_message=use_edit_message,
+                    sent_message=sent_message,
+                    last_rendered=last_rendered,
+                    send_message=_safe_send_message,
+                    edit_message=_safe_edit_message,
+                )
                 if iface._has_media_blocks(accumulated):
                     await iface._send_media_blocks(context.bot, tg_chat_id, accumulated)
 
