@@ -6,7 +6,7 @@ import time
 import re
 import copy
 
-from .tools import ToolRegistry, ToolResult
+from .tools import Tool, ToolRegistry, ToolResult
 from .skills import SkillManager
 from .modes import ModeManager
 from .utility.media import chat_contains_vision, get_image_base64, get_image_path, extract_supported_files
@@ -2695,6 +2695,98 @@ class HandlersManager:
         if self.image_generator is not None:
             for tool in self.image_generator.get_tools():
                 tools.register_tool(tool)
+        self._add_send_message_tool(tools)
+
+    def _get_message_interfaces(self) -> dict[str, Interface]:
+        """Return local, running interfaces that can deliver agent messages.
+
+        An interface running in a different Newelle process cannot safely be
+        called from this process, even though its state file makes it visible.
+        """
+        return {
+            key: interface
+            for key, interface in self.interfaces.items()
+            if interface.is_locally_running() and interface.supports_send_message()
+        }
+
+    def _add_send_message_tool(self, tools: ToolRegistry):
+        """Register the optional cross-interface messaging tool when usable."""
+        interfaces = self._get_message_interfaces()
+        if not interfaces:
+            return
+
+        interface_schemas = []
+        for key, interface in interfaces.items():
+            properties = {
+                "interface": {
+                    "type": "string",
+                    "const": key,
+                    "description": (
+                        f"Send through the running {getattr(interface, 'name', key)} "
+                        "interface."
+                    ),
+                },
+                **interface.get_send_message_options_schema(),
+            }
+            interface_schemas.append({
+                "type": "object",
+                "properties": properties,
+                "required": ["interface", *interface.get_send_message_required_options()],
+                "additionalProperties": False,
+            })
+
+        def send_message(message, extra_options):
+            if not isinstance(message, str) or not message.strip():
+                result = ToolResult()
+                result.set_output("Error: 'message' must be a non-empty string.")
+                return result
+            if not isinstance(extra_options, dict):
+                result = ToolResult()
+                result.set_output("Error: 'extra_options' must be an object.")
+                return result
+
+            interface_key = extra_options.get("interface")
+            interface = self._get_message_interfaces().get(interface_key)
+            if interface is None:
+                available = ", ".join(self._get_message_interfaces()) or "none"
+                result = ToolResult()
+                result.set_output(
+                    f"Error: interface '{interface_key}' is not available. "
+                    f"Running interfaces: {available}."
+                )
+                return result
+            return interface.send_message(message, extra_options)
+
+        tools.register_tool(Tool(
+            name="send_message",
+            title="Send Message",
+            description=(
+                "Send a message to the user through another running interface. "
+                "Use the interface-specific destination options in extra_options."
+            ),
+            func=send_message,
+            schema={
+                "type": "object",
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "description": (
+                            "Message to send. Media code blocks such as ```image, "
+                            "```video, and ```file are supported when the selected "
+                            "interface supports them."
+                        ),
+                    },
+                    "extra_options": {
+                        "description": "Select a running interface and its destination.",
+                        "oneOf": interface_schemas,
+                    },
+                },
+                "required": ["message", "extra_options"],
+            },
+            default_on=False,
+            tools_group="Interfaces",
+            icon_name="send-to-symbolic",
+        ))
 
     def load_handlers(self):
         """Load handlers"""

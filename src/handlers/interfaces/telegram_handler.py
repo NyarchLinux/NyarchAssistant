@@ -1,15 +1,19 @@
 import asyncio
 import base64
+import io
 import json
 import os
 import queue
 import random
+import re
 import subprocess
 import tempfile
 import threading
 import uuid
+from urllib.parse import unquote_to_bytes
 
 from ...utility.strings import remove_thinking_blocks
+from ...tools import ToolResult
 
 from ...utility.pip import find_module
 
@@ -34,6 +38,12 @@ class TelegramInterface(ChatInterface):
         self._thread = None
         self._running = False
         self._error = None
+        self._recipients: dict[str, dict] = {}
+        self._recipients_lock = threading.Lock()
+
+    _MEDIA_BLOCK_RE = re.compile(
+        r"```(image|video|file)\s*\n(.*?)```", re.IGNORECASE | re.DOTALL
+    )
 
     @staticmethod
     def get_extra_requirements() -> list:
@@ -53,8 +63,8 @@ class TelegramInterface(ChatInterface):
             ),
             ExtraSettings.EntrySetting(
                 key="allowed_user",
-                title=_("Allowed User ID/Username"),
-                description=_("Telegram user ID or @username allowed to use the bot. Leave empty to allow everyone."),
+                title=_("Allowed User IDs/Usernames"),
+                description=_("Comma-separated Telegram user IDs or @usernames allowed to use the bot. Leave empty to allow everyone."),
                 default="",
             ),
             ExtraSettings.ToggleSetting(
@@ -71,16 +81,30 @@ class TelegramInterface(ChatInterface):
     def _get_allowed_user(self):
         return self.get_setting("allowed_user", search_default=True, return_value="")
 
+    def _get_allowed_users(self) -> list[str]:
+        """Return configured allowed users, accepting comma-separated entries."""
+        return [
+            item.strip()
+            for item in re.split(r"[,;\n]", str(self._get_allowed_user() or ""))
+            if item.strip()
+        ]
+
     def _is_user_allowed(self, user) -> bool:
-        allowed = self._get_allowed_user().strip()
-        if not allowed:
+        allowed_users = self._get_allowed_users()
+        if not allowed_users:
             return True
-        if allowed.startswith("@"):
-            return user.username == allowed[1:]
-        try:
-            return str(user.id) == allowed
-        except (ValueError, TypeError):
-            return False
+        for allowed in allowed_users:
+            if allowed.startswith("@") and user.username == allowed[1:]:
+                return True
+            if str(user.id) == allowed:
+                return True
+        return False
+
+    def set_setting(self, key, value):
+        super().set_setting(key, value)
+        if key == "allowed_user":
+            # The configured recipients are part of the tool schema.
+            self.notify_send_message_availability_changed()
 
     def _ensure_controller(self):
         return self.controller is not None
@@ -90,6 +114,183 @@ class TelegramInterface(ChatInterface):
         if self._loop is None or not self._loop.is_running():
             return
         return asyncio.run_coroutine_threadsafe(coro, self._loop)
+
+    def _remember_recipient(self, user, chat_id):
+        """Remember the current Telegram chat for an authorized user."""
+        user_id = str(user.id)
+        label = f"@{user.username}" if user.username else (user.full_name or user_id)
+        recipient = {"chat_id": chat_id, "label": label}
+        with self._recipients_lock:
+            changed = self._recipients.get(user_id) != recipient
+            self._recipients[user_id] = recipient
+        if changed:
+            # Recipient choices are part of the tool schema.
+            self.notify_send_message_availability_changed()
+
+    def _get_send_message_recipients(self) -> dict[str, dict]:
+        """Combine configured allowed users with the chats Telegram has seen."""
+        with self._recipients_lock:
+            known_recipients = dict(self._recipients)
+
+        allowed_users = self._get_allowed_users()
+        if not allowed_users:
+            return known_recipients
+
+        recipients = {}
+        for allowed in allowed_users:
+            known = known_recipients.get(allowed)
+            if known is None and allowed.startswith("@"):
+                known = next(
+                    (
+                        recipient | {"user_id": user_id}
+                        for user_id, recipient in known_recipients.items()
+                        if recipient.get("label") == allowed
+                    ),
+                    None,
+                )
+            recipients[allowed] = known or {
+                # Telegram private-chat IDs are the numeric user IDs. A
+                # username can still be accepted by Telegram for supported
+                # public destinations, while a user who later messages the
+                # bot replaces this with their actual current chat ID.
+                "chat_id": allowed,
+                "label": allowed,
+                "user_id": allowed,
+            }
+        return recipients
+
+    def get_send_message_options_schema(self) -> dict:
+        recipients = self._get_send_message_recipients()
+        if len(recipients) == 1:
+            return {}
+        labels = [
+            f"{recipient_id} ({recipient.get('label', recipient_id)})"
+            for recipient_id, recipient in recipients.items()
+        ]
+        return {
+            "recipient": {
+                "type": "string",
+                "enum": list(recipients),
+                "description": (
+                    "Authorized Telegram user to receive the message. Available: "
+                    + (", ".join(labels) if labels else "none yet")
+                ),
+            },
+        }
+
+    def get_send_message_required_options(self) -> list[str]:
+        return [] if len(self._get_send_message_recipients()) == 1 else ["recipient"]
+
+    @staticmethod
+    async def _send_text(bot, chat_id, text):
+        """Send text while preserving Newelle's Markdown conversion behavior."""
+        from telegramify_markdown import convert
+
+        try:
+            text_md, entities = convert(text)
+            return await bot.send_message(
+                chat_id=chat_id,
+                text=text_md,
+                entities=[entity.to_dict() for entity in entities],
+            )
+        except Exception:
+            return await bot.send_message(chat_id=chat_id, text=text)
+
+    @staticmethod
+    def _media_input(source: str, kind: str):
+        """Turn a local path or data URL into a Telegram upload value."""
+        if not source.startswith("data:"):
+            return source
+        try:
+            header, encoded = source.split(",", 1)
+            mime_type = header[5:].split(";", 1)[0]
+            payload = (
+                base64.b64decode(encoded)
+                if ";base64" in header.lower()
+                else unquote_to_bytes(encoded)
+            )
+        except (ValueError, TypeError, base64.binascii.Error) as error:
+            raise ValueError(f"Invalid {kind} data URL: {error}") from error
+        extension = {
+            "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp",
+            "video/mp4": ".mp4", "video/webm": ".webm",
+        }.get(mime_type, "")
+        upload = io.BytesIO(payload)
+        upload.name = f"newelle-{kind}{extension}"
+        return upload
+
+    def _message_text(self, message: str, *, streaming=False) -> str:
+        """Return text content without Newelle media blocks.
+
+        During streaming, also hide an incomplete media block. This keeps a
+        partial `````image`` block from being rendered as ordinary text before
+        the model finishes writing its path.
+        """
+        text = self._MEDIA_BLOCK_RE.sub("", message)
+        if streaming:
+            text = re.sub(r"```(?:image|video|file)\s*\n.*$", "", text, flags=re.I | re.S)
+        return text.strip()
+
+    def _has_media_blocks(self, message: str) -> bool:
+        return self._MEDIA_BLOCK_RE.search(message) is not None
+
+    async def _send_media_blocks(self, bot, chat_id, message):
+        """Upload Newelle image, video, and file blocks as native Telegram media."""
+        for match in self._MEDIA_BLOCK_RE.finditer(message):
+            kind = match.group(1).lower()
+            source = match.group(2).strip().splitlines()[0].strip() if match.group(2).strip() else ""
+            if not source:
+                raise ValueError(f"The {kind} block does not contain a file path or URL.")
+            upload = self._media_input(source, kind)
+            if kind == "image":
+                await bot.send_photo(chat_id=chat_id, photo=upload)
+            elif kind == "video":
+                await bot.send_video(chat_id=chat_id, video=upload)
+            else:
+                await bot.send_document(chat_id=chat_id, document=upload)
+
+    async def _send_outgoing_message(self, chat_id, message, bot=None):
+        """Deliver text and Newelle media code blocks to a Telegram chat."""
+        bot = bot or self._application.bot
+        text = self._message_text(message)
+        if text:
+            for chunk_start in range(0, len(text), 4000):
+                await self._send_text(bot, chat_id, text[chunk_start:chunk_start + 4000])
+        await self._send_media_blocks(bot, chat_id, message)
+
+    def send_message(self, message, extra_options):
+        """Send a message to a known authorized Telegram recipient."""
+        recipients = self._get_send_message_recipients()
+        recipient_id = str(extra_options.get("recipient", ""))
+        if not recipient_id and len(recipients) == 1:
+            recipient_id = next(iter(recipients))
+        recipient = recipients.get(recipient_id)
+        result = ToolResult()
+        if recipient is None:
+            result.set_output(
+                "Error: unknown Telegram recipient. Choose one of the configured "
+                "allowed users."
+            )
+            return result
+        if self._application is None or self._loop is None or not self._loop.is_running():
+            result.set_output("Error: the Telegram interface is not ready to send messages.")
+            return result
+
+        try:
+            future = self._run_async(self._send_outgoing_message(recipient["chat_id"], message))
+            future.result(timeout=30)
+            chat_id = self.get_or_create_chat(recipient.get("user_id", recipient_id))
+            self.controller.chats[chat_id]["chat"].append({
+                "User": "Assistant",
+                "Message": message,
+                "UUID": int(uuid.uuid4()),
+                "Profile": self.controller.newelle_settings.current_profile,
+            })
+            self.controller.save_chats()
+            result.set_output(f"Message sent to Telegram user {recipient_id}.")
+        except Exception as error:
+            result.set_output(f"Error sending Telegram message: {error}")
+        return result
 
     # ------------------------------------------------------------------ #
     #       Tool-interaction hook: send Telegram inline keyboard           #
@@ -117,8 +318,9 @@ class TelegramInterface(ChatInterface):
 
         display = result.display_text or ""
         tool_text = f"🔧 **{tool_name}**"
-        if display:
-            tool_text += f"\n{display[:500]}"
+        display_text = self._message_text(display)
+        if display_text:
+            tool_text += f"\n{display_text[:500]}"
 
         buttons = [
             [InlineKeyboardButton(opt.title, callback_data=f"tool_{interaction_id}_{i}")]
@@ -139,6 +341,7 @@ class TelegramInterface(ChatInterface):
                 await bot.send_message(
                     chat_id=tg_chat_id, text=tool_text, reply_markup=reply_markup
                 )
+            await self._send_media_blocks(bot, tg_chat_id, display)
 
         future = asyncio.run_coroutine_threadsafe(_send(), self._loop)
         future.result(timeout=30)
@@ -191,6 +394,7 @@ class TelegramInterface(ChatInterface):
         async def _reply(update: Update, context, name: str, args):
             if not _check(update):
                 return
+            iface._remember_recipient(update.effective_user, update.effective_chat.id)
             if not iface._ensure_controller():
                 await update.message.reply_text("⏳ Controller not ready.")
                 return
@@ -248,6 +452,7 @@ class TelegramInterface(ChatInterface):
         async def handle_text_message(update: Update, context):
             if not _check(update):
                 return
+            iface._remember_recipient(update.effective_user, update.effective_chat.id)
             if not iface._ensure_controller():
                 await update.message.reply_text("⏳ Controller not ready.")
                 return
@@ -264,6 +469,7 @@ class TelegramInterface(ChatInterface):
         async def handle_voice_message(update: Update, context):
             if not _check(update):
                 return
+            iface._remember_recipient(update.effective_user, update.effective_chat.id)
             if not iface._ensure_controller():
                 await update.message.reply_text("⏳ Controller not ready.")
                 return
@@ -316,6 +522,7 @@ class TelegramInterface(ChatInterface):
         async def handle_photo_message(update: Update, context):
             if not _check(update):
                 return
+            iface._remember_recipient(update.effective_user, update.effective_chat.id)
             if not iface._ensure_controller():
                 await update.message.reply_text("⏳ Controller not ready.")
                 return
@@ -343,6 +550,9 @@ class TelegramInterface(ChatInterface):
 
         async def handle_callback_query(update: Update, context):
             """Handle inline keyboard button presses for tool interactions."""
+            if not _check(update):
+                return
+            iface._remember_recipient(update.effective_user, update.effective_chat.id)
             query = update.callback_query
             data = query.data
             if not data.startswith("tool_"):
@@ -420,6 +630,32 @@ class TelegramInterface(ChatInterface):
             done = False
             error = None
 
+            async def _finalize_current_message():
+                """Finish text delivery, then upload any completed media blocks."""
+                nonlocal sent_message, last_rendered
+                visible_text = iface._message_text(accumulated)
+                if visible_text != last_rendered:
+                    chunks = [
+                        visible_text[i:i + 4000]
+                        for i in range(0, len(visible_text), 4000)
+                    ]
+                    if use_edit_message:
+                        if chunks:
+                            if sent_message is not None:
+                                await _safe_edit_message(sent_message, chunks[0])
+                            else:
+                                sent_message = await _safe_send_message(
+                                    context.bot, tg_chat_id, chunks[0]
+                                )
+                            for chunk in chunks[1:]:
+                                await _safe_send_message(context.bot, tg_chat_id, chunk)
+                    else:
+                        for chunk in chunks:
+                            await _safe_send_message(context.bot, tg_chat_id, chunk)
+                    last_rendered = visible_text
+                if iface._has_media_blocks(accumulated):
+                    await iface._send_media_blocks(context.bot, tg_chat_id, accumulated)
+
             while not done:
                 await asyncio.sleep(0.3)
 
@@ -439,13 +675,9 @@ class TelegramInterface(ChatInterface):
                     elif kind == "tool":
                         # Non-interactive tool result: finalize current text, then
                         # show the tool status line, then reset for next segment.
-                        if accumulated and accumulated != last_sent:
+                        if accumulated:
                             try:
-                                final = accumulated[:4000]
-                                if use_edit_message and sent_message is not None:
-                                    await _safe_edit_message(sent_message, final)
-                                else:
-                                    await _safe_send_message(context.bot, tg_chat_id, final)
+                                await _finalize_current_message()
                                 last_sent = accumulated
                             except Exception:
                                 pass
@@ -457,27 +689,30 @@ class TelegramInterface(ChatInterface):
 
                         tool_text = f"🔧 **{data['tool_name']}**"
                         if data.get("display_text"):
-                            tool_text += f"\n{data['display_text'][:500]}"
-                        await _safe_send_message(context.bot, tg_chat_id, tool_text)
+                            tool_text += f"\n{data['display_text']}"
+                        await iface._send_outgoing_message(
+                            tg_chat_id, tool_text, bot=context.bot
+                        )
 
                 # Update streaming display with latest accumulated text
                 if not done and accumulated and accumulated != last_sent:
                     try:
-                        text_to_send = accumulated[:4000]
-                        if use_edit_message:
-                            if sent_message is None:
-                                sent_message = await _safe_send_message(
-                                    context.bot, tg_chat_id, text_to_send
-                                )
+                        text_to_send = iface._message_text(accumulated, streaming=True)[:4000]
+                        if text_to_send:
+                            if use_edit_message:
+                                if sent_message is None:
+                                    sent_message = await _safe_send_message(
+                                        context.bot, tg_chat_id, text_to_send
+                                    )
+                                else:
+                                    await _safe_edit_message(sent_message, text_to_send)
                             else:
-                                await _safe_edit_message(sent_message, text_to_send)
-                        else:
-                            await context.bot.send_message_draft(
-                                chat_id=tg_chat_id,
-                                draft_id=draft_id,
-                                text=text_to_send,
-                                parse_mode="markdown"
-                            )
+                                await context.bot.send_message_draft(
+                                    chat_id=tg_chat_id,
+                                    draft_id=draft_id,
+                                    text=text_to_send,
+                                    parse_mode="markdown"
+                                )
                         last_sent = accumulated
                         last_rendered = text_to_send
                     except Exception:
@@ -490,30 +725,7 @@ class TelegramInterface(ChatInterface):
             if not accumulated:
                 accumulated = "🤷 No response."
 
-            # Final send / edit
-            if use_edit_message:
-                if accumulated != last_rendered:
-                    if len(accumulated) <= 4000:
-                        if sent_message is not None:
-                            await _safe_edit_message(sent_message, accumulated)
-                        else:
-                            await _safe_send_message(context.bot, tg_chat_id, accumulated)
-                    else:
-                        chunks = [accumulated[i:i + 4000] for i in range(0, len(accumulated), 4000)]
-                        if sent_message is not None:
-                            await _safe_edit_message(sent_message, chunks[0])
-                            for chunk in chunks[1:]:
-                                await _safe_send_message(context.bot, tg_chat_id, chunk)
-                        else:
-                            for chunk in chunks:
-                                await _safe_send_message(context.bot, tg_chat_id, chunk)
-            else:
-                if accumulated != last_rendered:
-                    if len(accumulated) > 4000:
-                        for chunk in [accumulated[i:i + 4000] for i in range(0, len(accumulated), 4000)]:
-                            await _safe_send_message(context.bot, tg_chat_id, chunk)
-                    else:
-                        await _safe_send_message(context.bot, tg_chat_id, accumulated)
+            await _finalize_current_message()
 
         # ---- Build application ---------------------------------------- #
 
@@ -569,6 +781,7 @@ class TelegramInterface(ChatInterface):
                     self._loop.run_until_complete(self._application.start())
                     self._loop.run_until_complete(self._application.updater.start_polling())
                     self._write_state_file()
+                    self.notify_send_message_availability_changed()
                     print("Telegram bot started")
                     while self._running:
                         self._loop.run_until_complete(asyncio.sleep(1))
@@ -585,6 +798,7 @@ class TelegramInterface(ChatInterface):
                         pass
                     self._loop.close()
                     self._loop = None
+                    self.notify_send_message_availability_changed()
 
             self._thread = threading.Thread(target=run_bot, daemon=True)
             self._thread.start()
@@ -611,6 +825,7 @@ class TelegramInterface(ChatInterface):
                 pass
             self._application = None
         self._thread = None
+        self.notify_send_message_availability_changed()
         print("Telegram bot stopped")
 
     def _is_locally_running(self):
