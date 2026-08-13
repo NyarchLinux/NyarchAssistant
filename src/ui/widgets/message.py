@@ -1304,6 +1304,19 @@ class Message(Gtk.Box):
             try:
                 if slot is not None and not slot.active:
                     return
+                if not restore:
+                    max_tool_calls = getattr(
+                        self.controller.newelle_settings, "max_tool_calls", 10
+                    )
+                    if chat_tab.tool_call_count >= max_tool_calls:
+                        error_text = _(
+                            "Maximum tool call limit reached ({0})"
+                        ).format(max_tool_calls)
+                        placeholder.set_result(False, error_text)
+                        if current_group() is not None:
+                            current_group().set_slot_state(slot, "error")
+                        return
+                    chat_tab.tool_call_count += 1
                 chunk = slot.chunk if slot is not None else None
                 args = chunk.tool_args if chunk is not None else {}
                 active_group = current_group()

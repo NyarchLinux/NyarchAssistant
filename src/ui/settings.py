@@ -555,6 +555,23 @@ class Settings(Adw.Window):
         row.add_suffix(switch)
         self.settings.bind("parallel-tool-execution", switch, 'active', Gio.SettingsBindFlags.DEFAULT)
         self.neural_network.add(row)
+
+        max_tool_calls_row = Adw.SpinRow(
+            title=_("Maximum Tool Calls"),
+            subtitle=_("Maximum number of tools the model can run for one request, including scheduled tasks"),
+            adjustment=Gtk.Adjustment(
+                lower=1,
+                upper=300,
+                step_increment=1,
+                page_increment=10,
+                value=self.settings.get_int("max-tool-calls"),
+            ),
+            digits=0,
+        )
+        def update_max_tool_calls(spin, _value):
+            self.settings.set_int("max-tool-calls", int(spin.get_value()))
+        max_tool_calls_row.connect("notify::value", update_max_tool_calls)
+        self.neural_network.add(max_tool_calls_row)
         
         row = Adw.ExpanderRow(title=_("External Terminal"), subtitle=_("Choose the external terminal where to run the console commands"))
         terminal_enabled = Gtk.Switch(valign=Gtk.Align.CENTER)

@@ -115,7 +115,7 @@ class GUIAPIInterface(Interface):
             message: str
             chat_id: int
             system_prompt: Optional[list[str]] = None
-            max_tool_calls: int = 10
+            max_tool_calls: Optional[int] = None
             save_chat: bool = False
 
         class SetPromptActiveRequest(BaseModel):

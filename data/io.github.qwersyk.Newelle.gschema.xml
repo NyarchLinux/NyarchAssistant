@@ -215,6 +215,10 @@
         <key name="parallel-tool-execution" type="b">
             <default>false</default>
         </key>
+        <key name="max-tool-calls" type="i">
+            <range min="1" max="300"/>
+            <default>70</default>
+        </key>
         <key name="custom-document-folders" type="as">
             <default>[]</default>
         </key>

@@ -861,6 +861,7 @@ class NewelleController:
             self.run_llm_with_tools(
                 message=task["task"],
                 chat_id=chat_id,
+                max_tool_calls=self.newelle_settings.max_tool_calls,
                 save_chat=True,
                 force_tools_on_main_thread=True,
             )
@@ -1827,7 +1828,7 @@ class NewelleController:
         system_prompt: list[str] = None,
         on_message_callback: Callable[[str], None] = None,
         on_tool_result_callback: Callable[[str, ToolResult], None] = None,
-        max_tool_calls: int = 10,
+        max_tool_calls: int | None = None,
         save_chat: bool = False,
         force_tools_on_main_thread: bool = False,
         tool_registry: ToolRegistry | None = None,
@@ -1842,7 +1843,8 @@ class NewelleController:
             system_prompt: System prompts (uses prepared prompts if None)
             on_message_callback: Callback for streaming message updates
             on_tool_result_callback: Callback for tool results, receives (tool_name, ToolResult)
-            max_tool_calls: Maximum number of tool calls to execute (prevents infinite loops)
+            max_tool_calls: Maximum number of tool calls to execute. When omitted,
+                use the shared max-tool-calls setting.
             chat_id: Chat ID to use (uses current if None)
             save_chat: If True, assistant messages are added to chat history
             force_tools_on_main_thread: If True, execute tool calls on the GTK main thread.
@@ -1855,6 +1857,11 @@ class NewelleController:
         Returns:
             Final message from the LLM
         """
+        if max_tool_calls is None:
+            max_tool_calls = getattr(self.newelle_settings, "max_tool_calls", 10)
+        if max_tool_calls < 1:
+            raise ValueError("max_tool_calls must be at least 1")
+
         active_tool_registry = tool_registry if tool_registry is not None else self.tools
         active_skill_manager = skill_manager if skill_manager is not None else getattr(self, "skill_manager", None)
         skills_integration = None
@@ -1907,8 +1914,11 @@ class NewelleController:
         )
         model = self.get_model_for_chat(self.chats[chat_id]["chat"])
         cont = True
+        iteration = 0
+        tool_call_count = 0
+        final_synthesis_turn = False
         try:
-            for iteration in range(max_tool_calls):
+            while True:
                 full_response = ""
                 if not cont:
                     break
@@ -1969,20 +1979,27 @@ class NewelleController:
                                 prompt = request_history.pop(i)["Message"]
                                 break
 
-                send_history, _ = self._trim_context(request_history, system_prompt, message)
+                request_system_prompt = system_prompt
+                if final_synthesis_turn:
+                    request_system_prompt = list(system_prompt) + [
+                        "The maximum tool call limit has been reached. Do not call any "
+                        "more tools; return the best final answer using the results already available."
+                    ]
+
+                send_history, _ = self._trim_context(request_history, request_system_prompt, message)
 
                 if model.stream_enabled():
                     response = model.send_message_stream(
                         prompt,
                         send_history,
-                        system_prompt,
+                        request_system_prompt,
                         stream_callback
                     )
                 else:
                     response = model.send_message(
                         prompt,
                         send_history,
-                        system_prompt
+                        request_system_prompt
                     )
                     if on_message_callback:
                         on_message_callback(response)
@@ -2005,7 +2022,7 @@ class NewelleController:
                 if model.stream_enabled() and not tool_calls and on_message_callback:
                     on_message_callback(response)
                 
-                if not tool_calls:
+                if not tool_calls or final_synthesis_turn:
                     msg_uuid = int(uuid_lib.uuid4())
                     current_history.append({"User": "Assistant", "Message": text_content, "UUID": msg_uuid})
                     if save_chat:
@@ -2022,9 +2039,12 @@ class NewelleController:
                             self.save_chats()
                         return final_message
                     return text_content
+                remaining_tool_calls = max_tool_calls - tool_call_count
+                tool_calls = tool_calls[:remaining_tool_calls]
                 assistant_msg_uuid = int(uuid_lib.uuid4())
                 
                 for tool_call in tool_calls:
+                    tool_call_count += 1
                     tool_name = tool_call["name"]
                     tool_args = tool_call["args"]
                     tool_uuid = str(uuid_lib.uuid4())[:8]
@@ -2137,6 +2157,11 @@ class NewelleController:
                                 "ToolContext": True,
                             })
                         self.save_chats()
+
+                if tool_call_count >= max_tool_calls:
+                    final_synthesis_turn = True
+                    cont = True
+                iteration += 1
             
             if save_chat:
                 msg_uuid = int(uuid_lib.uuid4())
@@ -2267,6 +2292,7 @@ class NewelleSettings:
         self.websearch_model = self.settings.get_string("websearch-model")
         self.websearch_settings = self.settings.get_string("websearch-settings")
         self.parallel_tool_execution = settings.get_boolean("parallel-tool-execution")
+        self.max_tool_calls = settings.get_int("max-tool-calls")
         self.external_browser = settings.get_boolean("external-browser")
         self.initial_browser_page = settings.get_string("initial-browser-page")
         self.browser_search_string = settings.get_string("browser-search-string")

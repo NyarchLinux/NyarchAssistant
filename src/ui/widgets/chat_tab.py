@@ -74,6 +74,7 @@ class ChatTab(Gtk.Box):
         # Generation state
         self.active_tool_results = []
         self.auto_run_times = 0
+        self.tool_call_count = 0
         self.last_generation_time = None
         self.last_token_num = None
         
@@ -792,6 +793,7 @@ class ChatTab(Gtk.Box):
         """Send a message in the chat and get bot answer."""
         if manual:
             self.auto_run_times = 0
+            self.tool_call_count = 0
         
         self.stream_number_variable += 1
         stream_number_variable = self.stream_number_variable
