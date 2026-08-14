@@ -60,7 +60,16 @@ class OpenAIHandler(LLMHandler):
         return True
 
     def get_extra_settings(self) -> list:
-        return self.build_extra_settings("OpenAI", True, True, True, True, True, "https://openai.com/policies/row-privacy-policy/", None, False, False, True, self.supports_thinking(), True, supports_custom_headers=True)
+        settings = self.build_extra_settings("OpenAI", True, True, True, True, True, "https://openai.com/policies/row-privacy-policy/", None, False, False, True, self.supports_thinking(), True, supports_custom_headers=True)
+        settings.append(
+            ExtraSettings.ToggleSetting(
+                "responses_api",
+                _("Use Responses API"),
+                _("Use the /responses endpoint instead of /chat/completions."),
+                False,
+            )
+        )
+        return settings
 
     def get_duplication_settings(self) -> list[dict] | None:
         # OpenAI-compatible handlers inherit this class. Only the canonical
@@ -193,6 +202,60 @@ class OpenAIHandler(LLMHandler):
             prompts = self.prompts
         return convert_history_openai(history, prompts, self.supports_vision(), self.get_setting("native_tool_calling", False, True))
 
+    def uses_responses_api(self) -> bool:
+        return self.get_setting("responses_api", False, False)
+
+    @staticmethod
+    def convert_responses_input(messages: list) -> list:
+        """Convert the shared Chat Completions history into Responses input items."""
+        result = []
+        for message in messages:
+            role = message.get("role")
+            content = message.get("content", "")
+            if role == "tool":
+                result.append({
+                    "type": "function_call_output",
+                    "call_id": message["tool_call_id"],
+                    "output": content,
+                })
+                continue
+            if role == "assistant" and message.get("tool_calls"):
+                if content:
+                    result.append({"role": role, "content": content})
+                for tool_call in message["tool_calls"]:
+                    function = tool_call["function"]
+                    arguments = function.get("arguments", "")
+                    if not isinstance(arguments, str):
+                        arguments = json.dumps(arguments)
+                    result.append({
+                        "type": "function_call",
+                        "call_id": tool_call["id"],
+                        "name": function["name"],
+                        "arguments": arguments,
+                    })
+                continue
+            if isinstance(content, list):
+                converted_content = []
+                for item in content:
+                    if item.get("type") == "text":
+                        converted_content.append({"type": "input_text", "text": item["text"]})
+                    elif item.get("type") == "image_url":
+                        image_url = item.get("image_url", {})
+                        converted_content.append({
+                            "type": "input_image",
+                            "image_url": image_url.get("url") if isinstance(image_url, dict) else image_url,
+                            "detail": "auto",
+                        })
+                    else:
+                        converted_content.append(item)
+                content = converted_content
+            result.append({"role": role, "content": content})
+        return result
+
+    @staticmethod
+    def convert_responses_tools(tools: list) -> list:
+        return [{"type": "function", **tool["function"]} for tool in tools]
+
     def get_advanced_params(self):
         from openai import NOT_GIVEN
         advanced_params = self.get_setting("advanced_params")
@@ -209,6 +272,8 @@ class OpenAIHandler(LLMHandler):
         if not thinking:
             return {}
         thinking_effort = self.get_setting("thinking_effort", "medium")
+        if self.uses_responses_api():
+            return {"reasoning": {"effort": thinking_effort}}
         return {"reasoning_effort": thinking_effort}
 
     # -- Optional thinking-effort API (input-bar control) ------------------ #
@@ -289,29 +354,45 @@ class OpenAIHandler(LLMHandler):
         try:
             kwargs = {
                 "model": self.get_setting("model"),
-                "messages": messages,
                 "top_p": top_p,
                 "temperature": temperature,
-                "presence_penalty": presence_penalty,
-                "frequency_penalty": frequency_penalty,
                 "extra_body": extra_body,
                 "extra_headers": self.get_extra_headers(),
             }
-            if tools_list:
-                kwargs["tools"] = tools_list
-            response = client.chat.completions.create(**kwargs)
-            if not hasattr(response, "choices") or response.choices is None or len(response.choices) == 0:
-                raise Exception(str(response))
-            
-            content = response.choices[0].message.content or ""
-            if hasattr(response.choices[0].message, "tool_calls") and response.choices[0].message.tool_calls is not None:
-                for tool_call in response.choices[0].message.tool_calls:
-                    tool = tool_call.function
-                    tool_call_dict = {"tool": tool.name, "arguments": json.loads(tool.arguments) if tool.arguments else {}}
-                    tc_id = getattr(tool_call, "id", None)
-                    if tc_id:
-                        tool_call_dict["id"] = tc_id
+            if self.uses_responses_api():
+                kwargs["input"] = self.convert_responses_input(messages)
+                if tools_list:
+                    kwargs["tools"] = self.convert_responses_tools(tools_list)
+                response = client.responses.create(**kwargs)
+                content = response.output_text or ""
+                for item in response.output:
+                    if item.type != "function_call":
+                        continue
+                    tool_call_dict = {
+                        "tool": item.name,
+                        "arguments": json.loads(item.arguments) if item.arguments else {},
+                        "id": item.call_id,
+                    }
                     content += "```json\n" + json.dumps(tool_call_dict) + "\n```\n"
+            else:
+                kwargs["messages"] = messages
+                kwargs["presence_penalty"] = presence_penalty
+                kwargs["frequency_penalty"] = frequency_penalty
+                if tools_list:
+                    kwargs["tools"] = tools_list
+                response = client.chat.completions.create(**kwargs)
+                if not hasattr(response, "choices") or response.choices is None or len(response.choices) == 0:
+                    raise Exception(str(response))
+
+                content = response.choices[0].message.content or ""
+                if hasattr(response.choices[0].message, "tool_calls") and response.choices[0].message.tool_calls is not None:
+                    for tool_call in response.choices[0].message.tool_calls:
+                        tool = tool_call.function
+                        tool_call_dict = {"tool": tool.name, "arguments": json.loads(tool.arguments) if tool.arguments else {}}
+                        tc_id = getattr(tool_call, "id", None)
+                        if tc_id:
+                            tool_call_dict["id"] = tc_id
+                        content += "```json\n" + json.dumps(tool_call_dict) + "\n```\n"
 
             return content.strip()
         except Exception as e:
@@ -350,18 +431,25 @@ class OpenAIHandler(LLMHandler):
         try:
             kwargs = {
                 "model": self.get_setting("model"),
-                "messages": messages,
                 "top_p": top_p,
                 "temperature": temperature,
-                "presence_penalty": presence_penalty,
-                "frequency_penalty": frequency_penalty,
                 "stream": True,
                 "extra_headers": self.get_extra_headers(),
                 "extra_body": extra_body,
             }
-            if tools_list:
-                kwargs["tools"] = tools_list
-            response = client.chat.completions.create(**kwargs)
+            responses_api = self.uses_responses_api()
+            if responses_api:
+                kwargs["input"] = self.convert_responses_input(messages)
+                if tools_list:
+                    kwargs["tools"] = self.convert_responses_tools(tools_list)
+                response = client.responses.create(**kwargs)
+            else:
+                kwargs["messages"] = messages
+                kwargs["presence_penalty"] = presence_penalty
+                kwargs["frequency_penalty"] = frequency_penalty
+                if tools_list:
+                    kwargs["tools"] = tools_list
+                response = client.chat.completions.create(**kwargs)
             full_message = ""
             prev_message = ""
             is_reasoning = False
@@ -372,6 +460,20 @@ class OpenAIHandler(LLMHandler):
                 if not self.running:
                     response.close()
                     break
+                if responses_api:
+                    if chunk.type == "response.output_text.delta":
+                        full_message += chunk.delta
+                        args = (full_message.strip(), ) + tuple(extra_args)
+                        if len(full_message) - len(prev_message) > 1:
+                            on_update(*args)
+                            prev_message = full_message
+                    elif chunk.type == "response.output_item.done" and chunk.item.type == "function_call":
+                        tool_calls[chunk.output_index] = {
+                            "name": chunk.item.name,
+                            "arguments": chunk.item.arguments,
+                            "id": chunk.item.call_id,
+                        }
+                    continue
                 if len(chunk.choices) == 0:
                     continue
                 
