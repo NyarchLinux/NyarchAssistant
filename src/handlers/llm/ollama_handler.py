@@ -308,6 +308,18 @@ class OllamaHandler(LLMHandler):
         settings.append(ExtraSettings.ButtonSetting("update", _("Update Ollama"), _("Update Ollama"), lambda x: self.install(), _("Update Ollama")))
         return settings
 
+    def get_duplication_settings(self) -> list[dict] | None:
+        if self.key != "ollama":
+            return None
+        return [
+            ExtraSettings.EntrySetting(
+                "endpoint",
+                _("API Endpoint"),
+                _("API base URL for the Ollama instance"),
+                self.get_setting("endpoint"),
+            )
+        ]
+
     def open_library(self, button):
         from ...ui.model_library import ModelLibraryWindow
         root = button.get_root()
@@ -575,4 +587,3 @@ class OllamaHandler(LLMHandler):
             return full_message.strip()
         except Exception as e:
             raise e
-

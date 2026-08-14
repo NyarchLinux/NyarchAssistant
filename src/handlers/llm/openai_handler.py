@@ -62,6 +62,21 @@ class OpenAIHandler(LLMHandler):
     def get_extra_settings(self) -> list:
         return self.build_extra_settings("OpenAI", True, True, True, True, True, "https://openai.com/policies/row-privacy-policy/", None, False, False, True, self.supports_thinking(), True, supports_custom_headers=True)
 
+    def get_duplication_settings(self) -> list[dict] | None:
+        # OpenAI-compatible handlers inherit this class. Only the canonical
+        # OpenAI entry may be copied; provider-specific subclasses and copies
+        # must not recursively expose duplication.
+        if self.key != "openai":
+            return None
+        return [
+            ExtraSettings.EntrySetting(
+                "endpoint",
+                _("API Endpoint"),
+                _("API base URL for the OpenAI-compatible provider"),
+                self.get_setting("endpoint"),
+            )
+        ]
+
     def build_extra_settings(self, provider_name: str, has_api_key: bool, has_stream_settings: bool, endpoint_change: bool, allow_advanced_params: bool, supports_automatic_models: bool, privacy_notice_url : str | None, model_list_url: str | None, default_advanced_params: bool = False, default_automatic_models: bool = False, supports_custom_body : bool = False, supports_thinking: bool = False, supports_tool_calling: bool = True, has_tool_calling_option: bool = True, supports_custom_headers: bool = False) -> list:
         """Helper to build the list of extra settings for OpenAI Handlers
 

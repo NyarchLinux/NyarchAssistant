@@ -41,6 +41,7 @@ from .utility.context_manager import ContextManager, TrimResult
 from .utility.replacehelper import PromptFormatter, replace_variables_dict
 from enum import Enum 
 from .handlers import Handler
+from .handlers.handler import SettingsCache
 from .ui_controller import UIController
 """
 Manage Newelle Application, create handlers, check integrity, manage settings...
@@ -1021,11 +1022,18 @@ class NewelleController:
                 AVAILABLE_IMAGE_GENERATORS=AVAILABLE_IMAGE_GENERATORS,
                 AVAILABLE_INTERFACES=AVAILABLE_INTERFACES,
             )
+            duplicated_llms_changed = self.handlers.sync_duplicated_llms(force=True)
             active_handlers_changed = self.handlers.refresh_extension_handlers(
                 old_handlers,
                 new_handlers,
                 self.newelle_settings,
             )
+            if duplicated_llms_changed & {
+                self.newelle_settings.language_model,
+                self.newelle_settings.secondary_language_model,
+            }:
+                self.handlers.select_handlers(self.newelle_settings)
+                active_handlers_changed = True
         else:
             new_loader.set_handlers(
                 self.handlers.llm,
@@ -2487,6 +2495,8 @@ class HandlersManager:
         rag: RAG Handler 
         interfaces: List of Interface handlers
     """
+    DUPLICATED_LLMS_SETTINGS_KEY = "__duplicated_llm_handlers__"
+
     def __init__(self, settings: Gio.Settings, extensionloader : ExtensionLoader, models_path, integrations: ExtensionLoader, installing_handlers: dict, controller):
         self.settings = settings
         self.extensionloader = extensionloader
@@ -2500,6 +2510,268 @@ class HandlersManager:
         self.wakeword_handler = None
         self.controller = controller
         self.interfaces = {}
+        self._duplicated_llm_definitions = []
+
+    @classmethod
+    def _normalize_duplicated_llm_definition(cls, definition: dict) -> dict | None:
+        if not isinstance(definition, dict):
+            return None
+        key = str(definition.get("key", "")).strip()
+        source = str(definition.get("source", "")).strip()
+        title = str(definition.get("title", "")).strip()
+        description = str(definition.get("description", "")).strip()
+        if (
+            not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", key)
+            or key == cls.DUPLICATED_LLMS_SETTINGS_KEY
+            or not source
+            or not title
+        ):
+            return None
+        return {
+            "key": key,
+            "source": source,
+            "title": title,
+            "description": description,
+        }
+
+    def _read_duplicated_llm_definitions(self) -> list[dict]:
+        try:
+            llm_settings = SettingsCache.get_instance(self.settings).get_json(
+                "llm-settings"
+            )
+        except (json.JSONDecodeError, TypeError, ValueError):
+            return []
+        raw_definitions = llm_settings.get(
+            self.DUPLICATED_LLMS_SETTINGS_KEY, []
+        )
+        if not isinstance(raw_definitions, list):
+            return []
+        definitions = []
+        seen = set()
+        for raw_definition in raw_definitions:
+            definition = self._normalize_duplicated_llm_definition(raw_definition)
+            if definition is None or definition["key"] in seen:
+                continue
+            seen.add(definition["key"])
+            definitions.append(definition)
+        return definitions
+
+    @staticmethod
+    def _build_duplicated_llm_class(base_class: type, key: str) -> type:
+        class_name_key = re.sub(r"[^a-zA-Z0-9_]", "_", key)
+
+        def get_duplication_settings(_self):
+            return None
+
+        return type(
+            f"Duplicated{base_class.__name__}_{class_name_key}",
+            (base_class,),
+            {
+                "key": key,
+                "__module__": base_class.__module__,
+                "get_duplication_settings": get_duplication_settings,
+            },
+        )
+
+    def sync_duplicated_llms(self, force: bool = False) -> set[str]:
+        """Synchronize persisted user-created LLM providers with the registry."""
+        definitions = self._read_duplicated_llm_definitions()
+        registered_keys = {
+            key
+            for key, descriptor in AVAILABLE_LLMS.items()
+            if descriptor.get("duplicated", False)
+        }
+        expected_keys = set()
+        for definition in definitions:
+            source_descriptor = AVAILABLE_LLMS.get(definition["source"])
+            key_descriptor = AVAILABLE_LLMS.get(definition["key"])
+            if source_descriptor is None or source_descriptor.get("duplicated", False):
+                continue
+            if key_descriptor is None or key_descriptor.get("duplicated", False):
+                expected_keys.add(definition["key"])
+        if (
+            not force
+            and definitions == self._duplicated_llm_definitions
+            and registered_keys == expected_keys
+        ):
+            return set()
+
+        old_definitions = {
+            definition["key"]: definition
+            for definition in self._duplicated_llm_definitions
+        }
+        for key in registered_keys:
+            AVAILABLE_LLMS.pop(key, None)
+
+        registered_definitions = []
+        for definition in definitions:
+            key = definition["key"]
+            source = definition["source"]
+            if key in AVAILABLE_LLMS or source not in AVAILABLE_LLMS:
+                continue
+            source_descriptor = AVAILABLE_LLMS[source]
+            if source_descriptor.get("duplicated", False):
+                continue
+            duplicate_class = self._build_duplicated_llm_class(
+                source_descriptor["class"], key
+            )
+            descriptor = {
+                "key": key,
+                "title": definition["title"],
+                "description": definition["description"],
+                "class": duplicate_class,
+                "duplicated": True,
+                "source": source,
+            }
+            if source_descriptor.get("secondary", False):
+                descriptor["secondary"] = True
+            AVAILABLE_LLMS[key] = descriptor
+            registered_definitions.append(definition)
+
+        changed_keys = registered_keys | {
+            definition["key"] for definition in registered_definitions
+        }
+        if not force:
+            changed_keys = {
+                key
+                for key in changed_keys
+                if old_definitions.get(key)
+                != next(
+                    (
+                        definition
+                        for definition in registered_definitions
+                        if definition["key"] == key
+                    ),
+                    None,
+                )
+            }
+        disposed = set()
+        for cache_key, handler in list(self.handlers.items()):
+            if cache_key[0] not in changed_keys:
+                continue
+            self.handlers.pop(cache_key, None)
+            if id(handler) in disposed:
+                continue
+            disposed.add(id(handler))
+            try:
+                handler.destroy()
+            except Exception as error:
+                print(f"Error disposing duplicated LLM handler: {error}")
+
+        # Retain valid-but-currently-unavailable definitions (for example, an
+        # extension-provided source that is temporarily disabled) in settings.
+        self._duplicated_llm_definitions = definitions
+        return changed_keys
+
+    def get_duplicable_llms(self) -> list[tuple[str, dict, list[dict]]]:
+        """Return source descriptors and fields exposed for duplication."""
+        duplicable = []
+        for key, descriptor in AVAILABLE_LLMS.items():
+            if descriptor.get("duplicated", False):
+                continue
+            handler = self.get_object(AVAILABLE_LLMS, key)
+            settings = handler.get_duplication_settings()
+            if settings is not None:
+                duplicable.append((key, descriptor, settings))
+        return duplicable
+
+    def duplicate_llm(
+        self,
+        source: str,
+        key: str,
+        title: str,
+        description: str,
+        duplication_values: dict | None = None,
+    ) -> dict:
+        """Create and persist a user-defined copy of an LLM handler."""
+        key = key.strip()
+        title = title.strip()
+        description = description.strip()
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", key):
+            raise ValueError(
+                _("The handler key may only contain letters, numbers, '.', '_' and '-'.")
+            )
+        if not title:
+            raise ValueError(_("The handler name cannot be empty."))
+        if key in AVAILABLE_LLMS or key == self.DUPLICATED_LLMS_SETTINGS_KEY:
+            raise ValueError(_("An LLM handler with this key already exists."))
+        if source not in AVAILABLE_LLMS:
+            raise ValueError(_("The source LLM handler is not available."))
+        if AVAILABLE_LLMS[source].get("duplicated", False):
+            raise ValueError(_("Duplicated LLM handlers cannot be duplicated again."))
+
+        source_handler = self.get_object(AVAILABLE_LLMS, source)
+        duplication_settings = source_handler.get_duplication_settings()
+        if duplication_settings is None:
+            raise ValueError(_("This LLM handler does not support duplication."))
+
+        flat_settings = []
+        pending = list(duplication_settings)
+        while pending:
+            setting = pending.pop(0)
+            if setting.get("type") == "nested":
+                pending[0:0] = setting.get("extra_settings", [])
+            elif "key" in setting:
+                flat_settings.append(setting)
+        supplied_values = duplication_values or {}
+        initial_values = {
+            setting["key"]: supplied_values.get(
+                setting["key"], setting.get("default")
+            )
+            for setting in flat_settings
+        }
+        definition = {
+            "key": key,
+            "source": source,
+            "title": title,
+            "description": description,
+        }
+
+        cache = SettingsCache.get_instance(self.settings)
+        llm_settings = copy.deepcopy(cache.get_json("llm-settings"))
+        definitions = self._read_duplicated_llm_definitions()
+        definitions.append(definition)
+        llm_settings[self.DUPLICATED_LLMS_SETTINGS_KEY] = definitions
+        llm_settings[key] = initial_values
+        cache.set_json("llm-settings", llm_settings)
+
+        secondary_settings = copy.deepcopy(
+            cache.get_json("llm-secondary-settings")
+        )
+        secondary_settings[key] = copy.deepcopy(initial_values)
+        cache.set_json("llm-secondary-settings", secondary_settings)
+        self.sync_duplicated_llms()
+        return AVAILABLE_LLMS[key]
+
+    def delete_duplicated_llm(self, key: str) -> bool:
+        """Delete a duplicated provider and its primary/secondary settings."""
+        descriptor = AVAILABLE_LLMS.get(key)
+        if descriptor is None or not descriptor.get("duplicated", False):
+            return False
+        source = descriptor.get("source")
+        cache = SettingsCache.get_instance(self.settings)
+        llm_settings = copy.deepcopy(cache.get_json("llm-settings"))
+        definitions = [
+            definition
+            for definition in self._read_duplicated_llm_definitions()
+            if definition["key"] != key
+        ]
+        llm_settings[self.DUPLICATED_LLMS_SETTINGS_KEY] = definitions
+        llm_settings.pop(key, None)
+        cache.set_json("llm-settings", llm_settings)
+
+        secondary_settings = copy.deepcopy(
+            cache.get_json("llm-secondary-settings")
+        )
+        secondary_settings.pop(key, None)
+        cache.set_json("llm-secondary-settings", secondary_settings)
+        self.sync_duplicated_llms()
+
+        fallback = source if source in AVAILABLE_LLMS else next(iter(AVAILABLE_LLMS))
+        for setting_key in ("language-model", "secondary-language-model"):
+            if self.settings.get_string(setting_key) == key:
+                self.settings.set_string(setting_key, fallback)
+        return True
 
     def destroy(self):
         for handler in self.handlers.values():
@@ -2563,6 +2835,7 @@ class HandlersManager:
             newelle_settings: Newelle settings
             skip_auto_start_interfaces: If True, don't auto-start any interfaces (used in headless mode)
         """
+        self.sync_duplicated_llms()
         self.fix_handlers_integrity(newelle_settings)
         # Get LLM
         self.llm : LLMHandler = self.get_object(AVAILABLE_LLMS, newelle_settings.language_model)
