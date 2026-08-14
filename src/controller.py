@@ -1716,7 +1716,6 @@ class NewelleController:
         # Set the history for the model
         history = self.get_history(chat=chat)
         current_message = chat[-1]["Message"] if chat else ""
-        history, _ = self._trim_context(history, prompts, current_message)
         # Let extensions preprocess the history
         old_history = copy.deepcopy(history)
         old_user_prompt = current_message
@@ -1765,21 +1764,32 @@ class NewelleController:
         if chat[-1]["Message"] != old_user_prompt:
              yield ('reload_message', len(chat) - 1)
 
-        
+        # Extensions may change both the history and prompts. Trim only their
+        # effective result so the context manager's selection is what is sent.
+        history, _ = self._trim_context(
+            new_history,
+            prompts,
+            chat[-1]["Message"],
+        )
+
         message_label = ""
         try:
             t1 = time.time()
             model = self.get_model_for_chat(chat)
+            send_history = history.copy()
             if model.stream_enabled():
                 message_label = model.send_message_stream(
                     chat[-1]["Message"],
-                    new_history,
+                    send_history,
                     prompts,
                     update_callback,
                     [stream_number_variable], 
                 )
             else:
-                message_label = model.send_message(chat[-1]["Message"], new_history, prompts)
+                message_label = model.send_message(chat[-1]["Message"], send_history, prompts)
+
+            raw_message_label = str(message_label)
+            response_metadata = getattr(message_label, "response_metadata", None)
             
             # Post-generation logic
             last_generation_time = time.time() - t1
@@ -1787,7 +1797,7 @@ class NewelleController:
             input_tokens = 0
             for prompt in prompts:
                 input_tokens += count_tokens(prompt)
-            for message in new_history:
+            for message in history:
                 input_tokens += count_tokens(message.get("User", "")) + count_tokens(message.get("Message", ""))
             input_tokens += count_tokens(chat[-1]["Message"])
             
@@ -1803,6 +1813,8 @@ class NewelleController:
         old_history = copy.deepcopy(chat)
         chat, message_label = self.integrationsloader.postprocess_history(chat, message_label)
         chat, message_label = self.extensionloader.postprocess_history(chat, message_label)
+        if message_label != raw_message_label:
+            response_metadata = None
         
         # Update the chat in storage if it was modified
         self.set_chat_by_id(effective_chat_id, chat)
@@ -1827,6 +1839,7 @@ class NewelleController:
             'output_tokens': output_tokens,
             'time': last_generation_time,
             'trim_result': getattr(self, 'last_trim_result', None),
+            'response_metadata': response_metadata,
         })
 
     def run_llm_with_tools(
@@ -1925,6 +1938,9 @@ class NewelleController:
         iteration = 0
         tool_call_count = 0
         final_synthesis_turn = False
+        assistant_msg_uuid = None
+        response_text = ""
+        text_content = ""
         try:
             while True:
                 full_response = ""
@@ -2011,15 +2027,21 @@ class NewelleController:
                     )
                     if on_message_callback:
                         on_message_callback(response)
-                
-                chunks = get_message_chunks(response)
+
+                response_text = str(response)
+                response_metadata = getattr(response, "response_metadata", None)
+                chunks = get_message_chunks(response_text)
                 
                 text_content = ""
                 tool_calls = []
                 
                 for chunk in chunks:
                     if chunk.type == "tool_call":
-                        tool_calls.append({"name": chunk.tool_name, "args": chunk.tool_args})
+                        tool_calls.append({
+                            "name": chunk.tool_name,
+                            "args": chunk.tool_args,
+                            "id": getattr(chunk, "tool_id", ""),
+                        })
                     elif chunk.type in ("text", "markdown"):
                         text_content += "\n" + chunk.text
 
@@ -2031,31 +2053,68 @@ class NewelleController:
                     on_message_callback(response)
                 
                 if not tool_calls or final_synthesis_turn:
+                    final_content = response_text if not tool_calls else text_content
                     msg_uuid = int(uuid_lib.uuid4())
-                    current_history.append({"User": "Assistant", "Message": text_content, "UUID": msg_uuid})
+                    assistant_entry = {
+                        "User": "Assistant",
+                        "Message": response_text,
+                        "UUID": msg_uuid,
+                    }
+                    if response_metadata is not None:
+                        assistant_entry["OpenAIResponse"] = response_metadata
+                    current_history.append(assistant_entry)
                     if save_chat:
-                        self.chats[chat_id]["chat"].append({"User": "Assistant", "Message": response, "UUID": msg_uuid, "Profile": self.newelle_settings.current_profile})
+                        stored_entry = {
+                            **assistant_entry,
+                            "Profile": self.newelle_settings.current_profile,
+                        }
+                        self.chats[chat_id]["chat"].append(stored_entry)
                         self.save_chats()
                     # Let extensions/integrations postprocess the final response,
                     # mirroring generate_response.
                     if extension_processing:
-                        final_message = text_content
+                        final_message = final_content
                         chat_list, final_message = self.integrationsloader.postprocess_history(self.chats[chat_id]["chat"], final_message)
                         chat_list, final_message = self.extensionloader.postprocess_history(chat_list, final_message)
                         if save_chat:
+                            for entry in chat_list:
+                                if entry.get("User") == "Assistant" and entry.get("UUID") == msg_uuid:
+                                    if entry.get("Message") != response_text:
+                                        entry.pop("OpenAIResponse", None)
+                                    break
                             self.set_chat_by_id(chat_id, chat_list)
                             self.save_chats()
                         return final_message
-                    return text_content
+                    return final_content
                 remaining_tool_calls = max_tool_calls - tool_call_count
                 tool_calls = tool_calls[:remaining_tool_calls]
                 assistant_msg_uuid = int(uuid_lib.uuid4())
-                
+
+                assistant_entry = {
+                    "User": "Assistant",
+                    "Message": response_text,
+                    "UUID": assistant_msg_uuid,
+                }
+                if response_metadata is not None:
+                    assistant_entry["OpenAIResponse"] = response_metadata
+                current_history.append(assistant_entry)
+                if save_chat:
+                    self.chats[chat_id]["chat"].append({
+                        **assistant_entry,
+                        "Profile": self.newelle_settings.current_profile,
+                    })
+
                 for tool_call in tool_calls:
                     tool_call_count += 1
                     tool_name = tool_call["name"]
                     tool_args = tool_call["args"]
-                    tool_uuid = str(uuid_lib.uuid4())[:8]
+                    tool_result_output = None
+                    provider_tool_id = tool_call.get("id")
+                    tool_uuid = (
+                        provider_tool_id.strip()
+                        if isinstance(provider_tool_id, str) and provider_tool_id.strip()
+                        else str(uuid_lib.uuid4())[:8]
+                    )
                     tool_context_messages = []
                     tool_display_text = None
 
@@ -2115,15 +2174,21 @@ class NewelleController:
                                 tool_display_text = getattr(result, "display_text", None)
                                 if tool_result_output is not None or tool_context_messages:
                                     cont = True
+                            elif result is not None:
+                                tool_result_output = str(result)
+                                if on_tool_result_callback:
+                                    normalized_result = ToolResult()
+                                    normalized_result.set_output(tool_result_output)
+                                    on_tool_result_callback(tool_name, normalized_result)
+                                cont = True
                     except Exception as e:
                         tool_result_output = f"Error: {str(e)}"
                         tool_display_text = None
                         if on_tool_result_callback:
-                            tr = ToolResult(output=tool_result_output)
+                            tr = ToolResult()
+                            tr.set_output(tool_result_output)
                             on_tool_result_callback(tool_name, tr)
 
-
-                    tool_call_msg = f"```json\n{{\"name\": \"{tool_name}\", \"arguments\": {json.dumps(tool_args)}}}\n```"
                     console_output = tool_result_output
                     if console_output is None and tool_context_messages:
                         console_output = "Tool returned additional context."
@@ -2131,11 +2196,6 @@ class NewelleController:
                     if tool_display_text:
                         tool_result_msg = tool_result_msg + "\n" + tool_display_text
                     
-                    current_history.append({
-                        "User": "Assistant",
-                        "Message": tool_call_msg,
-                        "UUID": assistant_msg_uuid
-                    })
                     current_history.append({
                         "User": "Console",
                         "Message": tool_result_msg,
@@ -2148,12 +2208,6 @@ class NewelleController:
                             "ToolContext": True,
                         })
                     if save_chat:
-                        self.chats[chat_id]["chat"].append({
-                            "User": "Assistant",
-                            "Message": tool_call_msg,
-                            "UUID": assistant_msg_uuid,
-                            "Profile": self.newelle_settings.current_profile
-                        })
                         self.chats[chat_id]["chat"].append({
                             "User": "Console",
                             "Message": tool_result_msg,
@@ -2171,10 +2225,6 @@ class NewelleController:
                     cont = True
                 iteration += 1
             
-            if save_chat:
-                msg_uuid = int(uuid_lib.uuid4())
-                self.chats[chat_id]["chat"].append({"User": "Assistant", "Message": text_content, "UUID": msg_uuid, "Profile": self.newelle_settings.current_profile})
-                self.save_chats()
             # Let extensions/integrations postprocess the final response,
             # mirroring generate_response.
             if extension_processing:
@@ -2182,6 +2232,15 @@ class NewelleController:
                 chat_list, final_message = self.integrationsloader.postprocess_history(self.chats[chat_id]["chat"], final_message)
                 chat_list, final_message = self.extensionloader.postprocess_history(chat_list, final_message)
                 if save_chat:
+                    for entry in chat_list:
+                        if (
+                            assistant_msg_uuid is not None
+                            and entry.get("User") == "Assistant"
+                            and entry.get("UUID") == assistant_msg_uuid
+                        ):
+                            if entry.get("Message") != response_text:
+                                entry.pop("OpenAIResponse", None)
+                            break
                     self.set_chat_by_id(chat_id, chat_list)
                     self.save_chats()
                 return final_message

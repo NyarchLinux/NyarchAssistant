@@ -855,6 +855,7 @@ class ChatTab(Gtk.Box):
         self._cancel_stream_reveal()
         message_label = data['message']
         prompts = data['prompts']
+        response_metadata = data.get('response_metadata')
         self.last_generation_time = data['time']
         self.last_token_num = (data['input_tokens'], data['output_tokens'])
         trim_result = data.get('trim_result')
@@ -865,12 +866,15 @@ class ChatTab(Gtk.Box):
         if hasattr(self, "current_streaming_message") and self.current_streaming_message:
             # Streaming was active, finalize the existing widget
             streaming_widget = self.current_streaming_message
-            self.chat.append({
+            assistant_entry = {
                 "User": "Assistant", 
                 "Message": message_label, 
                 "UUID": streaming_widget.chunk_uuid,
                 "Profile": self.controller.newelle_settings.current_profile
-            })
+            }
+            if response_metadata is not None:
+                assistant_entry["OpenAIResponse"] = response_metadata
+            self.chat.append(assistant_entry)
             self.chat_history.update_history(self.chat)
             self.add_prompt("\n".join(prompts))
             
@@ -934,6 +938,7 @@ class ChatTab(Gtk.Box):
             self.current_streaming_message = None
         else:
             # No streaming, standard display
+            assistant_index = len(self.chat)
             self.chat_history.show_message(
                 message_label,
                 False,
@@ -943,6 +948,14 @@ class ChatTab(Gtk.Box):
                 False,
                 "\n".join(prompts),
             )
+            if (
+                response_metadata is not None
+                and assistant_index < len(self.chat)
+                and self.chat[assistant_index].get("User") == "Assistant"
+                and self.chat[assistant_index].get("Message") == message_label
+            ):
+                self.chat[assistant_index]["OpenAIResponse"] = response_metadata
+                self.save_chat()
         
         if waiting_for_tools:
             return

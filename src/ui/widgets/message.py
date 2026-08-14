@@ -1219,7 +1219,10 @@ class Message(Gtk.Box):
         tool_call_id = state.get("tool_call_counter", 0)
         state["tool_call_counter"] = tool_call_id + 1
 
-        if not restore:
+        provider_tool_id = getattr(chunk, "tool_id", "")
+        if isinstance(provider_tool_id, str) and provider_tool_id.strip():
+            tool_uuid = provider_tool_id.strip()
+        elif not restore:
             tool_uuid = str(uuid.uuid4())[:8]
         else:
             tool_uuid = self.controller.get_tool_call_uuid(self._get_chat_tab().chat_id, state["id_message"], tool_name, tool_call_id)
@@ -1289,6 +1292,12 @@ class Message(Gtk.Box):
     def _run_tool_call_with_placeholder(self, tool, tool_uuid, state, restore, slot, msg_uuid):
         if slot is not None and not slot.active:
             return
+
+        if not restore and slot is not None:
+            provider_tool_id = getattr(slot.chunk, "tool_id", "")
+            if isinstance(provider_tool_id, str) and provider_tool_id.strip():
+                tool_uuid = provider_tool_id.strip()
+                self.controller.current_tool_uuid = tool_uuid
 
         chat_tab = self._get_chat_tab()
         chat_id = chat_tab.chat_id
