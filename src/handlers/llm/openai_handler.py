@@ -23,7 +23,7 @@ class OpenAIHandler(LLMHandler):
         super().__init__(settings, path)
         if self.get_setting("models", False) is None:
             self.models = self.default_models 
-            threading.Thread(target=self.get_models).start()
+            threading.Thread(target=self.get_models, args=(False, True)).start()
         else:
             self.models = json.loads(self.get_setting("models", False))
 
@@ -38,7 +38,10 @@ class OpenAIHandler(LLMHandler):
             self.set_setting("endpoint", endpoint) 
         return out 
 
-    def get_models(self, manual=False):
+    def get_models(self, manual=False, multithread = False):
+        if not multithread:
+            threading.Thread(target=self.get_models, args=(manual, True)).start()
+            return  
         if self.is_installed():
             try:
                 import openai
@@ -174,8 +177,8 @@ class OpenAIHandler(LLMHandler):
             settings += (endpoint_settings)
         if supports_automatic_models:
             settings += (custom_model)
-            custom = self.get_setting("custom_model", False, default_automatic_models)
-            if (custom is None and not default_automatic_models) or custom:
+            custom = self.get_setting("custom_model", False, not default_automatic_models)
+            if custom:
                 settings += models_settings
             else:
                 settings += automatic_models_settings
