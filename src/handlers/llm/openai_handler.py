@@ -15,7 +15,7 @@ from ...handlers import ExtraSettings, ErrorSeverity
 
 class OpenAIHandler(LLMHandler):
     key = "openai"
-    default_models = (("gpt-3.5-turbo", "gpt-3.5-turbo"), )
+    default_models = (("gpt-5.6-luna", "gpt-5.6-luna"), )
     RESPONSE_STATE_KEY = "OpenAIResponse"
     RESPONSE_STATE_VERSION = 1
     MISSING_TOOL_OUTPUT = "Tool result unavailable in the current Newelle history."
@@ -119,7 +119,7 @@ class OpenAIHandler(LLMHandler):
             ExtraSettings.EntrySetting("endpoint", _("API Endpoint"), _("API base url, change this to use interference APIs"), "https://api.openai.com/v1/"),
         ]
         custom_model = [
-            ExtraSettings.ToggleSetting("custom_model", _("Use Custom Model"), _("Use a custom model"), False, update_settings=True)
+            ExtraSettings.ToggleSetting("custom_model", _("Use Custom Model"), _("Use a custom model"), not default_automatic_models, update_settings=True)
         ]
         advanced_param_toggle = [
             ExtraSettings.ToggleSetting("advanced_params", _("Advanced Parameters"), _("Include parameters like Top-P, Temperature, etc."), default_advanced_params, update_settings=True)
