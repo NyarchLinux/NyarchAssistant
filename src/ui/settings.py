@@ -25,6 +25,7 @@ from .widgets import MultilineEntry
 from ..utility.system import can_escape_sandbox, get_spawn_command, open_website, open_folder, is_flatpak 
 
 from ..controller import NewelleController
+from ..modes import DEFAULT_MODE_NAME
 
 class Settings(Adw.Window):
     def __init__(self,app, controller: NewelleController,headless=False, startup_page=None, popup=False, *args, **kwargs):
@@ -1343,7 +1344,12 @@ class Settings(Adw.Window):
         icon_name = tool.icon_name if tool.icon_name else "tools-symbolic"
         tool_icon = Gtk.Image(icon_name=icon_name, css_classes=["dim-label"])
         row.add_prefix(tool_icon)
-        
+
+        # Small warning when the active mode overrides this tool's enablement
+        mode_warning = self._get_tool_mode_warning(tool.name, is_enabled)
+        if mode_warning is not None:
+            self._add_mode_warning_suffix(row, mode_warning)
+
         # Toggle
         toggle = Gtk.Switch(valign=Gtk.Align.CENTER)
         toggle.set_active(is_enabled)
@@ -2855,6 +2861,52 @@ class Settings(Adw.Window):
         self.refresh_mcp_servers_list()
         self.refresh_tools_list()
 
+    def _get_active_mode_name(self):
+        """Return the active mode name, or None when the Normal mode is active."""
+        mode_manager = getattr(self.controller, "mode_manager", None)
+        if mode_manager is None:
+            return None
+        name = mode_manager.get_active_mode_name()
+        if name == DEFAULT_MODE_NAME:
+            return None
+        return name
+
+    def _get_prompt_mode_warning(self, prompt_key, base_enabled):
+        """Build the mode warning for a prompt row, None if the active mode does not change it."""
+        mode_name = self._get_active_mode_name()
+        if mode_name is None:
+            return None
+        mode_manager = self.controller.mode_manager
+        base_text = self.prompts.get(prompt_key, "")
+        resolved_enabled = mode_manager.resolve_prompt_enabled(prompt_key, base_enabled)
+        resolved_text = mode_manager.resolve_prompt_text(prompt_key, base_text)
+        details = []
+        if resolved_enabled != base_enabled:
+            details.append(_("forced on") if resolved_enabled else _("forced off"))
+        if resolved_text != base_text:
+            details.append(_("text replaced"))
+        if not details:
+            return None
+        return _('The "{}" mode overrides this prompt: {}').format(mode_name, ", ".join(details))
+
+    def _get_tool_mode_warning(self, tool_name, base_enabled):
+        """Build the mode warning for a tool row, None if the active mode does not change it."""
+        mode_name = self._get_active_mode_name()
+        if mode_name is None:
+            return None
+        resolved_enabled = self.controller.mode_manager.resolve_tool_enabled(tool_name, base_enabled)
+        if resolved_enabled == base_enabled:
+            return None
+        detail = _("forced on") if resolved_enabled else _("forced off")
+        return _('The "{}" mode overrides this tool: {}').format(mode_name, detail)
+
+    def _add_mode_warning_suffix(self, row, tooltip):
+        """Add a small warning icon to a row, hinting the active mode overrides its value."""
+        icon = Gtk.Image(icon_name="warning-outline-symbolic", css_classes=["warning"])
+        icon.set_valign(Gtk.Align.CENTER)
+        icon.set_tooltip_text(tooltip)
+        row.add_suffix(icon)
+
     def build_prompts_settings(self):
         self.prompts_settings = self.controller.newelle_settings.prompts_settings
         for prompt in self.prompts_rows:
@@ -2879,6 +2931,9 @@ class Settings(Adw.Window):
 
             if prompt["editable"]:
                 self.add_customize_prompt_content(row, prompt["key"], prompt["title"])
+            mode_warning = self._get_prompt_mode_warning(prompt["key"], is_active)
+            if mode_warning is not None:
+                self._add_mode_warning_suffix(row, mode_warning)
             switch = Gtk.Switch(valign=Gtk.Align.CENTER)
             switch.set_active(is_active)
             switch.connect("notify::active", self.update_prompt, prompt["setting_name"])
