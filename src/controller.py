@@ -6,7 +6,7 @@ import time
 import re
 import copy
 
-from .tools import ToolRegistry, ToolResult
+from .tools import Tool, ToolRegistry, ToolResult
 from .skills import SkillManager
 from .modes import ModeManager
 from .utility.media import chat_contains_vision, get_image_base64, get_image_path, extract_supported_files
@@ -41,6 +41,7 @@ from .utility.context_manager import ContextManager, TrimResult
 from .utility.replacehelper import PromptFormatter, replace_variables_dict
 from enum import Enum 
 from .handlers import Handler
+from .handlers.handler import SettingsCache
 from .ui_controller import UIController
 """
 Manage Newelle Application, create handlers, check integrity, manage settings...
@@ -861,6 +862,7 @@ class NewelleController:
             self.run_llm_with_tools(
                 message=task["task"],
                 chat_id=chat_id,
+                max_tool_calls=self.newelle_settings.max_tool_calls,
                 save_chat=True,
                 force_tools_on_main_thread=True,
             )
@@ -1020,11 +1022,18 @@ class NewelleController:
                 AVAILABLE_IMAGE_GENERATORS=AVAILABLE_IMAGE_GENERATORS,
                 AVAILABLE_INTERFACES=AVAILABLE_INTERFACES,
             )
+            duplicated_llms_changed = self.handlers.sync_duplicated_llms(force=True)
             active_handlers_changed = self.handlers.refresh_extension_handlers(
                 old_handlers,
                 new_handlers,
                 self.newelle_settings,
             )
+            if duplicated_llms_changed & {
+                self.newelle_settings.language_model,
+                self.newelle_settings.secondary_language_model,
+            }:
+                self.handlers.select_handlers(self.newelle_settings)
+                active_handlers_changed = True
         else:
             new_loader.set_handlers(
                 self.handlers.llm,
@@ -1707,7 +1716,6 @@ class NewelleController:
         # Set the history for the model
         history = self.get_history(chat=chat)
         current_message = chat[-1]["Message"] if chat else ""
-        history, _ = self._trim_context(history, prompts, current_message)
         # Let extensions preprocess the history
         old_history = copy.deepcopy(history)
         old_user_prompt = current_message
@@ -1756,21 +1764,32 @@ class NewelleController:
         if chat[-1]["Message"] != old_user_prompt:
              yield ('reload_message', len(chat) - 1)
 
-        
+        # Extensions may change both the history and prompts. Trim only their
+        # effective result so the context manager's selection is what is sent.
+        history, _ = self._trim_context(
+            new_history,
+            prompts,
+            chat[-1]["Message"],
+        )
+
         message_label = ""
         try:
             t1 = time.time()
             model = self.get_model_for_chat(chat)
+            send_history = history.copy()
             if model.stream_enabled():
                 message_label = model.send_message_stream(
                     chat[-1]["Message"],
-                    new_history,
+                    send_history,
                     prompts,
                     update_callback,
                     [stream_number_variable], 
                 )
             else:
-                message_label = model.send_message(chat[-1]["Message"], new_history, prompts)
+                message_label = model.send_message(chat[-1]["Message"], send_history, prompts)
+
+            raw_message_label = str(message_label)
+            response_metadata = getattr(message_label, "response_metadata", None)
             
             # Post-generation logic
             last_generation_time = time.time() - t1
@@ -1778,7 +1797,7 @@ class NewelleController:
             input_tokens = 0
             for prompt in prompts:
                 input_tokens += count_tokens(prompt)
-            for message in new_history:
+            for message in history:
                 input_tokens += count_tokens(message.get("User", "")) + count_tokens(message.get("Message", ""))
             input_tokens += count_tokens(chat[-1]["Message"])
             
@@ -1794,6 +1813,8 @@ class NewelleController:
         old_history = copy.deepcopy(chat)
         chat, message_label = self.integrationsloader.postprocess_history(chat, message_label)
         chat, message_label = self.extensionloader.postprocess_history(chat, message_label)
+        if message_label != raw_message_label:
+            response_metadata = None
         
         # Update the chat in storage if it was modified
         self.set_chat_by_id(effective_chat_id, chat)
@@ -1818,6 +1839,7 @@ class NewelleController:
             'output_tokens': output_tokens,
             'time': last_generation_time,
             'trim_result': getattr(self, 'last_trim_result', None),
+            'response_metadata': response_metadata,
         })
 
     def run_llm_with_tools(
@@ -1827,7 +1849,7 @@ class NewelleController:
         system_prompt: list[str] = None,
         on_message_callback: Callable[[str], None] = None,
         on_tool_result_callback: Callable[[str, ToolResult], None] = None,
-        max_tool_calls: int = 10,
+        max_tool_calls: int | None = None,
         save_chat: bool = False,
         force_tools_on_main_thread: bool = False,
         tool_registry: ToolRegistry | None = None,
@@ -1842,7 +1864,8 @@ class NewelleController:
             system_prompt: System prompts (uses prepared prompts if None)
             on_message_callback: Callback for streaming message updates
             on_tool_result_callback: Callback for tool results, receives (tool_name, ToolResult)
-            max_tool_calls: Maximum number of tool calls to execute (prevents infinite loops)
+            max_tool_calls: Maximum number of tool calls to execute. When omitted,
+                use the shared max-tool-calls setting.
             chat_id: Chat ID to use (uses current if None)
             save_chat: If True, assistant messages are added to chat history
             force_tools_on_main_thread: If True, execute tool calls on the GTK main thread.
@@ -1855,6 +1878,11 @@ class NewelleController:
         Returns:
             Final message from the LLM
         """
+        if max_tool_calls is None:
+            max_tool_calls = getattr(self.newelle_settings, "max_tool_calls", 10)
+        if max_tool_calls < 1:
+            raise ValueError("max_tool_calls must be at least 1")
+
         active_tool_registry = tool_registry if tool_registry is not None else self.tools
         active_skill_manager = skill_manager if skill_manager is not None else getattr(self, "skill_manager", None)
         skills_integration = None
@@ -1907,8 +1935,14 @@ class NewelleController:
         )
         model = self.get_model_for_chat(self.chats[chat_id]["chat"])
         cont = True
+        iteration = 0
+        tool_call_count = 0
+        final_synthesis_turn = False
+        assistant_msg_uuid = None
+        response_text = ""
+        text_content = ""
         try:
-            for iteration in range(max_tool_calls):
+            while True:
                 full_response = ""
                 if not cont:
                     break
@@ -1969,32 +2003,45 @@ class NewelleController:
                                 prompt = request_history.pop(i)["Message"]
                                 break
 
-                send_history, _ = self._trim_context(request_history, system_prompt, message)
+                request_system_prompt = system_prompt
+                if final_synthesis_turn:
+                    request_system_prompt = list(system_prompt) + [
+                        "The maximum tool call limit has been reached. Do not call any "
+                        "more tools; return the best final answer using the results already available."
+                    ]
+
+                send_history, _ = self._trim_context(request_history, request_system_prompt, message)
 
                 if model.stream_enabled():
                     response = model.send_message_stream(
                         prompt,
                         send_history,
-                        system_prompt,
+                        request_system_prompt,
                         stream_callback
                     )
                 else:
                     response = model.send_message(
                         prompt,
                         send_history,
-                        system_prompt
+                        request_system_prompt
                     )
                     if on_message_callback:
                         on_message_callback(response)
-                
-                chunks = get_message_chunks(response)
+
+                response_text = str(response)
+                response_metadata = getattr(response, "response_metadata", None)
+                chunks = get_message_chunks(response_text)
                 
                 text_content = ""
                 tool_calls = []
                 
                 for chunk in chunks:
                     if chunk.type == "tool_call":
-                        tool_calls.append({"name": chunk.tool_name, "args": chunk.tool_args})
+                        tool_calls.append({
+                            "name": chunk.tool_name,
+                            "args": chunk.tool_args,
+                            "id": getattr(chunk, "tool_id", ""),
+                        })
                     elif chunk.type in ("text", "markdown"):
                         text_content += "\n" + chunk.text
 
@@ -2005,29 +2052,69 @@ class NewelleController:
                 if model.stream_enabled() and not tool_calls and on_message_callback:
                     on_message_callback(response)
                 
-                if not tool_calls:
+                if not tool_calls or final_synthesis_turn:
+                    final_content = response_text if not tool_calls else text_content
                     msg_uuid = int(uuid_lib.uuid4())
-                    current_history.append({"User": "Assistant", "Message": text_content, "UUID": msg_uuid})
+                    assistant_entry = {
+                        "User": "Assistant",
+                        "Message": response_text,
+                        "UUID": msg_uuid,
+                    }
+                    if response_metadata is not None:
+                        assistant_entry["OpenAIResponse"] = response_metadata
+                    current_history.append(assistant_entry)
                     if save_chat:
-                        self.chats[chat_id]["chat"].append({"User": "Assistant", "Message": response, "UUID": msg_uuid, "Profile": self.newelle_settings.current_profile})
+                        stored_entry = {
+                            **assistant_entry,
+                            "Profile": self.newelle_settings.current_profile,
+                        }
+                        self.chats[chat_id]["chat"].append(stored_entry)
                         self.save_chats()
                     # Let extensions/integrations postprocess the final response,
                     # mirroring generate_response.
                     if extension_processing:
-                        final_message = text_content
+                        final_message = final_content
                         chat_list, final_message = self.integrationsloader.postprocess_history(self.chats[chat_id]["chat"], final_message)
                         chat_list, final_message = self.extensionloader.postprocess_history(chat_list, final_message)
                         if save_chat:
+                            for entry in chat_list:
+                                if entry.get("User") == "Assistant" and entry.get("UUID") == msg_uuid:
+                                    if entry.get("Message") != response_text:
+                                        entry.pop("OpenAIResponse", None)
+                                    break
                             self.set_chat_by_id(chat_id, chat_list)
                             self.save_chats()
                         return final_message
-                    return text_content
+                    return final_content
+                remaining_tool_calls = max_tool_calls - tool_call_count
+                tool_calls = tool_calls[:remaining_tool_calls]
                 assistant_msg_uuid = int(uuid_lib.uuid4())
-                
+
+                assistant_entry = {
+                    "User": "Assistant",
+                    "Message": response_text,
+                    "UUID": assistant_msg_uuid,
+                }
+                if response_metadata is not None:
+                    assistant_entry["OpenAIResponse"] = response_metadata
+                current_history.append(assistant_entry)
+                if save_chat:
+                    self.chats[chat_id]["chat"].append({
+                        **assistant_entry,
+                        "Profile": self.newelle_settings.current_profile,
+                    })
+
                 for tool_call in tool_calls:
+                    tool_call_count += 1
                     tool_name = tool_call["name"]
                     tool_args = tool_call["args"]
-                    tool_uuid = str(uuid_lib.uuid4())[:8]
+                    tool_result_output = None
+                    provider_tool_id = tool_call.get("id")
+                    tool_uuid = (
+                        provider_tool_id.strip()
+                        if isinstance(provider_tool_id, str) and provider_tool_id.strip()
+                        else str(uuid_lib.uuid4())[:8]
+                    )
                     tool_context_messages = []
                     tool_display_text = None
 
@@ -2087,15 +2174,21 @@ class NewelleController:
                                 tool_display_text = getattr(result, "display_text", None)
                                 if tool_result_output is not None or tool_context_messages:
                                     cont = True
+                            elif result is not None:
+                                tool_result_output = str(result)
+                                if on_tool_result_callback:
+                                    normalized_result = ToolResult()
+                                    normalized_result.set_output(tool_result_output)
+                                    on_tool_result_callback(tool_name, normalized_result)
+                                cont = True
                     except Exception as e:
                         tool_result_output = f"Error: {str(e)}"
                         tool_display_text = None
                         if on_tool_result_callback:
-                            tr = ToolResult(output=tool_result_output)
+                            tr = ToolResult()
+                            tr.set_output(tool_result_output)
                             on_tool_result_callback(tool_name, tr)
 
-
-                    tool_call_msg = f"```json\n{{\"name\": \"{tool_name}\", \"arguments\": {json.dumps(tool_args)}}}\n```"
                     console_output = tool_result_output
                     if console_output is None and tool_context_messages:
                         console_output = "Tool returned additional context."
@@ -2103,11 +2196,6 @@ class NewelleController:
                     if tool_display_text:
                         tool_result_msg = tool_result_msg + "\n" + tool_display_text
                     
-                    current_history.append({
-                        "User": "Assistant",
-                        "Message": tool_call_msg,
-                        "UUID": assistant_msg_uuid
-                    })
                     current_history.append({
                         "User": "Console",
                         "Message": tool_result_msg,
@@ -2121,12 +2209,6 @@ class NewelleController:
                         })
                     if save_chat:
                         self.chats[chat_id]["chat"].append({
-                            "User": "Assistant",
-                            "Message": tool_call_msg,
-                            "UUID": assistant_msg_uuid,
-                            "Profile": self.newelle_settings.current_profile
-                        })
-                        self.chats[chat_id]["chat"].append({
                             "User": "Console",
                             "Message": tool_result_msg,
                         })
@@ -2137,11 +2219,12 @@ class NewelleController:
                                 "ToolContext": True,
                             })
                         self.save_chats()
+
+                if tool_call_count >= max_tool_calls:
+                    final_synthesis_turn = True
+                    cont = True
+                iteration += 1
             
-            if save_chat:
-                msg_uuid = int(uuid_lib.uuid4())
-                self.chats[chat_id]["chat"].append({"User": "Assistant", "Message": text_content, "UUID": msg_uuid, "Profile": self.newelle_settings.current_profile})
-                self.save_chats()
             # Let extensions/integrations postprocess the final response,
             # mirroring generate_response.
             if extension_processing:
@@ -2149,6 +2232,15 @@ class NewelleController:
                 chat_list, final_message = self.integrationsloader.postprocess_history(self.chats[chat_id]["chat"], final_message)
                 chat_list, final_message = self.extensionloader.postprocess_history(chat_list, final_message)
                 if save_chat:
+                    for entry in chat_list:
+                        if (
+                            assistant_msg_uuid is not None
+                            and entry.get("User") == "Assistant"
+                            and entry.get("UUID") == assistant_msg_uuid
+                        ):
+                            if entry.get("Message") != response_text:
+                                entry.pop("OpenAIResponse", None)
+                            break
                     self.set_chat_by_id(chat_id, chat_list)
                     self.save_chats()
                 return final_message
@@ -2267,6 +2359,7 @@ class NewelleSettings:
         self.websearch_model = self.settings.get_string("websearch-model")
         self.websearch_settings = self.settings.get_string("websearch-settings")
         self.parallel_tool_execution = settings.get_boolean("parallel-tool-execution")
+        self.max_tool_calls = settings.get_int("max-tool-calls")
         self.external_browser = settings.get_boolean("external-browser")
         self.initial_browser_page = settings.get_string("initial-browser-page")
         self.browser_search_string = settings.get_string("browser-search-string")
@@ -2461,6 +2554,8 @@ class HandlersManager:
         rag: RAG Handler 
         interfaces: List of Interface handlers
     """
+    DUPLICATED_LLMS_SETTINGS_KEY = "__duplicated_llm_handlers__"
+
     def __init__(self, settings: Gio.Settings, extensionloader : ExtensionLoader, models_path, integrations: ExtensionLoader, installing_handlers: dict, controller):
         self.settings = settings
         self.extensionloader = extensionloader
@@ -2474,6 +2569,268 @@ class HandlersManager:
         self.wakeword_handler = None
         self.controller = controller
         self.interfaces = {}
+        self._duplicated_llm_definitions = []
+
+    @classmethod
+    def _normalize_duplicated_llm_definition(cls, definition: dict) -> dict | None:
+        if not isinstance(definition, dict):
+            return None
+        key = str(definition.get("key", "")).strip()
+        source = str(definition.get("source", "")).strip()
+        title = str(definition.get("title", "")).strip()
+        description = str(definition.get("description", "")).strip()
+        if (
+            not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", key)
+            or key == cls.DUPLICATED_LLMS_SETTINGS_KEY
+            or not source
+            or not title
+        ):
+            return None
+        return {
+            "key": key,
+            "source": source,
+            "title": title,
+            "description": description,
+        }
+
+    def _read_duplicated_llm_definitions(self) -> list[dict]:
+        try:
+            llm_settings = SettingsCache.get_instance(self.settings).get_json(
+                "llm-settings"
+            )
+        except (json.JSONDecodeError, TypeError, ValueError):
+            return []
+        raw_definitions = llm_settings.get(
+            self.DUPLICATED_LLMS_SETTINGS_KEY, []
+        )
+        if not isinstance(raw_definitions, list):
+            return []
+        definitions = []
+        seen = set()
+        for raw_definition in raw_definitions:
+            definition = self._normalize_duplicated_llm_definition(raw_definition)
+            if definition is None or definition["key"] in seen:
+                continue
+            seen.add(definition["key"])
+            definitions.append(definition)
+        return definitions
+
+    @staticmethod
+    def _build_duplicated_llm_class(base_class: type, key: str) -> type:
+        class_name_key = re.sub(r"[^a-zA-Z0-9_]", "_", key)
+
+        def get_duplication_settings(_self):
+            return None
+
+        return type(
+            f"Duplicated{base_class.__name__}_{class_name_key}",
+            (base_class,),
+            {
+                "key": key,
+                "__module__": base_class.__module__,
+                "get_duplication_settings": get_duplication_settings,
+            },
+        )
+
+    def sync_duplicated_llms(self, force: bool = False) -> set[str]:
+        """Synchronize persisted user-created LLM providers with the registry."""
+        definitions = self._read_duplicated_llm_definitions()
+        registered_keys = {
+            key
+            for key, descriptor in AVAILABLE_LLMS.items()
+            if descriptor.get("duplicated", False)
+        }
+        expected_keys = set()
+        for definition in definitions:
+            source_descriptor = AVAILABLE_LLMS.get(definition["source"])
+            key_descriptor = AVAILABLE_LLMS.get(definition["key"])
+            if source_descriptor is None or source_descriptor.get("duplicated", False):
+                continue
+            if key_descriptor is None or key_descriptor.get("duplicated", False):
+                expected_keys.add(definition["key"])
+        if (
+            not force
+            and definitions == self._duplicated_llm_definitions
+            and registered_keys == expected_keys
+        ):
+            return set()
+
+        old_definitions = {
+            definition["key"]: definition
+            for definition in self._duplicated_llm_definitions
+        }
+        for key in registered_keys:
+            AVAILABLE_LLMS.pop(key, None)
+
+        registered_definitions = []
+        for definition in definitions:
+            key = definition["key"]
+            source = definition["source"]
+            if key in AVAILABLE_LLMS or source not in AVAILABLE_LLMS:
+                continue
+            source_descriptor = AVAILABLE_LLMS[source]
+            if source_descriptor.get("duplicated", False):
+                continue
+            duplicate_class = self._build_duplicated_llm_class(
+                source_descriptor["class"], key
+            )
+            descriptor = {
+                "key": key,
+                "title": definition["title"],
+                "description": definition["description"],
+                "class": duplicate_class,
+                "duplicated": True,
+                "source": source,
+            }
+            if source_descriptor.get("secondary", False):
+                descriptor["secondary"] = True
+            AVAILABLE_LLMS[key] = descriptor
+            registered_definitions.append(definition)
+
+        changed_keys = registered_keys | {
+            definition["key"] for definition in registered_definitions
+        }
+        if not force:
+            changed_keys = {
+                key
+                for key in changed_keys
+                if old_definitions.get(key)
+                != next(
+                    (
+                        definition
+                        for definition in registered_definitions
+                        if definition["key"] == key
+                    ),
+                    None,
+                )
+            }
+        disposed = set()
+        for cache_key, handler in list(self.handlers.items()):
+            if cache_key[0] not in changed_keys:
+                continue
+            self.handlers.pop(cache_key, None)
+            if id(handler) in disposed:
+                continue
+            disposed.add(id(handler))
+            try:
+                handler.destroy()
+            except Exception as error:
+                print(f"Error disposing duplicated LLM handler: {error}")
+
+        # Retain valid-but-currently-unavailable definitions (for example, an
+        # extension-provided source that is temporarily disabled) in settings.
+        self._duplicated_llm_definitions = definitions
+        return changed_keys
+
+    def get_duplicable_llms(self) -> list[tuple[str, dict, list[dict]]]:
+        """Return source descriptors and fields exposed for duplication."""
+        duplicable = []
+        for key, descriptor in AVAILABLE_LLMS.items():
+            if descriptor.get("duplicated", False):
+                continue
+            handler = self.get_object(AVAILABLE_LLMS, key)
+            settings = handler.get_duplication_settings()
+            if settings is not None:
+                duplicable.append((key, descriptor, settings))
+        return duplicable
+
+    def duplicate_llm(
+        self,
+        source: str,
+        key: str,
+        title: str,
+        description: str,
+        duplication_values: dict | None = None,
+    ) -> dict:
+        """Create and persist a user-defined copy of an LLM handler."""
+        key = key.strip()
+        title = title.strip()
+        description = description.strip()
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", key):
+            raise ValueError(
+                _("The handler key may only contain letters, numbers, '.', '_' and '-'.")
+            )
+        if not title:
+            raise ValueError(_("The handler name cannot be empty."))
+        if key in AVAILABLE_LLMS or key == self.DUPLICATED_LLMS_SETTINGS_KEY:
+            raise ValueError(_("An LLM handler with this key already exists."))
+        if source not in AVAILABLE_LLMS:
+            raise ValueError(_("The source LLM handler is not available."))
+        if AVAILABLE_LLMS[source].get("duplicated", False):
+            raise ValueError(_("Duplicated LLM handlers cannot be duplicated again."))
+
+        source_handler = self.get_object(AVAILABLE_LLMS, source)
+        duplication_settings = source_handler.get_duplication_settings()
+        if duplication_settings is None:
+            raise ValueError(_("This LLM handler does not support duplication."))
+
+        flat_settings = []
+        pending = list(duplication_settings)
+        while pending:
+            setting = pending.pop(0)
+            if setting.get("type") == "nested":
+                pending[0:0] = setting.get("extra_settings", [])
+            elif "key" in setting:
+                flat_settings.append(setting)
+        supplied_values = duplication_values or {}
+        initial_values = {
+            setting["key"]: supplied_values.get(
+                setting["key"], setting.get("default")
+            )
+            for setting in flat_settings
+        }
+        definition = {
+            "key": key,
+            "source": source,
+            "title": title,
+            "description": description,
+        }
+
+        cache = SettingsCache.get_instance(self.settings)
+        llm_settings = copy.deepcopy(cache.get_json("llm-settings"))
+        definitions = self._read_duplicated_llm_definitions()
+        definitions.append(definition)
+        llm_settings[self.DUPLICATED_LLMS_SETTINGS_KEY] = definitions
+        llm_settings[key] = initial_values
+        cache.set_json("llm-settings", llm_settings)
+
+        secondary_settings = copy.deepcopy(
+            cache.get_json("llm-secondary-settings")
+        )
+        secondary_settings[key] = copy.deepcopy(initial_values)
+        cache.set_json("llm-secondary-settings", secondary_settings)
+        self.sync_duplicated_llms()
+        return AVAILABLE_LLMS[key]
+
+    def delete_duplicated_llm(self, key: str) -> bool:
+        """Delete a duplicated provider and its primary/secondary settings."""
+        descriptor = AVAILABLE_LLMS.get(key)
+        if descriptor is None or not descriptor.get("duplicated", False):
+            return False
+        source = descriptor.get("source")
+        cache = SettingsCache.get_instance(self.settings)
+        llm_settings = copy.deepcopy(cache.get_json("llm-settings"))
+        definitions = [
+            definition
+            for definition in self._read_duplicated_llm_definitions()
+            if definition["key"] != key
+        ]
+        llm_settings[self.DUPLICATED_LLMS_SETTINGS_KEY] = definitions
+        llm_settings.pop(key, None)
+        cache.set_json("llm-settings", llm_settings)
+
+        secondary_settings = copy.deepcopy(
+            cache.get_json("llm-secondary-settings")
+        )
+        secondary_settings.pop(key, None)
+        cache.set_json("llm-secondary-settings", secondary_settings)
+        self.sync_duplicated_llms()
+
+        fallback = source if source in AVAILABLE_LLMS else next(iter(AVAILABLE_LLMS))
+        for setting_key in ("language-model", "secondary-language-model"):
+            if self.settings.get_string(setting_key) == key:
+                self.settings.set_string(setting_key, fallback)
+        return True
 
     def destroy(self):
         for handler in self.handlers.values():
@@ -2537,6 +2894,7 @@ class HandlersManager:
             newelle_settings: Newelle settings
             skip_auto_start_interfaces: If True, don't auto-start any interfaces (used in headless mode)
         """
+        self.sync_duplicated_llms()
         self.fix_handlers_integrity(newelle_settings)
         # Get LLM
         self.llm : LLMHandler = self.get_object(AVAILABLE_LLMS, newelle_settings.language_model)
@@ -2695,6 +3053,98 @@ class HandlersManager:
         if self.image_generator is not None:
             for tool in self.image_generator.get_tools():
                 tools.register_tool(tool)
+        self._add_send_message_tool(tools)
+
+    def _get_message_interfaces(self) -> dict[str, Interface]:
+        """Return local, running interfaces that can deliver agent messages.
+
+        An interface running in a different Newelle process cannot safely be
+        called from this process, even though its state file makes it visible.
+        """
+        return {
+            key: interface
+            for key, interface in self.interfaces.items()
+            if interface.is_locally_running() and interface.supports_send_message()
+        }
+
+    def _add_send_message_tool(self, tools: ToolRegistry):
+        """Register the optional cross-interface messaging tool when usable."""
+        interfaces = self._get_message_interfaces()
+        if not interfaces:
+            return
+
+        interface_schemas = []
+        for key, interface in interfaces.items():
+            properties = {
+                "interface": {
+                    "type": "string",
+                    "const": key,
+                    "description": (
+                        f"Send through the running {getattr(interface, 'name', key)} "
+                        "interface."
+                    ),
+                },
+                **interface.get_send_message_options_schema(),
+            }
+            interface_schemas.append({
+                "type": "object",
+                "properties": properties,
+                "required": ["interface", *interface.get_send_message_required_options()],
+                "additionalProperties": False,
+            })
+
+        def send_message(message, extra_options):
+            if not isinstance(message, str) or not message.strip():
+                result = ToolResult()
+                result.set_output("Error: 'message' must be a non-empty string.")
+                return result
+            if not isinstance(extra_options, dict):
+                result = ToolResult()
+                result.set_output("Error: 'extra_options' must be an object.")
+                return result
+
+            interface_key = extra_options.get("interface")
+            interface = self._get_message_interfaces().get(interface_key)
+            if interface is None:
+                available = ", ".join(self._get_message_interfaces()) or "none"
+                result = ToolResult()
+                result.set_output(
+                    f"Error: interface '{interface_key}' is not available. "
+                    f"Running interfaces: {available}."
+                )
+                return result
+            return interface.send_message(message, extra_options)
+
+        tools.register_tool(Tool(
+            name="send_message",
+            title="Send Message",
+            description=(
+                "Send a message to the user through another running interface. "
+                "Use the interface-specific destination options in extra_options."
+            ),
+            func=send_message,
+            schema={
+                "type": "object",
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "description": (
+                            "Message to send. Media code blocks such as ```image, "
+                            "```video, and ```file are supported when the selected "
+                            "interface supports them."
+                        ),
+                    },
+                    "extra_options": {
+                        "description": "Select a running interface and its destination.",
+                        "oneOf": interface_schemas,
+                    },
+                },
+                "required": ["message", "extra_options"],
+            },
+            default_on=False,
+            tools_group="Interfaces",
+            icon_name="send-to-symbolic",
+        ))
 
     def load_handlers(self):
         """Load handlers"""

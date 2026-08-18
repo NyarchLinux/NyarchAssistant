@@ -105,6 +105,20 @@ class ClaudeHandler(LLMHandler):
         settings.append(get_streaming_extra_setting())
         return settings
 
+    def get_duplication_settings(self) -> list[dict] | None:
+        # Anthropic-compatible subclasses inherit this implementation. Keep
+        # duplication limited to the canonical Anthropic handler.
+        if self.key != "claude":
+            return None
+        return [
+            ExtraSettings.EntrySetting(
+                "endpoint",
+                _("API Endpoint"),
+                _("API base URL for the Anthropic-compatible provider"),
+                self.get_setting("endpoint"),
+            )
+        ]
+
     def generate_text(self, prompt: str, history: list[dict[str, str]] = [], system_prompt: list[str] = []) -> str:
         client = self._get_client()
         history.append({"User": "User", "Message": prompt})

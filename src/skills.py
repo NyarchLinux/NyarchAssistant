@@ -177,13 +177,14 @@ class SkillManager:
             source_dir=source_dir,
         )
 
-    def is_skill_enabled(self, skill_name):
+    def is_skill_enabled(self, skill_name, apply_overrides=True):
         # Active Mode overrides take precedence over profile settings.
-        override = self.mode_skill_overrides.get(skill_name)
-        if override == ENABLE:
-            return True
-        if override == REMOVE:
-            return False
+        if apply_overrides:
+            override = self.mode_skill_overrides.get(skill_name)
+            if override == ENABLE:
+                return True
+            if override == REMOVE:
+                return False
         skills_settings = self._load_settings()
         if skill_name in skills_settings:
             return skills_settings[skill_name].get("enabled", True)

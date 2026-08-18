@@ -10,6 +10,7 @@ class MessageChunk:
     lang: str = ''  # Only used for codeblocks
     tool_name: str = '' # Only used for tool_call
     tool_args: dict = field(default_factory=dict) # Only used for tool_call
+    tool_id: str = '' # Only used for native tool calls
     subchunks: Optional[List['MessageChunk']] = field(default_factory=list)
 
     def __str__(self):
@@ -380,7 +381,8 @@ def find_tool_calls(text: str) -> List[MessageChunk]:
                             type="tool_call",
                             text=candidate,
                             tool_name=tool_name,
-                            tool_args=tool_args
+                            tool_args=tool_args,
+                            tool_id=str(tool_obj.get("id") or "")
                         ))
                         last_end = i + 1
                         found = True
@@ -397,7 +399,8 @@ def find_tool_calls(text: str) -> List[MessageChunk]:
                     type="tool_call",
                     text=candidate,
                     tool_name=tool_name,
-                    tool_args=tool_args
+                    tool_args=tool_args,
+                    tool_id=str(tool_obj.get("id") or "")
                 ))
                 last_end = len(text)
                 found = True
@@ -484,7 +487,8 @@ def get_message_chunks(message: str, allow_latex: bool = True) -> List[MessageCh
                         type="tool_call",
                         text=code_content,
                         tool_name=tool_name,
-                        tool_args=tool_args
+                        tool_args=tool_args,
+                        tool_id=str(tool_obj.get("id") or "")
                     ))
                 else:
                     flat_chunks.append(MessageChunk(type="codeblock", text=code_content, lang=lang))

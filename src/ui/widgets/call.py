@@ -1190,7 +1190,6 @@ class CallPanel(Gtk.Box):
                     chat_id=self.chat_id,
                     on_message_callback=on_message_callback,
                     on_tool_result_callback=on_tool_result_callback,
-                    max_tool_calls=5,
                     save_chat=True,
                     force_tools_on_main_thread=True,
                 )

@@ -29,6 +29,7 @@ class OllamaEmbeddingHandler(EmbeddingHandler):
     def get_extra_settings(self) -> list:
         default = self.models[0][1] if len(self.models) > 0 else ""
         settings = [
+            ExtraSettings.EntrySetting("api", _("API Key"), _("Ollama API key"), "", password=True),
             ExtraSettings.EntrySetting("endpoint", _("API Endpoint"), _("API base url, change this to use interference APIs"), "http://localhost:11434"),
             ExtraSettings.ToggleSetting("serve", _("Automatically Serve"), _("Automatically run ollama serve in background when needed if it's not running. You can kill it with killall ollama"), False),
             ExtraSettings.ToggleSetting("custom_model", _("Custom Model"), _("Use a custom model"), False, update_settings=True),
@@ -49,15 +50,26 @@ class OllamaEmbeddingHandler(EmbeddingHandler):
                 ExtraSettings.EntrySetting("model", _("Ollama Model"), _("Name of the Ollama Model"), default)
             )
         return settings
+
+    def get_client_headers(self) -> dict[str, str]:
+        """Headers passed to the Ollama Python client."""
+        api_key = self.get_setting("api", False, "")
+        if api_key is None or api_key.strip() == "":
+            return {}
+        return {"Authorization": "Bearer " + api_key.strip()}
+
+    def create_client(self):
+        from ollama import Client
+        headers = self.get_client_headers()
+        if len(headers) > 0:
+            return Client(host=self.get_setting("endpoint"), headers=headers)
+        return Client(host=self.get_setting("endpoint"))
     
     def get_models(self):
         """Get the list of installed models in ollama"""
         if not self.is_installed():
             return
-        from ollama import Client 
-        client = Client(
-            host=self.get_setting("endpoint")
-        )
+        client = self.create_client()
         self.auto_serve(client)
         try:
             models = client.list()["models"]
@@ -72,10 +84,7 @@ class OllamaEmbeddingHandler(EmbeddingHandler):
         self.settings_update()
 
     def get_embedding(self, text: list[str]) -> np.ndarray:
-        from ollama import Client 
-        client = Client(
-            host=self.get_setting("endpoint")
-        )
+        client = self.create_client()
         self.auto_serve(client)
         arr = client.embed(model=self.get_setting("model"), input=text)
         return np.array(arr.embeddings)
@@ -92,4 +101,3 @@ class OllamaEmbeddingHandler(EmbeddingHandler):
             except Exception as e:
                 Popen(get_spawn_command() + ["ollama", "serve"])
                 time.sleep(1)
-

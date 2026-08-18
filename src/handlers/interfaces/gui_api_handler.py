@@ -115,7 +115,7 @@ class GUIAPIInterface(Interface):
             message: str
             chat_id: int
             system_prompt: Optional[list[str]] = None
-            max_tool_calls: int = 10
+            max_tool_calls: Optional[int] = None
             save_chat: bool = False
 
         class SetPromptActiveRequest(BaseModel):
@@ -576,10 +576,19 @@ class GUIAPIInterface(Interface):
                     is_enabled = tools_settings[tool.name]["enabled"]
                 if tool.name == "search" and hasattr(controller, 'newelle_settings') and not controller.newelle_settings.websearch_on:
                     is_enabled = False
+                # The tools panel manages the Normal (profile) configuration;
+                # the active Mode may still override the value at runtime.
+                mode_override = None
+                mode_manager = getattr(controller, "mode_manager", None)
+                if mode_manager is not None:
+                    override = mode_manager.get_tool_override(tool.name)
+                    if override in ("enable", "remove"):
+                        mode_override = override
                 result.append({
                     "name": tool.name,
                     "description": getattr(tool, 'description', ''),
                     "enabled": is_enabled,
+                    "mode_override": mode_override,
                     "default_on": tool.default_on,
                     "tools_group": getattr(tool, 'tools_group', None),
                     "icon_name": getattr(tool, 'icon_name', None),
@@ -1587,10 +1596,16 @@ class GUIAPIInterface(Interface):
                 raise HTTPException(status_code=500, detail=str(e))
             result = []
             for skill in sm.skills.values():
+                # The skills panel manages the Normal (profile) configuration;
+                # the active Mode may still override the value at runtime.
+                override = sm.mode_skill_overrides.get(skill.name)
+                if override not in ("enable", "remove"):
+                    override = None
                 result.append({
                     "name": skill.name,
                     "description": skill.description,
-                    "enabled": sm.is_skill_enabled(skill.name),
+                    "enabled": sm.is_skill_enabled(skill.name, apply_overrides=False),
+                    "mode_override": override,
                     "location": skill.location,
                     "removable": os.path.abspath(skill.base_dir).startswith(
                         os.path.abspath(sm.skills_dirs[0])
@@ -1882,6 +1897,8 @@ class GUIAPIInterface(Interface):
                     "title": info.get("title", key),
                     "description": info.get("description", ""),
                     "secondary": info.get("secondary", False),
+                    "duplicated": info.get("duplicated", False),
+                    "source": info.get("source", ""),
                 })
             return result
 
@@ -2016,6 +2033,99 @@ class GUIAPIInterface(Interface):
                 llm_settings[provider] = {}
             llm_settings[provider].update(settings_values)
             controller.settings.set_string("llm-settings", json.dumps(llm_settings))
+            controller.update_settings()
+            return {"status": "ok"}
+
+        def _serialize_duplication_setting(setting, values: dict) -> Optional[dict]:
+            """Serialize a duplication setting (dict or ExtraSettings object)."""
+            if isinstance(setting, dict):
+                entry = {
+                    "key": setting.get("key", ""),
+                    "title": setting.get("title", ""),
+                    "description": setting.get("description", ""),
+                    "type": setting.get("type", "entry"),
+                }
+                if "default" in setting:
+                    entry["default"] = setting["default"]
+                if "values" in setting:
+                    entry["values"] = setting["values"]
+                if "password" in setting:
+                    entry["password"] = setting["password"]
+                if "min" in setting:
+                    entry["min"] = setting["min"]
+                if "max" in setting:
+                    entry["max"] = setting["max"]
+                if "step" in setting:
+                    entry["step"] = setting["step"]
+                if "round-digits" in setting:
+                    entry["round-digits"] = setting["round-digits"]
+            elif hasattr(setting, "key"):
+                entry = {
+                    "key": setting.key,
+                    "title": setting.title,
+                    "description": setting.description,
+                    "type": type(setting).__name__,
+                }
+                if hasattr(setting, "default"):
+                    entry["default"] = setting.default
+                if hasattr(setting, "values"):
+                    entry["values"] = setting.values
+                if hasattr(setting, "password"):
+                    entry["password"] = setting.password
+            else:
+                return None
+            entry["value"] = values.get(entry["key"], entry.get("default"))
+            return entry
+
+        @app.get("/api/llm/duplicable")
+        def api_list_duplicable_llms():
+            result = []
+            for key, descriptor, settings in controller.handlers.get_duplicable_llms():
+                flat_settings = []
+                pending = list(settings)
+                while pending:
+                    setting = pending.pop(0)
+                    if isinstance(setting, dict) and setting.get("type") == "nested":
+                        pending[0:0] = setting.get("extra_settings", [])
+                        continue
+                    entry = _serialize_duplication_setting(setting, {})
+                    if entry is not None:
+                        flat_settings.append(entry)
+                result.append({
+                    "key": key,
+                    "title": descriptor.get("title", key),
+                    "description": descriptor.get("description", ""),
+                    "settings": flat_settings,
+                })
+            return result
+
+        class DuplicateLlmRequest(BaseModel):
+            source: str
+            key: str
+            title: str
+            description: str = ""
+            values: dict = Field(default_factory=dict)
+
+        @app.post("/api/llm/duplicate")
+        def api_duplicate_llm(req: DuplicateLlmRequest):
+            try:
+                controller.handlers.duplicate_llm(
+                    req.source, req.key, req.title, req.description, req.values
+                )
+            except ValueError as error:
+                raise HTTPException(status_code=400, detail=str(error))
+            controller.update_settings()
+            return {"status": "ok", "key": req.key}
+
+        @app.delete("/api/llm/providers/{key}")
+        def api_delete_llm_provider(key: str):
+            from ...constants import AVAILABLE_LLMS
+            descriptor = AVAILABLE_LLMS.get(key)
+            if descriptor is None:
+                raise HTTPException(status_code=404, detail="Provider not found")
+            if not descriptor.get("duplicated", False):
+                raise HTTPException(status_code=400, detail="Only duplicated LLM handlers can be deleted")
+            controller.handlers.delete_duplicated_llm(key)
             controller.update_settings()
             return {"status": "ok"}
 

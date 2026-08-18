@@ -6,6 +6,7 @@ import json
 import time
 import traceback
 import weakref
+import re
 from subprocess import Popen 
 
 from gi.repository import Gtk, Adw, Gio, GLib, GObject, Gdk, GtkSource
@@ -24,6 +25,7 @@ from .widgets import MultilineEntry
 from ..utility.system import can_escape_sandbox, get_spawn_command, open_website, open_folder, is_flatpak 
 
 from ..controller import NewelleController
+from ..modes import DEFAULT_MODE_NAME
 
 class Settings(Adw.Window):
     def __init__(self,app, controller: NewelleController,headless=False, startup_page=None, popup=False, *args, **kwargs):
@@ -80,10 +82,19 @@ class Settings(Adw.Window):
         self._llm_secondary_other_rows = []
         # Build the LLMs settings
         self.LLM = Adw.PreferencesGroup(title=_('Language Model'))
-        # Add Help Button 
+        # Add duplication and help buttons.
+        llm_header_actions = Gtk.Box(spacing=3)
+        duplicate_llm = Gtk.Button(
+            css_classes=["flat"],
+            icon_name="list-add-symbolic",
+            tooltip_text=_("Add a custom LLM provider"),
+        )
+        duplicate_llm.connect("clicked", self.on_duplicate_llm)
+        llm_header_actions.append(duplicate_llm)
         help = Gtk.Button(css_classes=["flat"], icon_name="info-outline-symbolic")
         help.connect("clicked", lambda button : Popen(get_spawn_command() + ["xdg-open", "https://github.com/qwersyk/Newelle/wiki/User-guide-to-the-available-LLMs"]))
-        self.LLM.set_header_suffix(help)
+        llm_header_actions.append(help)
+        self.LLM.set_header_suffix(llm_header_actions)
         # Add LLMs
         self.LLMPage.add(self.LLM)
         group = Gtk.CheckButton()
@@ -555,6 +566,23 @@ class Settings(Adw.Window):
         row.add_suffix(switch)
         self.settings.bind("parallel-tool-execution", switch, 'active', Gio.SettingsBindFlags.DEFAULT)
         self.neural_network.add(row)
+
+        max_tool_calls_row = Adw.SpinRow(
+            title=_("Maximum Tool Calls"),
+            subtitle=_("Maximum number of tools the model can run for one request, including scheduled tasks"),
+            adjustment=Gtk.Adjustment(
+                lower=1,
+                upper=300,
+                step_increment=1,
+                page_increment=10,
+                value=self.settings.get_int("max-tool-calls"),
+            ),
+            digits=0,
+        )
+        def update_max_tool_calls(spin, _value):
+            self.settings.set_int("max-tool-calls", int(spin.get_value()))
+        max_tool_calls_row.connect("notify::value", update_max_tool_calls)
+        self.neural_network.add(max_tool_calls_row)
         
         row = Adw.ExpanderRow(title=_("External Terminal"), subtitle=_("Choose the external terminal where to run the console commands"))
         terminal_enabled = Gtk.Switch(valign=Gtk.Align.CENTER)
@@ -938,6 +966,279 @@ class Settings(Adw.Window):
                 self._llm_secondary_rows.append(row)
         self._llm_secondary_model_group.add_row(self._llm_secondary_other_group)
 
+    @staticmethod
+    def _suggest_duplicated_llm_key(source_key: str) -> str:
+        base = re.sub(r"[^A-Za-z0-9._-]+", "_", source_key).strip("._-")
+        base = (base or "llm") + "_copy"
+        candidate = base
+        suffix = 2
+        while candidate in AVAILABLE_LLMS:
+            candidate = f"{base}_{suffix}"
+            suffix += 1
+        return candidate
+
+    def on_duplicate_llm(self, _button):
+        """Open the dialog used to create a custom copy of an LLM handler."""
+        duplicable = self.handlers.get_duplicable_llms()
+        if not duplicable:
+            dialog = Adw.MessageDialog(
+                transient_for=self,
+                modal=True,
+                heading=_("No handlers can be duplicated"),
+                body=_("No LLM handler exposes duplication settings."),
+            )
+            dialog.add_response("close", _("Close"))
+            dialog.set_close_response("close")
+            dialog.connect("response", lambda current, _response: current.destroy())
+            dialog.present()
+            return
+
+        dialog = Gtk.Window(
+            title=_("Add LLM Provider"),
+            transient_for=self,
+            modal=True,
+            destroy_with_parent=True,
+        )
+        dialog.set_default_size(600, 560)
+        header = Adw.HeaderBar(css_classes=["flat"])
+        dialog.set_titlebar(header)
+        cancel_button = Gtk.Button(label=_("Cancel"), css_classes=["flat"])
+        cancel_button.connect("clicked", lambda _clicked: dialog.close())
+        add_button = Gtk.Button(
+            label=_("Add"), css_classes=["suggested-action"]
+        )
+        header.pack_start(cancel_button)
+        header.pack_end(add_button)
+
+        page = Adw.PreferencesPage()
+        details_group = Adw.PreferencesGroup(
+            title=_("Provider"),
+            description=_("Choose a handler implementation and identify the new provider."),
+        )
+        page.add(details_group)
+
+        source_row = Adw.ComboRow(
+            title=_("Copy LLM Handler"),
+            subtitle=_("The implementation used by this provider"),
+        )
+        source_options = tuple(
+            (descriptor["title"], source_key)
+            for source_key, descriptor, _settings in duplicable
+        )
+        default_source = (
+            "openai"
+            if any(source_key == "openai" for _title, source_key in source_options)
+            else source_options[0][1]
+        )
+        source_helper = ComboRowHelper(source_row, source_options, default_source)
+        details_group.add(source_row)
+
+        name_row = Adw.EntryRow(title=_("Handler Name"))
+        key_row = Adw.EntryRow(title=_("Handler Key"))
+        description_row = Adw.EntryRow(title=_("Description"))
+        details_group.add(name_row)
+        details_group.add(key_row)
+        details_group.add(description_row)
+
+        validation_row = Adw.ActionRow()
+        validation_row.add_css_class("error")
+        validation_row.set_visible(False)
+        details_group.add(validation_row)
+
+        duplication_group = Adw.PreferencesGroup(
+            title=_("Connection"),
+            description=_("Settings needed to create this provider."),
+        )
+        page.add(duplication_group)
+        scrolled = Gtk.ScrolledWindow(vexpand=True, hexpand=True)
+        scrolled.set_child(page)
+        dialog.set_child(scrolled)
+
+        duplication_by_source = {
+            source_key: (descriptor, settings)
+            for source_key, descriptor, settings in duplicable
+        }
+        duplication_rows = []
+        duplication_values = {}
+        setting_helpers = []
+        selected_source = default_source
+
+        def set_validation_error(message: str):
+            validation_row.set_title(message)
+            validation_row.set_visible(bool(message))
+
+        def validate(*_args):
+            name = name_row.get_text().strip()
+            key = key_row.get_text().strip()
+            message = ""
+            if not name:
+                message = _("Enter a handler name.")
+            elif not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", key):
+                message = _("Use only letters, numbers, '.', '_' and '-' in the key.")
+            elif key in AVAILABLE_LLMS:
+                message = _("This handler key is already in use.")
+            set_validation_error(message)
+            add_button.set_sensitive(not message)
+
+        def add_duplication_setting(setting: dict):
+            if setting.get("type") == "nested":
+                for nested in setting.get("extra_settings", []):
+                    add_duplication_setting(nested)
+                return
+            setting_key = setting.get("key")
+            if not setting_key:
+                return
+            value = setting.get("default")
+            duplication_values[setting_key] = value
+
+            if setting.get("type") in ("entry", "multilineentry"):
+                setting_row = Adw.EntryRow(
+                    title=setting.get("title", setting_key),
+                    text="" if value is None else str(value),
+                )
+                setting_row.connect(
+                    "changed",
+                    lambda current, current_key=setting_key: duplication_values.__setitem__(
+                        current_key, current.get_text()
+                    ),
+                )
+            elif setting.get("type") == "toggle":
+                setting_row = Adw.ActionRow(
+                    title=setting.get("title", setting_key),
+                    subtitle=setting.get("description", ""),
+                )
+                toggle = Gtk.Switch(valign=Gtk.Align.CENTER, active=bool(value))
+                toggle.connect(
+                    "notify::active",
+                    lambda current, _pspec, current_key=setting_key: duplication_values.__setitem__(
+                        current_key, current.get_active()
+                    ),
+                )
+                setting_row.add_suffix(toggle)
+            elif setting.get("type") == "combo":
+                setting_row = Adw.ComboRow(
+                    title=setting.get("title", setting_key),
+                    subtitle=setting.get("description", ""),
+                )
+                helper = ComboRowHelper(
+                    setting_row, setting.get("values", ()), value
+                )
+                helper.connect(
+                    "changed",
+                    lambda _helper, current_value, current_key=setting_key: duplication_values.__setitem__(
+                        current_key, current_value
+                    ),
+                )
+                setting_helpers.append(helper)
+            elif setting.get("type") in ("range", "spin"):
+                digits = setting.get("round-digits", 0)
+                adjustment = Gtk.Adjustment(
+                    value=value,
+                    lower=setting.get("min", 0),
+                    upper=setting.get("max", 100),
+                    step_increment=setting.get("step", 1),
+                    page_increment=setting.get("page", 10),
+                )
+                setting_row = Adw.SpinRow(
+                    title=setting.get("title", setting_key),
+                    subtitle=setting.get("description", ""),
+                    adjustment=adjustment,
+                    digits=digits,
+                )
+
+                def on_value_changed(current, _pspec, current_key=setting_key):
+                    current_value = current.get_value()
+                    if current.get_digits() == 0:
+                        current_value = int(current_value)
+                    duplication_values[current_key] = current_value
+
+                setting_row.connect("notify::value", on_value_changed)
+            else:
+                return
+
+            if setting.get("type") == "entry":
+                setting_row.set_show_apply_button(False)
+            duplication_group.add(setting_row)
+            duplication_rows.append(setting_row)
+
+        def select_source(source_key: str):
+            nonlocal selected_source
+            selected_source = source_key
+            for old_row in duplication_rows:
+                duplication_group.remove(old_row)
+            duplication_rows.clear()
+            duplication_values.clear()
+            setting_helpers.clear()
+
+            descriptor, settings = duplication_by_source[source_key]
+            name_row.set_text(_("{0} Copy").format(descriptor["title"]))
+            key_row.set_text(self._suggest_duplicated_llm_key(source_key))
+            description_row.set_text(
+                _("Custom provider based on {0}").format(descriptor["title"])
+            )
+            for setting in settings:
+                add_duplication_setting(setting)
+            duplication_group.set_visible(bool(duplication_rows))
+            validate()
+
+        source_helper.connect(
+            "changed", lambda _helper, source_key: select_source(source_key)
+        )
+        name_row.connect("changed", validate)
+        key_row.connect("changed", validate)
+        select_source(selected_source)
+
+        def create_duplicate(_clicked):
+            try:
+                self.handlers.duplicate_llm(
+                    source=selected_source,
+                    key=key_row.get_text(),
+                    title=name_row.get_text(),
+                    description=description_row.get_text(),
+                    duplication_values=duplication_values,
+                )
+            except ValueError as error:
+                set_validation_error(str(error))
+                add_button.set_sensitive(False)
+                return
+            self.refresh_llm_rows()
+            dialog.close()
+
+        add_button.connect("clicked", create_duplicate)
+        # Keep helpers alive for as long as their GTK signal handlers are used.
+        dialog._llm_duplication_helpers = [source_helper, setting_helpers]
+        dialog.present()
+
+    def on_delete_duplicated_llm(self, _button, key: str):
+        descriptor = AVAILABLE_LLMS.get(key)
+        if descriptor is None or not descriptor.get("duplicated", False):
+            return
+        dialog = Adw.MessageDialog(
+            transient_for=self,
+            modal=True,
+            heading=_("Delete LLM Provider?"),
+            body=_("Delete {0} and all of its saved settings?").format(
+                descriptor["title"]
+            ),
+        )
+        dialog.add_response("cancel", _("Cancel"))
+        dialog.add_response("delete", _("Delete"))
+        dialog.set_close_response("cancel")
+        dialog.set_default_response("cancel")
+        dialog.set_response_appearance(
+            "delete", Adw.ResponseAppearance.DESTRUCTIVE
+        )
+
+        def on_response(current, response):
+            if response == "delete" and self.handlers.delete_duplicated_llm(key):
+                self.refresh_llm_rows()
+                if self.popup:
+                    self.app.win.update_available_models()
+            current.destroy()
+
+        dialog.connect("response", on_response)
+        dialog.present()
+
     def build_permissions_page(self):
         if self.permissions_page_initialized or self._building_permissions_page:
             return
@@ -1043,7 +1344,12 @@ class Settings(Adw.Window):
         icon_name = tool.icon_name if tool.icon_name else "tools-symbolic"
         tool_icon = Gtk.Image(icon_name=icon_name, css_classes=["dim-label"])
         row.add_prefix(tool_icon)
-        
+
+        # Small warning when the active mode overrides this tool's enablement
+        mode_warning = self._get_tool_mode_warning(tool.name, is_enabled)
+        if mode_warning is not None:
+            self._add_mode_warning_suffix(row, mode_warning)
+
         # Toggle
         toggle = Gtk.Switch(valign=Gtk.Align.CENTER)
         toggle.set_active(is_enabled)
@@ -2555,6 +2861,52 @@ class Settings(Adw.Window):
         self.refresh_mcp_servers_list()
         self.refresh_tools_list()
 
+    def _get_active_mode_name(self):
+        """Return the active mode name, or None when the Normal mode is active."""
+        mode_manager = getattr(self.controller, "mode_manager", None)
+        if mode_manager is None:
+            return None
+        name = mode_manager.get_active_mode_name()
+        if name == DEFAULT_MODE_NAME:
+            return None
+        return name
+
+    def _get_prompt_mode_warning(self, prompt_key, base_enabled):
+        """Build the mode warning for a prompt row, None if the active mode does not change it."""
+        mode_name = self._get_active_mode_name()
+        if mode_name is None:
+            return None
+        mode_manager = self.controller.mode_manager
+        base_text = self.prompts.get(prompt_key, "")
+        resolved_enabled = mode_manager.resolve_prompt_enabled(prompt_key, base_enabled)
+        resolved_text = mode_manager.resolve_prompt_text(prompt_key, base_text)
+        details = []
+        if resolved_enabled != base_enabled:
+            details.append(_("forced on") if resolved_enabled else _("forced off"))
+        if resolved_text != base_text:
+            details.append(_("text replaced"))
+        if not details:
+            return None
+        return _('The "{}" mode overrides this prompt: {}').format(mode_name, ", ".join(details))
+
+    def _get_tool_mode_warning(self, tool_name, base_enabled):
+        """Build the mode warning for a tool row, None if the active mode does not change it."""
+        mode_name = self._get_active_mode_name()
+        if mode_name is None:
+            return None
+        resolved_enabled = self.controller.mode_manager.resolve_tool_enabled(tool_name, base_enabled)
+        if resolved_enabled == base_enabled:
+            return None
+        detail = _("forced on") if resolved_enabled else _("forced off")
+        return _('The "{}" mode overrides this tool: {}').format(mode_name, detail)
+
+    def _add_mode_warning_suffix(self, row, tooltip):
+        """Add a small warning icon to a row, hinting the active mode overrides its value."""
+        icon = Gtk.Image(icon_name="warning-outline-symbolic", css_classes=["warning"])
+        icon.set_valign(Gtk.Align.CENTER)
+        icon.set_tooltip_text(tooltip)
+        row.add_suffix(icon)
+
     def build_prompts_settings(self):
         self.prompts_settings = self.controller.newelle_settings.prompts_settings
         for prompt in self.prompts_rows:
@@ -2579,6 +2931,9 @@ class Settings(Adw.Window):
 
             if prompt["editable"]:
                 self.add_customize_prompt_content(row, prompt["key"], prompt["title"])
+            mode_warning = self._get_prompt_mode_warning(prompt["key"], is_active)
+            if mode_warning is not None:
+                self._add_mode_warning_suffix(row, mode_warning)
             switch = Gtk.Switch(valign=Gtk.Align.CENTER)
             switch.set_active(is_active)
             switch.connect("notify::active", self.update_prompt, prompt["setting_name"])
@@ -2957,6 +3312,18 @@ class Settings(Adw.Window):
             button = Gtk.Button(css_classes=["flat"], icon_name="edit-copy-symbolic", valign=Gtk.Align.CENTER)
             button.connect("clicked", self.copy_settings, constants, handler)
             row.add_suffix(button)
+        if constants == AVAILABLE_LLMS and model.get("duplicated", False):
+            delete_button = Gtk.Button(
+                css_classes=["flat", "error"],
+                icon_name="user-trash-symbolic",
+                valign=Gtk.Align.CENTER,
+                tooltip_text=_("Delete this LLM provider"),
+            )
+            delete_button.connect("clicked", self.on_delete_duplicated_llm, key)
+            if isinstance(row, Adw.ExpanderRow):
+                row.add_action(delete_button)
+            else:
+                row.add_suffix(delete_button)
         # Add check button
         button = Gtk.CheckButton(name=key, group=group, active=active)
         button.connect("toggled", self.choose_row, constants, secondary)
