@@ -146,6 +146,9 @@ class Live2DHandler(AvatarHandler):
         httpd.serve_forever()
 
     def create_gtk_widget(self) -> Gtk.Widget:
+        self._expressions_raw = []
+        self._motions_raw = []
+
         self.webview = WebKit.WebView()
         threading.Thread(target=self.__start_webserver).start()
         self.webview.set_hexpand(True)
