@@ -402,13 +402,20 @@ class MyApp(Adw.Application):
             self.win.connect("close-request", self.close_window)
 
         if self.settings.get_string("startup-mode") == "mini":
-            if hasattr(self,"mini_win"):
-                self.mini_win.close()
-            self.mini_win = MiniWindow(application=self, main_window=self.win)
-            self.mini_win.present()
             self.settings.set_string("startup-mode", "normal")
+            if getattr(self.win, "ui_built", False):
+                self.show_mini_window()
+            else:
+                self.win.connect("ui-built", self.show_mini_window)
         else:
             self.win.present()
+
+    def show_mini_window(self, *args):
+        """Open the mini window hosting the chat panel of the main window"""
+        if hasattr(self, "mini_win"):
+            self.mini_win.close()
+        self.mini_win = MiniWindow(application=self, main_window=self.win)
+        self.mini_win.present()
 
     def focus_message(self, *a):
         self.win.focus_input()

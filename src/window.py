@@ -49,6 +49,12 @@ from .ui_controller import UIController
 
 
 class MainWindow(Adw.ApplicationWindow):
+    __gsignals__ = {
+        # Emitted once the UI has been built by build_main_window, so other
+        # windows (e.g. the mini window) can reparent parts of it
+        "ui-built": (GObject.SignalFlags.RUN_LAST, None, ()),
+    }
+
     def __init__(self, *args, **kwargs):
 
         super().__init__(*args, **kwargs)
@@ -364,6 +370,8 @@ class MainWindow(Adw.ApplicationWindow):
         if not self.settings.get_boolean("welcome-screen-shown"):
             threading.Thread(target=self.show_presentation_window).start()
         GLib.timeout_add(10, build_model_popup)
+        self.ui_built = True
+        self.emit("ui-built")
 
     def _cleanup_on_destroy(self, window):
         """Clean up resources when window is destroyed"""
