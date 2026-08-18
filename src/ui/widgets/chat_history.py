@@ -1447,7 +1447,7 @@ class ChatHistory(Gtk.Box):
 
         """
         if not self.status:
-            self.notification_block.add_toast(
+            self.window.notification_block.add_toast(
                 Adw.Toast(
                     title=_("You can't edit a message while the program is running."),
                     timeout=2,
@@ -1786,16 +1786,18 @@ class ChatHistory(Gtk.Box):
             button ():
             *a:
         """
-        if os.path.exists(button.get_name()):
-            if os.path.isdir(
-                os.path.join(os.path.expanduser(self.window.main_path), button.get_name())
-            ):
-                self.window.main_path = button.get_name()
-                self.ui_controller.new_explorer_tab(self.window.main_path, False)
+        file_path = os.path.expanduser(button.get_name())
+        if not os.path.isabs(file_path):
+            file_path = os.path.join(os.path.expanduser(self.window.main_path), file_path)
+        file_path = os.path.normpath(file_path)
+
+        if os.path.exists(file_path):
+            if os.path.isdir(file_path):
+                self.window.window.ui_controller.new_explorer_tab(file_path, False)
             else:
-                subprocess.run(["xdg-open", os.path.expanduser(button.get_name())])
+                subprocess.run(["xdg-open", file_path])
         else:
-            self.notification_block.add_toast(
+            self.window.notification_block.add_toast(
                 Adw.Toast(title=_("File not found"), timeout=2)
             )
 

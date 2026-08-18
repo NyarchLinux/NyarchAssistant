@@ -56,6 +56,37 @@ class Interface(Handler):
     def set_controller(self, controller):
         self.controller = controller
 
+    def send_message(self, message, extra_options):
+        """Send *message* through this interface.
+
+        Interfaces which support agent-initiated messages override this method.
+        ``extra_options`` is owned by the interface so implementations can
+        expose transport-specific destination or formatting options.
+        """
+        raise NotImplementedError("This interface cannot send messages")
+
+    def get_send_message_options_schema(self) -> dict:
+        """Return JSON-schema properties accepted in ``extra_options``.
+
+        The controller adds the common ``interface`` property.  Keeping this
+        hook separate from :meth:`send_message` lets third-party interfaces
+        describe their own options without knowing about the tool registry.
+        """
+        return {}
+
+    def get_send_message_required_options(self) -> list[str]:
+        """Return required interface-specific ``extra_options`` keys."""
+        return []
+
+    def supports_send_message(self) -> bool:
+        """Whether this concrete interface implements agent-initiated sending."""
+        return type(self).send_message is not Interface.send_message
+
+    def notify_send_message_availability_changed(self):
+        """Rebuild the tool schema after this interface starts or stops."""
+        if self.controller is not None:
+            self.controller.require_tool_update()
+
     # ── State file management for cross-process interface detection ──
 
     @staticmethod

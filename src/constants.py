@@ -1,7 +1,7 @@
 from copy import deepcopy
 from .handlers.llm import ClaudeHandler, DeepseekHandler, GroqHandler, OllamaHandler, OllamaCloudHandler, OpenAIHandler, CustomLLMHandler, GeminiHandler, MistralHandler, OpenRouterHandler, NewelleAPIHandler, G4FHandler, LlamaCPPHandler
-from .handlers.tts import ElevenLabs, gTTSHandler, EspeakHandler, CustomTTSHandler, KokoroTTSHandler, CustomOpenAITTSHandler, OpenAITTSHandler, GroqTTSHandler, EdgeTTSHandler
-from .handlers.stt import GroqSRHandler, OpenAISRHandler, SphinxHandler, GoogleSRHandler, WhisperCPPHandler, WitAIHandler, VoskHandler, CustomSRHandler, OpenWakeWordHandler
+from .handlers.tts import ElevenLabs, gTTSHandler, EspeakHandler, CustomTTSHandler, KokoroTTSHandler, CustomOpenAITTSHandler, OpenAITTSHandler, GroqTTSHandler, EdgeTTSHandler, MistralTTSHandler
+from .handlers.stt import GroqSRHandler, OpenAISRHandler, SphinxHandler, GoogleSRHandler, WhisperCPPHandler, WitAIHandler, VoskHandler, CustomSRHandler, OpenWakeWordHandler, MistralSTTHandler
 from .handlers.embeddings import WordLlamaHandler, OpenAIEmbeddingHandler, GeminiEmbeddingHanlder, OllamaEmbeddingHandler, Model2VecHandler, LlamaCPPEmbeddingHandler
 from .handlers.memory import MemoripyHandler, UserSummaryHandler, SummaryMemoripyHanlder, LlamaIndexMemoryHandler, AgenticMemoryHandler
 from .handlers.rag import LlamaIndexHanlder
@@ -20,6 +20,7 @@ from .integrations.agent_tools import AgentToolsIntegration
 from .integrations.file_editing import FileEditingIntegration
 from .integrations.todo_list import TodoListIntegration
 from .integrations.mermaid import MermaidIntegration
+from .integrations.skill_editor import SkillEditorIntegration
 
 from .integrations.arch import ArchLinuxExtension
 
@@ -30,7 +31,7 @@ from .handlers.avatar import Live2DHandler, LivePNGHandler, VRMHandler
 from .handlers.translator import CustomTranslatorHandler, GoogleTranslatorHandler, LibreTranslateHandler, LigvaTranslateHandler
 
 
-AVAILABLE_INTEGRATIONS = [WebsiteReader, WebsearchIntegration, MermaidIntegration, MCPIntegration, SkillsIntegration, DefaultToolsIntegration, AgentToolsIntegration, FileEditingIntegration, TodoListIntegration]
+AVAILABLE_INTEGRATIONS = [WebsiteReader, WebsearchIntegration, MermaidIntegration, MCPIntegration, SkillsIntegration, SkillEditorIntegration, DefaultToolsIntegration, AgentToolsIntegration, FileEditingIntegration, TodoListIntegration]
 
 AVAILABLE_INTEGRATIONS += [ArchLinuxExtension]
 
@@ -69,7 +70,7 @@ AVAILABLE_LLMS = {
     "nyarch": {
         "key": "nyarch",
         "title": _("Nyarch Demo API"),
-        "description": "Nyarch demo API just to try out Nyarch Assistant, limited to 10 requests",
+        "description": "Nyarch demo API just to try out Nyarch Assistant, limited to ~10 requests per day (not guaranteed), demo purposes only",
         "class": NyarchApiHandler,
     },
     "g4f": {
@@ -222,6 +223,14 @@ AVAILABLE_STT = {
         "class": OpenAISRHandler,
         "secondary": True,
     },
+    "mistral_sr": {
+        "key": "mistral_sr",
+        "title": _("Mistral Speech Recognition"),
+        "description": _("Uses Mistral's Voxtral speech recognition API"),
+        "website": "https://docs.mistral.ai/studio-api/audio/speech_to_text",
+        "class": MistralSTTHandler,
+        "secondary": True,
+    },
    "custom_command": {
         "key": "custom_command",
         "title": _("Custom command"),
@@ -274,6 +283,13 @@ AVAILABLE_TTS = {
         "title": _("Groq TTS"),
         "description": _("Groq TTS API"),
         "class": GroqTTSHandler,
+    },
+    "mistral_tts": {
+        "key": "mistral_tts",
+        "title": _("Mistral Voxtral TTS"),
+        "description": _("Mistral's Voxtral text-to-speech with zero-shot voice cloning"),
+        "website": "https://docs.mistral.ai/studio-api/audio/text_to_speech",
+        "class": MistralTTSHandler,
     },
     "custom_openai_tts": {
         "key": "custom_openai_tts",
@@ -836,12 +852,12 @@ DEFAULT_AVAILABLE_WEBSEARCH = AVAILABLE_WEBSEARCH.copy()
 DEFAULT_AVAILABLE_INTERFACES = AVAILABLE_INTERFACES.copy()
 DEFAULT_AVAILABLE_IMAGE_GENERATORS = AVAILABLE_IMAGE_GENERATORS.copy()
 DEFAULT_AVAILABLE_PROMPTS = AVAILABLE_PROMPTS.copy()
+DEFAULT_PROMPTS = PROMPTS.copy()
 DEFAULT_AVAILABLE_AVATARS = AVAILABLE_AVATARS.copy()
 DEFAULT_AVAILABLE_TRANSLATORS = AVAILABLE_TRANSLATORS.copy()
 
 def restore_handlers():
-    global AVAILABLE_LLMS, AVAILABLE_TTS, AVAILABLE_STT, AVAILABLE_EMBEDDINGS, AVAILABLE_MEMORIES, AVAILABLE_RAGS, AVAILABLE_WEBSEARCH, AVAILABLE_INTERFACES, AVAILABLE_PROMPTS, AVAILABLE_IMAGE_GENERATORS
-    AVAILABLE_PROMPTS.clear()
+    global AVAILABLE_LLMS, AVAILABLE_TTS, AVAILABLE_STT, AVAILABLE_EMBEDDINGS, AVAILABLE_MEMORIES, AVAILABLE_RAGS, AVAILABLE_WEBSEARCH, AVAILABLE_INTERFACES, AVAILABLE_IMAGE_GENERATORS
     AVAILABLE_LLMS.clear()
     AVAILABLE_TTS.clear()
     AVAILABLE_STT.clear()
@@ -851,7 +867,6 @@ def restore_handlers():
     AVAILABLE_WEBSEARCH.clear()
     AVAILABLE_INTERFACES.clear()
     AVAILABLE_IMAGE_GENERATORS.clear()
-    AVAILABLE_PROMPTS += deepcopy(DEFAULT_AVAILABLE_PROMPTS)
     AVAILABLE_LLMS.update(deepcopy(DEFAULT_AVAILABLE_LLM))
     AVAILABLE_TTS.update(deepcopy(DEFAULT_AVAILABLE_TTS))
     AVAILABLE_STT.update(deepcopy(DEFAULT_AVAILABLE_STT))
@@ -862,6 +877,12 @@ def restore_handlers():
     AVAILABLE_INTERFACES.update(deepcopy(DEFAULT_AVAILABLE_INTERFACES))
     AVAILABLE_IMAGE_GENERATORS.update(deepcopy(DEFAULT_AVAILABLE_IMAGE_GENERATORS))
 
+def restore_prompts():
+    """Restore prompt registries before re-applying extension/user prompts."""
+    AVAILABLE_PROMPTS.clear()
+    AVAILABLE_PROMPTS.extend(deepcopy(DEFAULT_AVAILABLE_PROMPTS))
+    PROMPTS.clear()
+    PROMPTS.update(DEFAULT_PROMPTS)
     AVAILABLE_AVATARS.clear()
     AVAILABLE_TRANSLATORS.clear()
     AVAILABLE_AVATARS.update(deepcopy(DEFAULT_AVAILABLE_AVATARS))
@@ -920,13 +941,13 @@ SETTINGS_GROUPS = {
             "description": _("Extensions settings"),
         },
         "interface": {
-            "title": _("Inteface"),
-            "settings": ["hidden-files", "reverse-order", "display-latex", "expand-reasoning", "compact-mode", "external-terminal-on", "external-terminal", "zoom","send-on-enter", "initial-browser-page", "external-browser", "browser-search-string", "browser-session-persist", "edit-color-scheme", "hide-history-on-launch"],
+            "title": _("Interface"),
+            "settings": ["hidden-files", "reverse-order", "display-latex", "expand-reasoning", "compact-mode", "external-terminal-on", "external-terminal", "zoom", "send-on-enter", "initial-browser-page", "external-browser", "browser-search-string", "browser-session-persist", "editor-color-scheme", "hide-history-on-launch", "remember-profile", "user-name", "font-family", "font-size", "line-height", "monospace-font-family", "monospace-font-size", "monospace-line-height", "hide-warning", "interfaces-settings"],
             "description": _("Interface settings, hidden files, reverse order, zoom..."),
         },
         "general": {
             "title": _("General"),
-            "settings": ["virtualization", "offers", "memory", "remove-thinking", "auto-generate-name", "path", "auto-run", "max-run-times", "parallel-tool-execution"],
+            "settings": ["virtualization", "offers", "memory", "remove-thinking", "auto-generate-name", "path", "auto-run", "max-run-times", "parallel-tool-execution", "max-tool-calls", "context-mode", "context-max", "context-suggested", "context-summarization"],
             "description": _("General settings, virtualization, offers, memory length, automatically generate chat name, current folder..."),
         },
         "prompts": {
@@ -936,7 +957,7 @@ SETTINGS_GROUPS = {
         },
         "tools": {
             "title": _("Tools"),
-            "settings": ["tools-settings", "mcp-servers", "skills-settings", "file-permissions"],
+            "settings": ["tools-settings", "mcp-servers", "skills-settings", "file-permissions", "command-execution-permissions", "path-security-levels", "default-risk-level"],
             "description": _("Tools settings, tools groups..."),
         },
         "wakeword": {

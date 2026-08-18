@@ -52,6 +52,7 @@ integrations_sources = [
   'integrations/mcp_oauth.py',
   'integrations/default_tools.py',
   'integrations/skills.py',
+  'integrations/skill_editor.py',
   'integrations/agent_tools.py',
   'integrations/file_editing.py',
   'integrations/todo_list.py',
@@ -62,6 +63,7 @@ ui_sources = [
   'ui/__init__.py',
   'ui/profile.py',
   'ui/extension.py',
+  'ui/extensions_catalog.py',
   'ui/settings.py',
   'ui/presentation.py',
   'ui/thread_editing.py',
@@ -73,6 +75,8 @@ ui_sources = [
   'ui/stdout_monitor.py',
   'ui/model_library.py',
   'ui/mcp_catalog.py',
+  'ui/skills_catalog.py',
+  'ui/skill_creator.py',
   'ui/extra_settings.py',
   'ui/interfaces.py',
 ]
@@ -108,8 +112,10 @@ widgets_sources = [
   'ui/widgets/code_editor.py',
   'ui/widgets/tool.py',
   'ui/widgets/skill.py',
+  'ui/widgets/skill_editor_mini_app.py',
   'ui/widgets/subagent.py',
   'ui/widgets/scheduled_task.py',
+  'ui/widgets/status.py',
   'ui/widgets/message.py',
   'ui/widgets/chatrow.py',
   'ui/widgets/chat_history.py',
@@ -164,6 +170,7 @@ tts_sources = [
   'handlers/tts/vits_handler.py',
   'handlers/tts/voicevox_handler.py',
   'handlers/tts/edge_handler.py',
+  'handlers/tts/mistral_tts_handler.py',
 ]
 
 stt_sources = [  
@@ -179,6 +186,7 @@ stt_sources = [
   'handlers/stt/custom_handler.py',
   'handlers/stt/vosk_handler.py',
   'handlers/stt/openwakeword_handler.py',
+  'handlers/stt/mistral_stt_handler.py',
 ]
 
 embedding_sources = [  

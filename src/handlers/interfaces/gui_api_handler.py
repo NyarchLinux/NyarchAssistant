@@ -2,6 +2,7 @@ import io
 import json
 import os
 import queue
+import re
 import tempfile
 import threading
 import time
@@ -64,7 +65,7 @@ class GUIAPIInterface(Interface):
         from fastapi.responses import JSONResponse, StreamingResponse, Response
         from fastapi.middleware.cors import CORSMiddleware
         from pydantic import BaseModel, Field
-        from typing import Optional
+        from typing import Any, Optional
         from starlette.middleware.base import BaseHTTPMiddleware
 
         controller = self.controller
@@ -114,7 +115,7 @@ class GUIAPIInterface(Interface):
             message: str
             chat_id: int
             system_prompt: Optional[list[str]] = None
-            max_tool_calls: int = 10
+            max_tool_calls: Optional[int] = None
             save_chat: bool = False
 
         class SetPromptActiveRequest(BaseModel):
@@ -202,6 +203,66 @@ class GUIAPIInterface(Interface):
 
         class ReloadRequest(BaseModel):
             reload_type: str
+
+        class SetActiveModeRequest(BaseModel):
+            mode: str
+
+        class ModeMutationRequest(BaseModel):
+            # Keep these loose so malformed editor payloads receive the API's
+            # deliberate 400 responses instead of framework-level 422 errors.
+            name: Optional[Any] = None
+            description: Optional[Any] = None
+            icon: Optional[Any] = None
+            tools: Optional[Any] = None
+            skills: Optional[Any] = None
+            prompts: Optional[Any] = None
+
+        class SetExtensionEnabledRequest(BaseModel):
+            extension_id: str
+            enabled: bool
+
+        class ExtensionSettingsRequest(BaseModel):
+            settings: dict = Field(default_factory=dict)
+
+        class DeleteExtensionRequest(BaseModel):
+            extension_id: str
+
+        class SetSkillEnabledRequest(BaseModel):
+            name: str
+            enabled: bool
+
+        class SetSttProviderRequest(BaseModel):
+            provider: str
+
+        class SetSttSettingsRequest(BaseModel):
+            provider: Optional[str] = None
+            settings: dict = Field(default_factory=dict)
+
+        class ProviderSettingsRequest(BaseModel):
+            provider: Optional[str] = None
+            enabled: Optional[bool] = None
+            settings: dict = Field(default_factory=dict)
+            details: dict = Field(default_factory=dict)
+
+        class ProviderActionRequest(BaseModel):
+            provider: Optional[str] = None
+            key: str
+            action: str = "primary"
+
+        class InterfaceSettingsRequest(BaseModel):
+            settings: dict = Field(default_factory=dict)
+
+        class InterfaceActionRequest(BaseModel):
+            key: str
+            action: str = "primary"
+
+        class PermissionSettingsRequest(BaseModel):
+            auto_run: Optional[Any] = None
+            max_run_times: Optional[Any] = None
+            default_action: Optional[Any] = None
+            file_rules: Optional[Any] = None
+            command_rules: Optional[Any] = None
+            path_rules: Optional[Any] = None
 
         # ============================================================ #
         #                         BOOTSTRAP                             #
@@ -515,11 +576,23 @@ class GUIAPIInterface(Interface):
                     is_enabled = tools_settings[tool.name]["enabled"]
                 if tool.name == "search" and hasattr(controller, 'newelle_settings') and not controller.newelle_settings.websearch_on:
                     is_enabled = False
+                # The tools panel manages the Normal (profile) configuration;
+                # the active Mode may still override the value at runtime.
+                mode_override = None
+                mode_manager = getattr(controller, "mode_manager", None)
+                if mode_manager is not None:
+                    override = mode_manager.get_tool_override(tool.name)
+                    if override in ("enable", "remove"):
+                        mode_override = override
                 result.append({
                     "name": tool.name,
                     "description": getattr(tool, 'description', ''),
                     "enabled": is_enabled,
+                    "mode_override": mode_override,
                     "default_on": tool.default_on,
+                    "tools_group": getattr(tool, 'tools_group', None),
+                    "icon_name": getattr(tool, 'icon_name', None),
+                    "title": getattr(tool, 'title', None) or tool.name,
                 })
             return result
 
@@ -594,33 +667,93 @@ class GUIAPIInterface(Interface):
         def api_list_interfaces():
             from ...constants import AVAILABLE_INTERFACES
             result = []
-            enabled_map = {}
-            if hasattr(controller, 'newelle_settings'):
-                enabled_map = getattr(controller.newelle_settings, 'interfaces_enabled', {}) or {}
             for key, info in AVAILABLE_INTERFACES.items():
                 iface = controller.handlers.interfaces.get(key) if hasattr(controller.handlers, 'interfaces') else None
+                enabled = iface.get_setting("enabled", False, False) if iface else False
                 result.append({
                     "key": key,
                     "name": info.get("title", key),
                     "title": info.get("title", key),
                     "description": info.get("description", ""),
-                    "enabled": bool(enabled_map.get(key, True)),
+                    "enabled": bool(enabled),
                     "running": iface.is_running() if iface else False,
                     "error": getattr(iface, '_error', None) if iface else None,
+                    "has_settings": bool(iface and iface.get_extra_settings()),
                 })
             return result
 
         @app.post("/api/interfaces/set-enabled")
         def api_set_interface_enabled(req: SetInterfaceEnabledRequest):
-            if not hasattr(controller, 'newelle_settings'):
-                raise HTTPException(status_code=503, detail="Settings not loaded")
-            enabled_map = controller.newelle_settings.interfaces_enabled
-            if req.enabled:
-                enabled_map[req.interface_key] = True
-            else:
-                enabled_map[req.interface_key] = False
-            controller.newelle_settings.interfaces_enabled = enabled_map
-            controller.settings.set_string("interfaces-enabled", json.dumps(enabled_map))
+            iface = (
+                controller.handlers.interfaces.get(req.interface_key)
+                if hasattr(controller.handlers, "interfaces")
+                else None
+            )
+            if iface is None:
+                raise HTTPException(status_code=404, detail="Interface not found")
+            iface.set_setting("enabled", req.enabled)
+            return {"status": "ok"}
+
+        @app.get("/api/interfaces/{interface_key}/settings")
+        def api_get_interface_settings(interface_key: str):
+            iface = (
+                controller.handlers.interfaces.get(interface_key)
+                if hasattr(controller.handlers, "interfaces")
+                else None
+            )
+            if iface is None:
+                raise HTTPException(status_code=404, detail="Interface not found")
+            return {
+                "interface": interface_key,
+                "settings": _serialize_extra_settings(
+                    iface.get_extra_settings(), lambda key: iface.get_setting(key)
+                ),
+            }
+
+        @app.put("/api/interfaces/{interface_key}/settings")
+        def api_set_interface_settings(
+            interface_key: str, req: InterfaceSettingsRequest
+        ):
+            iface = (
+                controller.handlers.interfaces.get(interface_key)
+                if hasattr(controller.handlers, "interfaces")
+                else None
+            )
+            if iface is None:
+                raise HTTPException(status_code=404, detail="Interface not found")
+            allowed = {
+                setting["key"]
+                for setting in _flatten_extra_settings(iface.get_extra_settings())
+                if setting.get("type") not in ("button", "download")
+            }
+            unknown = set(req.settings) - allowed
+            if unknown:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Unknown interface setting: {sorted(unknown)[0]}",
+                )
+            for key, value in req.settings.items():
+                iface.set_setting(key, value)
+            return {"status": "ok"}
+
+        @app.post("/api/interfaces/{interface_key}/settings/action")
+        def api_run_interface_setting_action(
+            interface_key: str, req: InterfaceActionRequest
+        ):
+            iface = (
+                controller.handlers.interfaces.get(interface_key)
+                if hasattr(controller.handlers, "interfaces")
+                else None
+            )
+            if iface is None:
+                raise HTTPException(status_code=404, detail="Interface not found")
+            setting = _find_extra_setting(iface.get_extra_settings(), req.key)
+            if setting is None:
+                raise HTTPException(status_code=404, detail="Setting action not found")
+            callback = setting.get("refresh") if req.action == "refresh" else setting.get("callback")
+            if not callable(callback):
+                raise HTTPException(status_code=400, detail="Setting has no such action")
+            threading.Thread(target=callback, args=(None,), daemon=True).start()
             return {"status": "ok"}
 
         @app.get("/api/interfaces/{interface_key}/running")
@@ -659,9 +792,12 @@ class GUIAPIInterface(Interface):
 
         @app.get("/api/interfaces/enabled-map")
         def api_get_interfaces_enabled_map():
-            if hasattr(controller, 'newelle_settings'):
-                return controller.newelle_settings.interfaces_enabled
-            return {}
+            if not hasattr(controller.handlers, "interfaces"):
+                return {}
+            return {
+                key: bool(iface.get_setting("enabled", False, False))
+                for key, iface in controller.handlers.interfaces.items()
+            }
 
         # ============================================================ #
         #                         PROFILES                              #
@@ -721,6 +857,919 @@ class GUIAPIInterface(Interface):
                 window.switch_profile(req.profile)
             else:
                 controller.switch_profile(req.profile)
+            return {"status": "ok"}
+
+        # ============================================================ #
+        #                           MODES                               #
+        # ============================================================ #
+        def _get_mode_manager():
+            mm = getattr(controller, "mode_manager", None)
+            if mm is None:
+                raise HTTPException(status_code=503, detail="Modes not available")
+            return mm
+
+        def _refresh_active_mode():
+            """Reapply all active overlays after a mode mutation or switch."""
+            mm = _get_mode_manager()
+            active = mm.get_active_mode()
+            skill_manager = getattr(controller, "skill_manager", None)
+            if skill_manager is not None:
+                skill_manager.set_mode_overrides(active.get("skills", {}))
+            controller.update_settings()
+            _refresh_mode_buttons()
+
+        def _refresh_mode_buttons():
+            """Keep any open desktop mode switchers in sync with API edits."""
+            window = _get_window(controller)
+            if window is not None and hasattr(window, "refresh_mode_buttons"):
+                window.refresh_mode_buttons()
+
+        def _serialize_mode(name, mode, mm):
+            from ...modes import BUILT_IN_MODE_NAMES
+            return {
+                "name": name,
+                "description": mode.get("description", ""),
+                "icon": mode.get("icon", ""),
+                "tools": mode.get("tools", {}),
+                "skills": mode.get("skills", {}),
+                "prompts": mode.get("prompts", {}),
+                "current": name == mm.get_active_mode_name(),
+                "builtin": name in BUILT_IN_MODE_NAMES,
+            }
+
+        def _validate_mode_mutation(req, require_name=False):
+            """Validate editor input and return normalized optional fields."""
+            from ...modes import VALID_STATES
+
+            if require_name and req.name is None:
+                raise HTTPException(status_code=400, detail="Mode name is required")
+            if req.name is not None:
+                if not isinstance(req.name, str) or not req.name.strip():
+                    raise HTTPException(
+                        status_code=400, detail="Mode name cannot be blank"
+                    )
+
+            for field_name in ("tools", "skills"):
+                state_map = getattr(req, field_name)
+                if state_map is None:
+                    continue
+                if not isinstance(state_map, dict):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"{field_name.title()} overrides must be an object",
+                    )
+                for key, state in state_map.items():
+                    if not isinstance(key, str) or state not in VALID_STATES:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=(
+                                f"Invalid {field_name[:-1]} override for "
+                                f"'{key}': expected no_change, enable, or remove"
+                            ),
+                        )
+
+            if req.prompts is not None:
+                if not isinstance(req.prompts, dict):
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Prompt overrides must be an object",
+                    )
+                for key, config in req.prompts.items():
+                    if not isinstance(key, str) or not isinstance(config, dict):
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Invalid prompt override for '{key}'",
+                        )
+                    state = config.get("state", "no_change")
+                    if state not in VALID_STATES:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=(
+                                f"Invalid prompt override for '{key}': expected "
+                                "no_change, enable, or remove"
+                            ),
+                        )
+                    if "override" in config and not isinstance(
+                        config["override"], str
+                    ):
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Prompt text override for '{key}' must be a string",
+                        )
+
+            if req.description is not None and not isinstance(req.description, str):
+                raise HTTPException(
+                    status_code=400, detail="Mode description must be a string"
+                )
+            if req.icon is not None and not isinstance(req.icon, str):
+                raise HTTPException(
+                    status_code=400, detail="Mode icon must be a string"
+                )
+
+        def _raise_mode_mutation_error(error):
+            from ...modes import (
+                InvalidModeNameError,
+                ModeAlreadyExistsError,
+                ModeNotFoundError,
+                ProtectedModeError,
+            )
+            if isinstance(error, ModeAlreadyExistsError):
+                raise HTTPException(status_code=409, detail=str(error))
+            if isinstance(error, ModeNotFoundError):
+                raise HTTPException(status_code=404, detail=str(error))
+            if isinstance(error, (InvalidModeNameError, ProtectedModeError)):
+                raise HTTPException(status_code=400, detail=str(error))
+            raise error
+
+        @app.get("/api/modes")
+        def api_list_modes():
+            """List all modes with the active one flagged."""
+            mm = _get_mode_manager()
+            active = mm.get_active_mode_name()
+            from ...modes import BUILT_IN_MODE_NAMES
+            result = []
+            for name, mode in mm.get_modes().items():
+                result.append({
+                    "name": name,
+                    "description": mode.get("description", ""),
+                    "icon": mode.get("icon", ""),
+                    "current": name == active,
+                    "builtin": name in BUILT_IN_MODE_NAMES,
+                })
+            return result
+
+        @app.get("/api/modes/current")
+        def api_get_current_mode():
+            mm = _get_mode_manager()
+            return {"mode": mm.get_active_mode_name()}
+
+        @app.get("/api/modes/editor-options")
+        def api_get_mode_editor_options():
+            """Return profile prompts and every currently available override target."""
+            from ...constants import AVAILABLE_PROMPTS, PROMPTS
+            from ...modes import MODE_ICON_CHOICES, VALID_STATES
+
+            ns = getattr(controller, "newelle_settings", None)
+            profile_prompts = getattr(ns, "prompts", {}) if ns is not None else {}
+            prompts = []
+            for prompt in AVAILABLE_PROMPTS:
+                key = prompt.get("key")
+                fallback = PROMPTS.get(key, "")
+                profile_text = (
+                    profile_prompts.get(key, fallback)
+                    if isinstance(profile_prompts, dict)
+                    else fallback
+                )
+                if not isinstance(profile_text, str):
+                    profile_text = fallback if isinstance(fallback, str) else ""
+                prompts.append({
+                    "key": key,
+                    "name": str(prompt.get("title", key)),
+                    "description": str(prompt.get("description", "")),
+                    "profile_text": profile_text,
+                })
+
+            grouped_tools = {}
+            for tool in controller.tools.get_all_tools():
+                group_name = getattr(tool, "tools_group", None) or ""
+                grouped_tools.setdefault(group_name, []).append({
+                    "name": tool.name,
+                    "title": getattr(tool, "title", None) or tool.name,
+                    "description": getattr(tool, "description", ""),
+                    "icon": getattr(tool, "icon_name", None),
+                })
+            tools = [
+                {
+                    "name": group_name,
+                    "title": group_name or "Other",
+                    "tools": group_tools,
+                }
+                for group_name, group_tools in grouped_tools.items()
+            ]
+
+            skill_manager = getattr(controller, "skill_manager", None)
+            skills = [] if skill_manager is None else [
+                {
+                    "name": skill.name,
+                    "description": skill.description,
+                }
+                for skill in skill_manager.skills.values()
+            ]
+            return {
+                "prompts": prompts,
+                "tools": tools,
+                "skills": skills,
+                "icons": list(MODE_ICON_CHOICES),
+                "states": list(VALID_STATES),
+            }
+
+        @app.get("/api/modes/{name}")
+        def api_get_mode(name: str):
+            mm = _get_mode_manager()
+            mode = mm.get_mode(name)
+            if mode is None:
+                raise HTTPException(
+                    status_code=404, detail=f"Mode '{name}' not found"
+                )
+            return _serialize_mode(name, mode, mm)
+
+        @app.post("/api/modes")
+        def api_create_mode(req: ModeMutationRequest):
+            from ...modes import DEFAULT_MODE_ICON, ModeError
+
+            _validate_mode_mutation(req, require_name=True)
+            mm = _get_mode_manager()
+            try:
+                name = mm.create_mode(
+                    req.name,
+                    description=req.description or "",
+                    icon=req.icon or DEFAULT_MODE_ICON,
+                    tools=req.tools or {},
+                    skills=req.skills or {},
+                    prompts=req.prompts or {},
+                )
+            except ModeError as error:
+                _raise_mode_mutation_error(error)
+            _refresh_mode_buttons()
+            return _serialize_mode(name, mm.get_mode(name), mm)
+
+        @app.put("/api/modes/{name}")
+        def api_update_mode(name: str, req: ModeMutationRequest):
+            from ...modes import ModeError
+
+            _validate_mode_mutation(req)
+            mm = _get_mode_manager()
+            was_active = mm.get_active_mode_name() == name
+            try:
+                updated_name = mm.update_mode(
+                    name,
+                    new_name=req.name,
+                    description=req.description,
+                    icon=req.icon,
+                    tools=req.tools,
+                    skills=req.skills,
+                    prompts=req.prompts,
+                )
+            except ModeError as error:
+                _raise_mode_mutation_error(error)
+            if was_active:
+                _refresh_active_mode()
+            else:
+                _refresh_mode_buttons()
+            return _serialize_mode(
+                updated_name, mm.get_mode(updated_name), mm
+            )
+
+        @app.delete("/api/modes/{name}")
+        def api_delete_mode(name: str):
+            from ...modes import BUILT_IN_MODE_NAMES
+
+            mm = _get_mode_manager()
+            if mm.get_mode(name) is None:
+                raise HTTPException(
+                    status_code=404, detail=f"Mode '{name}' not found"
+                )
+            if name in BUILT_IN_MODE_NAMES:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Built-in mode '{name}' cannot be deleted",
+                )
+            was_active = mm.get_active_mode_name() == name
+            mm.delete_mode(name)
+            if was_active:
+                _refresh_active_mode()
+            else:
+                _refresh_mode_buttons()
+            return {"status": "ok", "mode": mm.get_active_mode_name()}
+
+        @app.post("/api/modes/set-active")
+        def api_set_active_mode(req: SetActiveModeRequest):
+            mm = _get_mode_manager()
+            try:
+                mm.set_active_mode(req.mode)
+            except ValueError:
+                raise HTTPException(status_code=404, detail=f"Mode '{req.mode}' not found")
+            # Propagate skill overrides and rebuild prompts/tools so the next
+            # generation reflects the newly active mode. Mirrors the desktop
+            # ModeButton._on_mode_activated and ChatInterface._cmd_mode flows.
+            _refresh_active_mode()
+            return {"status": "ok"}
+
+        # ============================================================ #
+        #                        EXTENSIONS                             #
+        # ============================================================ #
+        def _flatten_extra_settings(extra_settings, section=None):
+            """Flatten nested handler settings while retaining section labels."""
+            flattened = []
+            for setting in extra_settings or []:
+                if not isinstance(setting, dict):
+                    continue
+                if setting.get("type") == "nested":
+                    nested_section = setting.get("title") or section
+                    flattened.extend(
+                        _flatten_extra_settings(
+                            setting.get("extra_settings", []), nested_section
+                        )
+                    )
+                    continue
+                entry = dict(setting)
+                if section:
+                    entry["section"] = section
+                flattened.append(entry)
+            return flattened
+
+        def _find_extra_setting(extra_settings, key):
+            for setting in extra_settings or []:
+                if not isinstance(setting, dict):
+                    continue
+                if setting.get("key") == key:
+                    return setting
+                if setting.get("type") == "nested":
+                    found = _find_extra_setting(
+                        setting.get("extra_settings", []), key
+                    )
+                    if found is not None:
+                        return found
+            return None
+
+        def _serialize_extra_settings(extra_settings, get_value):
+            """Map a handler's extra_settings list to the JSON shape the WebUI renders.
+
+            ``extra_settings`` is a list of dicts (Newelle's canonical setting format).
+            ``get_value`` is a callable taking the setting key and returning the
+            current value. Mirrors api_get_tts_settings.
+            """
+            result = []
+            for s in _flatten_extra_settings(extra_settings):
+                entry = {
+                    "key": s.get("key", ""),
+                    "title": s.get("title", ""),
+                    "description": s.get("description", ""),
+                    "type": s.get("type", "entry"),
+                }
+                for field in (
+                    "default", "values", "password", "min", "max", "step",
+                    "round-digits", "website", "folder", "section", "label",
+                    "icon", "is_installed",
+                ):
+                    if field in s:
+                        entry[field] = s[field]
+                value = get_value(entry["key"])
+                entry["value"] = entry.get("default") if value is None else value
+                if entry["type"] in ("button", "download"):
+                    entry["action"] = True
+                    entry["has_refresh"] = callable(s.get("refresh"))
+                if entry["type"] == "download" and callable(
+                    s.get("download_percentage")
+                ):
+                    try:
+                        entry["progress"] = s["download_percentage"](None)
+                    except Exception:
+                        entry["progress"] = 0
+                result.append(entry)
+            return result
+
+        def _provider_category(category):
+            from ...constants import (
+                AVAILABLE_EMBEDDINGS,
+                AVAILABLE_IMAGE_GENERATORS,
+                AVAILABLE_LLMS,
+                AVAILABLE_MEMORIES,
+                AVAILABLE_RAGS,
+                AVAILABLE_WEBSEARCH,
+            )
+
+            categories = {
+                "embedding": {
+                    "providers": AVAILABLE_EMBEDDINGS,
+                    "provider_key": "embedding-model",
+                    "settings_key": "embedding-settings",
+                },
+                "memory": {
+                    "providers": AVAILABLE_MEMORIES,
+                    "provider_key": "memory-model",
+                    "settings_key": "memory-settings",
+                    "enabled_key": "memory-on",
+                },
+                "rag": {
+                    "providers": AVAILABLE_RAGS,
+                    "provider_key": "rag-model",
+                    "settings_key": "rag-settings",
+                    "enabled_key": "rag-on",
+                },
+                "image-generation": {
+                    "providers": AVAILABLE_IMAGE_GENERATORS,
+                    "provider_key": "image-generator",
+                    "settings_key": "image-generator-settings",
+                },
+                "websearch": {
+                    "providers": AVAILABLE_WEBSEARCH,
+                    "provider_key": "websearch-model",
+                    "settings_key": "websearch-settings",
+                    "enabled_key": "websearch-on",
+                },
+                "secondary-llm": {
+                    "providers": AVAILABLE_LLMS,
+                    "provider_key": "secondary-language-model",
+                    "settings_key": "llm-secondary-settings",
+                    "enabled_key": "secondary-llm-on",
+                    "secondary": True,
+                },
+            }
+            config = categories.get(category)
+            if config is None:
+                raise HTTPException(
+                    status_code=404, detail="Unknown provider settings category"
+                )
+            return config
+
+        def _provider_handler(config, provider):
+            providers = config["providers"]
+            if provider not in providers:
+                raise HTTPException(status_code=404, detail="Provider not found")
+            handler = controller.handlers.get_object(
+                providers, provider, config.get("secondary", False)
+            )
+            if config["provider_key"] == "rag-model":
+                handler.set_handlers(
+                    controller.handlers.llm, controller.handlers.embedding
+                )
+            return handler
+
+        def _provider_payload(category, provider=None):
+            config = _provider_category(category)
+            selected = provider or controller.settings.get_string(
+                config["provider_key"]
+            )
+            if selected not in config["providers"]:
+                selected = next(iter(config["providers"]), "")
+            handler = _provider_handler(config, selected)
+            extra = list(handler.get_extra_settings() or [])
+            if category == "rag" and hasattr(handler, "get_index_row"):
+                extra.append(handler.get_index_row())
+
+            providers = [
+                {
+                    "key": key,
+                    "title": info.get("title", key),
+                    "description": info.get("description", ""),
+                }
+                for key, info in config["providers"].items()
+            ]
+            payload = {
+                "category": category,
+                "provider": selected,
+                "providers": providers,
+                "enabled": (
+                    controller.settings.get_boolean(config["enabled_key"])
+                    if config.get("enabled_key")
+                    else None
+                ),
+                "settings": _serialize_extra_settings(
+                    extra, lambda key: handler.get_setting(key)
+                ),
+                "models": [],
+                "details": {},
+            }
+            if category == "secondary-llm" and hasattr(
+                handler, "get_models_list"
+            ):
+                try:
+                    payload["models"] = [
+                        {
+                            "id": model[0],
+                            "name": model[1] if len(model) > 1 else model[0],
+                        }
+                        for model in handler.get_models_list()
+                    ]
+                except Exception:
+                    payload["models"] = []
+                payload["details"] = {
+                    "use_for_vision": controller.settings.get_boolean(
+                        "secondary-llm-vision"
+                    )
+                }
+            elif category == "rag":
+                payload["details"] = {
+                    "use_for_unsupported": controller.settings.get_boolean(
+                        "rag-on-documents"
+                    ),
+                    "documents_context_limit": controller.settings.get_int(
+                        "documents-context-limit"
+                    ),
+                    "custom_document_folders": controller.settings.get_strv(
+                        "custom-document-folders"
+                    ),
+                    "documents_path": getattr(handler, "documents_path", ""),
+                }
+            return payload
+
+        @app.get("/api/provider-settings/{category}")
+        def api_get_provider_settings(category: str, provider: Optional[str] = None):
+            return _provider_payload(category, provider)
+
+        @app.put("/api/provider-settings/{category}")
+        def api_set_provider_settings(category: str, req: ProviderSettingsRequest):
+            config = _provider_category(category)
+            selected = req.provider or controller.settings.get_string(
+                config["provider_key"]
+            )
+            handler = _provider_handler(config, selected)
+            if req.provider is not None:
+                controller.settings.set_string(config["provider_key"], selected)
+            if req.enabled is not None:
+                enabled_key = config.get("enabled_key")
+                if enabled_key is None:
+                    raise HTTPException(
+                        status_code=400, detail="Category cannot be enabled or disabled"
+                    )
+                controller.settings.set_boolean(enabled_key, req.enabled)
+
+            extra = list(handler.get_extra_settings() or [])
+            editable = {
+                setting["key"]
+                for setting in _flatten_extra_settings(extra)
+                if setting.get("type") not in ("button", "download")
+            }
+            unknown = set(req.settings) - editable
+            if unknown:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Unknown provider setting: {sorted(unknown)[0]}",
+                )
+            for key, value in req.settings.items():
+                handler.set_setting(key, value)
+
+            if category == "secondary-llm" and "use_for_vision" in req.details:
+                value = req.details["use_for_vision"]
+                if not isinstance(value, bool):
+                    raise HTTPException(
+                        status_code=400, detail="use_for_vision must be boolean"
+                    )
+                controller.settings.set_boolean("secondary-llm-vision", value)
+            elif category == "rag":
+                if "use_for_unsupported" in req.details:
+                    value = req.details["use_for_unsupported"]
+                    if not isinstance(value, bool):
+                        raise HTTPException(
+                            status_code=400,
+                            detail="use_for_unsupported must be boolean",
+                        )
+                    controller.settings.set_boolean("rag-on-documents", value)
+                if "documents_context_limit" in req.details:
+                    value = req.details["documents_context_limit"]
+                    if not isinstance(value, int) or not 0 <= value <= 50000:
+                        raise HTTPException(
+                            status_code=400,
+                            detail="documents_context_limit must be between 0 and 50000",
+                        )
+                    controller.settings.set_int("documents-context-limit", value)
+                if "custom_document_folders" in req.details:
+                    folders = req.details["custom_document_folders"]
+                    if not isinstance(folders, list) or not all(
+                        isinstance(folder, str) and folder.strip()
+                        for folder in folders
+                    ):
+                        raise HTTPException(
+                            status_code=400,
+                            detail="custom_document_folders must contain non-empty paths",
+                        )
+                    controller.settings.set_strv(
+                        "custom-document-folders",
+                        list(dict.fromkeys(folder.strip() for folder in folders)),
+                    )
+
+            controller.update_settings()
+            return _provider_payload(category, selected)
+
+        @app.post("/api/provider-settings/{category}/action")
+        def api_run_provider_setting_action(
+            category: str, req: ProviderActionRequest
+        ):
+            config = _provider_category(category)
+            selected = req.provider or controller.settings.get_string(
+                config["provider_key"]
+            )
+            handler = _provider_handler(config, selected)
+            extra = list(handler.get_extra_settings() or [])
+            if category == "rag" and hasattr(handler, "get_index_row"):
+                extra.append(handler.get_index_row())
+            setting = _find_extra_setting(extra, req.key)
+            if setting is None:
+                raise HTTPException(status_code=404, detail="Setting action not found")
+            callback = (
+                setting.get("refresh")
+                if req.action == "refresh"
+                else setting.get("callback")
+            )
+            if not callable(callback):
+                raise HTTPException(status_code=400, detail="Setting has no such action")
+            threading.Thread(target=callback, args=(None,), daemon=True).start()
+            return {"status": "ok"}
+
+        def _get_extension_loader():
+            loader = getattr(controller, "extensionloader", None)
+            if loader is None:
+                raise HTTPException(status_code=503, detail="Extensions not available")
+            return loader
+
+        @app.get("/api/extensions")
+        def api_list_extensions():
+            loader = _get_extension_loader()
+            result = []
+            for ext in loader.get_extensions():
+                try:
+                    has_settings = bool(ext.get_extra_settings())
+                except Exception:
+                    has_settings = False
+                try:
+                    installed = bool(ext.is_installed())
+                except Exception:
+                    installed = True
+                result.append({
+                    "id": ext.id,
+                    "name": getattr(ext, "name", ext.id),
+                    "description": getattr(ext, "description", ""),
+                    "enabled": ext not in loader.disabled_extensions,
+                    "installed": installed,
+                    "has_settings": has_settings,
+                })
+            return result
+
+        @app.get("/api/extensions/{extension_id}/settings")
+        def api_get_extension_settings(extension_id: str):
+            loader = _get_extension_loader()
+            ext = loader.get_extension_by_id(extension_id)
+            if ext is None:
+                raise HTTPException(status_code=404, detail="Extension not found")
+            try:
+                extra = ext.get_extra_settings()
+            except Exception:
+                extra = []
+            settings = _serialize_extra_settings(extra, lambda k: ext.get_setting(k))
+            return {"extension_id": extension_id, "settings": settings}
+
+        @app.post("/api/extensions/{extension_id}/settings")
+        def api_set_extension_settings(extension_id: str, req: ExtensionSettingsRequest):
+            loader = _get_extension_loader()
+            ext = loader.get_extension_by_id(extension_id)
+            if ext is None:
+                raise HTTPException(status_code=404, detail="Extension not found")
+            for key, value in req.settings.items():
+                ext.set_setting(key, value)
+            controller.update_settings()
+            return {"status": "ok"}
+
+        @app.post("/api/extensions/{extension_id}/set-enabled")
+        def api_set_extension_enabled(extension_id: str, req: SetExtensionEnabledRequest):
+            loader = _get_extension_loader()
+            if loader.get_extension_by_id(extension_id) is None:
+                raise HTTPException(status_code=404, detail="Extension not found")
+            if req.enabled:
+                loader.enable(extension_id)
+            else:
+                loader.disable(extension_id)
+            controller.reload_extensions({extension_id})
+            return {"status": "ok"}
+
+        @app.post("/api/extensions/add")
+        async def api_add_extension(file: UploadFile = File(...)):
+            loader = _get_extension_loader()
+            filename = file.filename or "extension.py"
+            if not filename.endswith(".py"):
+                raise HTTPException(status_code=400, detail="Extension file must be a .py file")
+            tmp = tempfile.NamedTemporaryFile(suffix=".py", delete=False)
+            try:
+                content = await file.read()
+                tmp.write(content)
+                tmp.flush()
+                tmp.close()
+                loader.add_extension(tmp.name, filename)
+                # Reload so the new extension's handlers/prompts/tools are live.
+                controller.reload_extensions()
+                new_loader = controller.extensionloader
+                new_id = None
+                base = os.path.basename(filename)
+                for ext_id, fname in new_loader.filemap.items():
+                    if fname == base:
+                        new_id = ext_id
+                        break
+                if new_id is not None:
+                    added = new_loader.get_extension_by_id(new_id)
+                    if added is not None and hasattr(added, "install"):
+                        threading.Thread(target=added.install, daemon=True).start()
+                return {"status": "ok", "id": new_id}
+            except HTTPException:
+                raise
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=str(e))
+            finally:
+                try:
+                    os.unlink(tmp.name)
+                except Exception:
+                    pass
+
+        @app.delete("/api/extensions/{extension_id}")
+        def api_delete_extension(extension_id: str):
+            loader = _get_extension_loader()
+            if loader.get_extension_by_id(extension_id) is None:
+                raise HTTPException(status_code=404, detail="Extension not found")
+            loader.remove_extension(extension_id)
+            controller.reload_extensions({extension_id})
+            return {"status": "ok"}
+
+        # ============================================================ #
+        #                           SKILLS                              #
+        # ============================================================ #
+        def _get_skill_manager():
+            sm = getattr(controller, "skill_manager", None)
+            if sm is None:
+                raise HTTPException(status_code=503, detail="Skills not available")
+            return sm
+
+        @app.get("/api/skills")
+        def api_list_skills():
+            sm = _get_skill_manager()
+            try:
+                sm.discover()
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=str(e))
+            result = []
+            for skill in sm.skills.values():
+                # The skills panel manages the Normal (profile) configuration;
+                # the active Mode may still override the value at runtime.
+                override = sm.mode_skill_overrides.get(skill.name)
+                if override not in ("enable", "remove"):
+                    override = None
+                result.append({
+                    "name": skill.name,
+                    "description": skill.description,
+                    "enabled": sm.is_skill_enabled(skill.name, apply_overrides=False),
+                    "mode_override": override,
+                    "location": skill.location,
+                    "removable": os.path.abspath(skill.base_dir).startswith(
+                        os.path.abspath(sm.skills_dirs[0])
+                    ) if sm.skills_dirs else False,
+                })
+            return result
+
+        @app.post("/api/skills/set-enabled")
+        def api_set_skill_enabled(req: SetSkillEnabledRequest):
+            sm = _get_skill_manager()
+            sm.set_skill_enabled(req.name, req.enabled)
+            return {"status": "ok"}
+
+        @app.post("/api/skills/add")
+        async def api_add_skill(file: UploadFile = File(...)):
+            import zipfile
+            import shutil
+            sm = _get_skill_manager()
+            if not sm.skills_dirs:
+                raise HTTPException(status_code=503, detail="No skills directory configured")
+
+            filename = file.filename or "skill.zip"
+            if not filename.lower().endswith(".zip"):
+                raise HTTPException(status_code=400, detail="Skill must be a .zip file")
+
+            tmp_zip = tempfile.NamedTemporaryFile(suffix=".zip", delete=False)
+            extract_dir = tempfile.mkdtemp(prefix="newelle_skill_")
+            try:
+                content = await file.read()
+                tmp_zip.write(content)
+                tmp_zip.flush()
+                tmp_zip.close()
+
+                try:
+                    with zipfile.ZipFile(tmp_zip.name) as zf:
+                        for member in zf.namelist():
+                            # Reject absolute paths and parent traversal to prevent
+                            # path-traversal attacks during extraction.
+                            norm = os.path.normpath(member)
+                            if norm.startswith("..") or os.path.isabs(norm):
+                                raise HTTPException(
+                                    status_code=400,
+                                    detail=f"Unsafe path in archive: {member}",
+                                )
+                        zf.extractall(extract_dir)
+                except zipfile.BadZipFile:
+                    raise HTTPException(status_code=400, detail="Invalid or corrupt zip file")
+
+                # Locate the directory containing SKILL.md (root, or first subdirectory).
+                source_dir = None
+                if os.path.isfile(os.path.join(extract_dir, "SKILL.md")):
+                    source_dir = extract_dir
+                else:
+                    for entry in os.listdir(extract_dir):
+                        candidate = os.path.join(extract_dir, entry)
+                        if os.path.isdir(candidate) and os.path.isfile(os.path.join(candidate, "SKILL.md")):
+                            source_dir = candidate
+                            break
+                if source_dir is None:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="No SKILL.md found in the zip (root or single subdirectory)",
+                    )
+
+                skill = sm.add_skill_from_path(source_dir)
+                if skill is None:
+                    raise HTTPException(status_code=400, detail="Failed to parse SKILL.md")
+                return {
+                    "status": "ok",
+                    "skill": {
+                        "name": skill.name,
+                        "description": skill.description,
+                        "enabled": sm.is_skill_enabled(skill.name),
+                        "location": skill.location,
+                    },
+                }
+            except HTTPException:
+                raise
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=str(e))
+            finally:
+                try:
+                    os.unlink(tmp_zip.name)
+                except Exception:
+                    pass
+                try:
+                    shutil.rmtree(extract_dir, ignore_errors=True)
+                except Exception:
+                    pass
+
+        @app.delete("/api/skills/{skill_name}")
+        def api_delete_skill(skill_name: str):
+            sm = _get_skill_manager()
+            ok = sm.remove_skill(skill_name)
+            if not ok:
+                raise HTTPException(status_code=404, detail="Skill not found")
+            return {"status": "ok"}
+
+        # ============================================================ #
+        #                       STT SETTINGS                            #
+        # ============================================================ #
+        @app.get("/api/stt/providers")
+        def api_list_stt_providers():
+            from ...constants import AVAILABLE_STT
+            result = []
+            for key, info in AVAILABLE_STT.items():
+                result.append({
+                    "key": key,
+                    "title": info.get("title", key),
+                    "description": info.get("description", ""),
+                    "primary": info.get("primary", True),
+                    "secondary": info.get("secondary", False),
+                    "wakeword": info.get("wakeword", False),
+                    "website": info.get("website"),
+                })
+            return result
+
+        @app.get("/api/stt/status")
+        def api_stt_status():
+            ns = controller.newelle_settings
+            secondary_on = bool(getattr(ns, "use_secondary_stt", False))
+            secondary_provider = getattr(ns, "secondary_stt_engine", "") if secondary_on else ""
+            wakeword_engine = getattr(ns, "wakeword_engine", "")
+            return {
+                "provider": getattr(ns, "stt_engine", ""),
+                "secondary_on": secondary_on,
+                "secondary_provider": secondary_provider,
+                "wakeword_engine": wakeword_engine,
+            }
+
+        @app.post("/api/stt/set-provider")
+        def api_set_stt_provider(req: SetSttProviderRequest):
+            from ...constants import AVAILABLE_STT
+            if req.provider not in AVAILABLE_STT:
+                raise HTTPException(status_code=400, detail="Unknown provider")
+            if not AVAILABLE_STT[req.provider].get("primary", True):
+                raise HTTPException(status_code=400, detail="Provider cannot be used as primary STT")
+            controller.settings.set_string("stt-engine", req.provider)
+            controller.update_settings()
+            return {"status": "ok"}
+
+        @app.get("/api/stt/settings")
+        def api_get_stt_settings(provider: Optional[str] = None):
+            target = provider or getattr(controller.newelle_settings, "stt_engine", "")
+            from ...constants import AVAILABLE_STT
+            if target not in AVAILABLE_STT:
+                raise HTTPException(status_code=404, detail="Provider not found")
+            handler_class = AVAILABLE_STT[target]["class"]
+            handler = handler_class(controller.settings, controller.handlers.directory)
+            extra = handler.get_extra_settings_list() if hasattr(handler, "get_extra_settings_list") else handler.get_extra_settings()
+            settings = _serialize_extra_settings(extra, lambda k: handler.get_setting(k))
+            return {"provider": target, "settings": settings}
+
+        @app.post("/api/stt/settings")
+        def api_set_stt_settings(req: SetSttSettingsRequest):
+            provider = req.provider or getattr(controller.newelle_settings, "stt_engine", "")
+            from ...constants import AVAILABLE_STT
+            if provider not in AVAILABLE_STT:
+                raise HTTPException(status_code=400, detail="Unknown provider")
+            handler_class = AVAILABLE_STT[provider]["class"]
+            handler = handler_class(controller.settings, controller.handlers.directory)
+            for key, value in req.settings.items():
+                handler.set_setting(key, value)
+            controller.update_settings()
             return {"status": "ok"}
 
         # ============================================================ #
@@ -848,6 +1897,8 @@ class GUIAPIInterface(Interface):
                     "title": info.get("title", key),
                     "description": info.get("description", ""),
                     "secondary": info.get("secondary", False),
+                    "duplicated": info.get("duplicated", False),
+                    "source": info.get("source", ""),
                 })
             return result
 
@@ -985,6 +2036,99 @@ class GUIAPIInterface(Interface):
             controller.update_settings()
             return {"status": "ok"}
 
+        def _serialize_duplication_setting(setting, values: dict) -> Optional[dict]:
+            """Serialize a duplication setting (dict or ExtraSettings object)."""
+            if isinstance(setting, dict):
+                entry = {
+                    "key": setting.get("key", ""),
+                    "title": setting.get("title", ""),
+                    "description": setting.get("description", ""),
+                    "type": setting.get("type", "entry"),
+                }
+                if "default" in setting:
+                    entry["default"] = setting["default"]
+                if "values" in setting:
+                    entry["values"] = setting["values"]
+                if "password" in setting:
+                    entry["password"] = setting["password"]
+                if "min" in setting:
+                    entry["min"] = setting["min"]
+                if "max" in setting:
+                    entry["max"] = setting["max"]
+                if "step" in setting:
+                    entry["step"] = setting["step"]
+                if "round-digits" in setting:
+                    entry["round-digits"] = setting["round-digits"]
+            elif hasattr(setting, "key"):
+                entry = {
+                    "key": setting.key,
+                    "title": setting.title,
+                    "description": setting.description,
+                    "type": type(setting).__name__,
+                }
+                if hasattr(setting, "default"):
+                    entry["default"] = setting.default
+                if hasattr(setting, "values"):
+                    entry["values"] = setting.values
+                if hasattr(setting, "password"):
+                    entry["password"] = setting.password
+            else:
+                return None
+            entry["value"] = values.get(entry["key"], entry.get("default"))
+            return entry
+
+        @app.get("/api/llm/duplicable")
+        def api_list_duplicable_llms():
+            result = []
+            for key, descriptor, settings in controller.handlers.get_duplicable_llms():
+                flat_settings = []
+                pending = list(settings)
+                while pending:
+                    setting = pending.pop(0)
+                    if isinstance(setting, dict) and setting.get("type") == "nested":
+                        pending[0:0] = setting.get("extra_settings", [])
+                        continue
+                    entry = _serialize_duplication_setting(setting, {})
+                    if entry is not None:
+                        flat_settings.append(entry)
+                result.append({
+                    "key": key,
+                    "title": descriptor.get("title", key),
+                    "description": descriptor.get("description", ""),
+                    "settings": flat_settings,
+                })
+            return result
+
+        class DuplicateLlmRequest(BaseModel):
+            source: str
+            key: str
+            title: str
+            description: str = ""
+            values: dict = Field(default_factory=dict)
+
+        @app.post("/api/llm/duplicate")
+        def api_duplicate_llm(req: DuplicateLlmRequest):
+            try:
+                controller.handlers.duplicate_llm(
+                    req.source, req.key, req.title, req.description, req.values
+                )
+            except ValueError as error:
+                raise HTTPException(status_code=400, detail=str(error))
+            controller.update_settings()
+            return {"status": "ok", "key": req.key}
+
+        @app.delete("/api/llm/providers/{key}")
+        def api_delete_llm_provider(key: str):
+            from ...constants import AVAILABLE_LLMS
+            descriptor = AVAILABLE_LLMS.get(key)
+            if descriptor is None:
+                raise HTTPException(status_code=404, detail="Provider not found")
+            if not descriptor.get("duplicated", False):
+                raise HTTPException(status_code=400, detail="Only duplicated LLM handlers can be deleted")
+            controller.handlers.delete_duplicated_llm(key)
+            controller.update_settings()
+            return {"status": "ok"}
+
         # ============================================================ #
         #                    SETTINGS HELPERS                           #
         # ============================================================ #
@@ -997,8 +2141,157 @@ class GUIAPIInterface(Interface):
         def api_patch_settings(req: PatchSettingsRequest):
             from ...utility.profile_settings import restore_settings_from_dict
             restore_settings_from_dict(controller.settings, req.settings)
+            if set(req.settings) & {
+                "command-execution-permissions",
+                "path-security-levels",
+                "default-risk-level",
+            }:
+                from ...utility.command_permissions import CommandPermissionManager
+                CommandPermissionManager.invalidate_cache()
             controller.update_settings()
             return {"status": "ok"}
+
+        def _load_json_list_setting(key, fallback):
+            try:
+                value = json.loads(controller.settings.get_string(key))
+            except (json.JSONDecodeError, TypeError):
+                value = fallback
+            return value if isinstance(value, list) else fallback
+
+        def _permissions_payload():
+            return {
+                "auto_run": controller.settings.get_boolean("auto-run"),
+                "max_run_times": controller.settings.get_int("max-run-times"),
+                "default_action": controller.settings.get_string(
+                    "default-risk-level"
+                ) or "ask",
+                "file_rules": _load_json_list_setting(
+                    "file-permissions",
+                    [
+                        {"path": "*", "read": "allow", "write": "ask"},
+                        {
+                            "path": "{{main_path}}",
+                            "read": "allow",
+                            "write": "ask",
+                        },
+                    ],
+                ),
+                "command_rules": _load_json_list_setting(
+                    "command-execution-permissions", []
+                ),
+                "path_rules": _load_json_list_setting(
+                    "path-security-levels",
+                    [
+                        {"path": "{{main_path}}", "level": "trusted"},
+                        {"path": "/tmp", "level": "sandboxed"},
+                    ],
+                ),
+            }
+
+        @app.get("/api/permissions")
+        def api_get_permissions():
+            return _permissions_payload()
+
+        @app.put("/api/permissions")
+        def api_set_permissions(req: PermissionSettingsRequest):
+            actions = {"allow", "ask", "block"}
+            path_levels = {"yolo", "trusted", "sandboxed", "restricted"}
+
+            if req.auto_run is not None:
+                if not isinstance(req.auto_run, bool):
+                    raise HTTPException(
+                        status_code=400, detail="auto_run must be boolean"
+                    )
+                controller.settings.set_boolean("auto-run", req.auto_run)
+            if req.max_run_times is not None:
+                if (
+                    not isinstance(req.max_run_times, int)
+                    or not 0 <= req.max_run_times <= 30
+                ):
+                    raise HTTPException(
+                        status_code=400,
+                        detail="max_run_times must be between 0 and 30",
+                    )
+                controller.settings.set_int("max-run-times", req.max_run_times)
+            if req.default_action is not None:
+                if req.default_action not in actions:
+                    raise HTTPException(
+                        status_code=400, detail="Invalid default action"
+                    )
+                controller.settings.set_string(
+                    "default-risk-level", req.default_action
+                )
+
+            if req.file_rules is not None:
+                if not isinstance(req.file_rules, list):
+                    raise HTTPException(
+                        status_code=400, detail="file_rules must be a list"
+                    )
+                for rule in req.file_rules:
+                    if (
+                        not isinstance(rule, dict)
+                        or not isinstance(rule.get("path"), str)
+                        or not rule["path"].strip()
+                        or rule.get("read") not in actions
+                        or rule.get("write") not in actions
+                    ):
+                        raise HTTPException(
+                            status_code=400, detail="Invalid file permission rule"
+                        )
+                controller.settings.set_string(
+                    "file-permissions", json.dumps(req.file_rules)
+                )
+
+            if req.command_rules is not None:
+                if not isinstance(req.command_rules, list):
+                    raise HTTPException(
+                        status_code=400, detail="command_rules must be a list"
+                    )
+                for rule in req.command_rules:
+                    if (
+                        not isinstance(rule, dict)
+                        or not isinstance(rule.get("pattern"), str)
+                        or rule.get("action") not in actions
+                    ):
+                        raise HTTPException(
+                            status_code=400,
+                            detail="Invalid command permission rule",
+                        )
+                    try:
+                        re.compile(rule["pattern"])
+                    except re.error as error:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Invalid command pattern: {error}",
+                        )
+                controller.settings.set_string(
+                    "command-execution-permissions",
+                    json.dumps(req.command_rules),
+                )
+
+            if req.path_rules is not None:
+                if not isinstance(req.path_rules, list):
+                    raise HTTPException(
+                        status_code=400, detail="path_rules must be a list"
+                    )
+                for rule in req.path_rules:
+                    if (
+                        not isinstance(rule, dict)
+                        or not isinstance(rule.get("path"), str)
+                        or not rule["path"].strip()
+                        or rule.get("level") not in path_levels
+                    ):
+                        raise HTTPException(
+                            status_code=400, detail="Invalid path security rule"
+                        )
+                controller.settings.set_string(
+                    "path-security-levels", json.dumps(req.path_rules)
+                )
+
+            from ...utility.command_permissions import CommandPermissionManager
+            CommandPermissionManager.invalidate_cache()
+            controller.update_settings()
+            return _permissions_payload()
 
         # ============================================================ #
         #                       SSE STREAMING                           #
@@ -1057,10 +2350,18 @@ class GUIAPIInterface(Interface):
                         pending_interactions[interaction_id]["event"].wait()
                         output = result.get_output() if hasattr(result, 'get_output') else str(result)
                         del pending_interactions[interaction_id]
-                        q.put(("tool", {"tool": tool_name, "output": output}))
+                        q.put(("tool", {
+                            "tool": tool_name,
+                            "output": output,
+                            "display_text": getattr(result, "display_text", None),
+                        }))
                     else:
                         output = result.get_output() if hasattr(result, 'get_output') else str(result)
-                        q.put(("tool", {"tool": tool_name, "output": output}))
+                        q.put(("tool", {
+                            "tool": tool_name,
+                            "output": output,
+                            "display_text": getattr(result, "display_text", None),
+                        }))
 
                 try:
                     controller.run_llm_with_tools(
@@ -1315,6 +2616,147 @@ class GUIAPIInterface(Interface):
                     pass
 
         # ============================================================ #
+        #                          IMAGES                               #
+        # ============================================================ #
+        # Image codeblocks use the Newelle format:
+        #     ```image
+        #     <path-or-data-url-or-url>
+        #     ```
+        # Uploaded images are stored in a per-chat directory and served back
+        # ONLY when the requested path appears inside an ```image``` (or
+        # ```video```) block within that chat's history, so the API never
+        # exposes arbitrary files on disk.
+        _IMAGE_BLOCK_RE = re.compile(r"```(?:image|video|file)\s*\n(.*?)```", re.DOTALL)
+        # Tool calls whose arguments carry a media path. Maps tool name to the
+        # argument key that holds the path.
+        _MEDIA_TOOL_ARGS = {
+            "show_image": ("image_path_or_url", "path", "image_path"),
+            "read_image": ("path", "image_path", "image_path_or_url"),
+            "show_video": ("video_path", "path"),
+            "generate_image": ("output_path", "path", "image_path"),
+            "image_generator": ("output_path", "path", "image_path"),
+        }
+        _ALLOWED_IMAGE_EXTS = {
+            ".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".svg",
+            ".mp4", ".mkv", ".webm", ".avi", ".mov",
+        }
+
+        def _chat_images_dir(chat_id):
+            return os.path.join(controller.config_dir, "chat_images", str(chat_id))
+
+        def _is_media_path(line):
+            """True if a string looks like a media filesystem path (not a data/URL)."""
+            if not line or line.startswith(("data:", "http://", "https://")):
+                return False
+            _, ext = os.path.splitext(line.lower())
+            return ext in _ALLOWED_IMAGE_EXTS
+
+        def _image_payload_lines_in_chat(chat_id):
+            """Return the set of filesystem paths referenced by media anywhere
+            in the chat's message history. Used as the allow-list for the
+            image-serving endpoint so only media actually shown in the chat
+            can be fetched.
+
+            Sources scanned:
+              - ```image / ```video / ```file codeblocks
+              - File-attachment messages (User="File")
+              - Arguments of known media tools (show_image, read_image, ...)
+            """
+            paths = set()
+            chat = None
+            try:
+                chat = controller.get_chat_by_id(chat_id)
+            except Exception:
+                chat = None
+            if not chat:
+                return paths
+            for msg in chat:
+                if not isinstance(msg, dict):
+                    continue
+                message = msg.get("Message")
+                if not isinstance(message, str):
+                    continue
+                # 1) image/video/file codeblocks
+                for block in _IMAGE_BLOCK_RE.finditer(message):
+                    for line in block.group(1).splitlines():
+                        line = line.strip()
+                        if line and not line.startswith(("data:", "http://", "https://")):
+                            paths.add(os.path.abspath(line))
+                # 2) File-attachment messages: "User" is "File", Message is the path
+                if msg.get("User") == "File":
+                    fp = message.strip()
+                    if fp and not fp.startswith(("data:", "http://", "https://")):
+                        paths.add(os.path.abspath(fp))
+                # 3) Tool-call JSON arguments for known media tools.
+                #    Tool calls are embedded as ```json blocks containing
+                #    {"name": "...", "arguments": {...}}.
+                for m in re.finditer(r'"(?:name|tool)"\s*:\s*"([\w]+)"', message):
+                    tool_name = m.group(1)
+                    if tool_name not in _MEDIA_TOOL_ARGS:
+                        continue
+                    arg_keys = _MEDIA_TOOL_ARGS[tool_name]
+                    for key in arg_keys:
+                        for am in re.finditer(
+                            rf'"{re.escape(key)}"\s*:\s*"([^"]+)"', message
+                        ):
+                            val = am.group(1).strip()
+                            if val and not val.startswith(("data:", "http://", "https://")):
+                                paths.add(os.path.abspath(val))
+            return paths
+
+        @app.post("/api/chats/{chat_id}/images")
+        async def api_upload_chat_image(chat_id: int, file: UploadFile = File(...)):
+            if chat_id not in controller.chats:
+                raise HTTPException(status_code=404, detail="Chat not found")
+            filename = file.filename or "image"
+            _, ext = os.path.splitext(filename)
+            ext = ext.lower()
+            if ext not in _ALLOWED_IMAGE_EXTS:
+                # Fall back to a reasonable default if the upload had no/unknown ext.
+                ext = ".png"
+            images_dir = _chat_images_dir(chat_id)
+            os.makedirs(images_dir, exist_ok=True)
+            stored_name = f"{uuid.uuid4().hex[:12]}{ext}"
+            dest = os.path.join(images_dir, stored_name)
+            try:
+                content = await file.read()
+                with open(dest, "wb") as f:
+                    f.write(content)
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=str(e))
+            return {"path": dest}
+
+        @app.get("/api/chats/{chat_id}/image")
+        def api_get_chat_image(chat_id: int, path: str = Query(...)):
+            if chat_id not in controller.chats:
+                raise HTTPException(status_code=404, detail="Chat not found")
+            if not path:
+                raise HTTPException(status_code=400, detail="Missing path")
+            # data: URLs and remote URLs are never served here.
+            if path.startswith("data:") or path.startswith("http://") or path.startswith("https://"):
+                raise HTTPException(status_code=403, detail="Unsupported image reference")
+            target = os.path.abspath(path)
+            allowed = _image_payload_lines_in_chat(chat_id)
+            if target not in allowed:
+                raise HTTPException(status_code=403, detail="Image is not part of this chat")
+            if not os.path.isfile(target):
+                raise HTTPException(status_code=404, detail="Image file not found")
+            try:
+                with open(target, "rb") as f:
+                    data = f.read()
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=str(e))
+            _, ext = os.path.splitext(target.lower())
+            content_type_map = {
+                ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+                ".webp": "image/webp", ".gif": "image/gif", ".bmp": "image/bmp",
+                ".svg": "image/svg+xml", ".mp4": "video/mp4", ".webm": "video/webm",
+                ".mov": "video/quicktime", ".mkv": "video/x-matroska", ".avi": "video/x-msvideo",
+            }
+            content_type = content_type_map.get(ext, "application/octet-stream")
+            return Response(content=data, media_type=content_type)
+
+        # ============================================================ #
         #                 OPENAI-COMPATIBLE CHAT ENDPOINT               #
         # ============================================================ #
         class ChatMessage(BaseModel):
@@ -1413,8 +2855,9 @@ class GUIAPIInterface(Interface):
 # ================================================================== #
 def _get_window(controller):
     """Safely get the window object from the controller."""
-    if controller.ui_controller is not None and hasattr(controller.ui_controller, 'window'):
-        return controller.ui_controller.window
+    ui_controller = getattr(controller, "ui_controller", None)
+    if ui_controller is not None and hasattr(ui_controller, 'window'):
+        return ui_controller.window
     return None
 
 

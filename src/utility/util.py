@@ -5,6 +5,15 @@ import re
 import hashlib
 
 
+class _ResponseText(str):
+    """A normal string carrying JSON-safe provider state for its chat message."""
+
+    def __new__(cls, value: str, response_metadata: dict | None = None):
+        result = super().__new__(cls, value)
+        result.response_metadata = response_metadata
+        return result
+
+
 def _normalize_arguments_for_id(arguments) -> str:
     """Produce a stable string form of tool arguments for hashing.
 
@@ -76,10 +85,11 @@ def parse_assistant_native_tool_calls(
     The id for each tool call is resolved with this precedence (matching
     :func:`convert_history_openai`):
 
-    1. The id of the first not-yet-used Console row whose tool name matches
-       (this is the canonical id the tool actually executed under and that
-       must appear on the corresponding ``role: tool`` message).
-    2. An explicit ``id`` embedded in the assistant ``\\`\\`\\`json`` block.
+    1. An explicit ``id`` embedded in the assistant ``\\`\\`\\`json`` block.
+       This preserves provider IDs when parallel calls to the same tool finish
+       in a different order.
+    2. The id of the first not-yet-used Console row whose tool name matches,
+       retained as a compatibility fallback for older messages without IDs.
     3. A deterministic ``call_<hash>`` derived from
        ``(name, arguments, occurrence_index)``.
 
@@ -121,17 +131,24 @@ def parse_assistant_native_tool_calls(
             continue
         tool_args = tool_data.get("arguments", {})
 
-        tool_id: str | None = None
-        for ci, cm in following_console_msgs:
-            if ci in used_console:
-                continue
-            parsed = parse_tool_console_message(cm.get("Message", ""))
-            if parsed is not None and parsed[0] == tool_name:
-                tool_id = parsed[1]
-                used_console.add(ci)
-                break
-        if tool_id is None:
-            tool_id = _coerce_explicit_id(tool_data.get("id"))
+        tool_id = _coerce_explicit_id(tool_data.get("id"))
+        if tool_id is not None:
+            for ci, cm in following_console_msgs:
+                if ci in used_console:
+                    continue
+                parsed = parse_tool_console_message(cm.get("Message", ""))
+                if parsed is not None and parsed[1] == tool_id:
+                    used_console.add(ci)
+                    break
+        else:
+            for ci, cm in following_console_msgs:
+                if ci in used_console:
+                    continue
+                parsed = parse_tool_console_message(cm.get("Message", ""))
+                if parsed is not None and parsed[0] == tool_name:
+                    tool_id = parsed[1]
+                    used_console.add(ci)
+                    break
         if tool_id is None:
             tool_id = _make_tool_call_id(tool_name or "", tool_args, block_index)
 

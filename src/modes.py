@@ -33,7 +33,7 @@ NO_CHANGE = "no_change"
 VALID_STATES = (ENABLE, REMOVE, NO_CHANGE)
 
 # Built-in modes that every installation ships with. They are merged into the
-# stored ``modes`` setting on load if missing; "Normal" can never be deleted.
+# stored ``modes`` setting on load if missing and cannot be renamed or deleted.
 PLAN_ASSISTANT_OVERRIDE = """## Plan Mode
 
 You are operating in **Plan Mode**. In this mode you must NOT make any changes
@@ -91,11 +91,72 @@ DEFAULT_MODES = {
     },
 }
 
-# Name of the built-in mode that is always present and cannot be removed.
+# Name of the default fallback mode.
 DEFAULT_MODE_NAME = "Normal"
+
+# Shipped modes remain editable, but their names are part of the public mode
+# switcher contract and therefore cannot be renamed or deleted.
+BUILT_IN_MODE_NAMES = frozenset(DEFAULT_MODES)
 
 # Fallback icon for modes that do not declare one.
 DEFAULT_MODE_ICON = "applications-system-symbolic"
+
+# Curated symbolic icons shared by the desktop and WebUI editors.  The desktop
+# filters these through the current icon theme; the WebUI exposes the names as
+# portable identifiers even when it cannot render the native theme itself.
+MODE_ICON_CHOICES = (
+    "user-available-symbolic",
+    "user-idle-symbolic",
+    "chat-bubbles-text-symbolic",
+    "chat-symbolic",
+    "mail-unread-symbolic",
+    "emblem-favorite-symbolic",
+    "face-smile-symbolic",
+    "document-edit-symbolic",
+    "document-open-symbolic",
+    "text-x-generic-symbolic",
+    "edit-symbolic",
+    "brain-augemnted-symbolic",
+    "emoji-objects-symbolic",
+    "lightbulb-symbolic",
+    "magic-wand-symbolic",
+    "starred-symbolic",
+    "bookmark-symbolic",
+    "system-search-symbolic",
+    "applications-science-symbolic",
+    "skills-symbolic",
+    "preferences-system-symbolic",
+    "system-run-symbolic",
+    "utilities-terminal-symbolic",
+    "code-symbolic",
+    "media-playback-start-symbolic",
+    "audio-x-generic-symbolic",
+    "video-x-generic-symbolic",
+    "image-x-generic-symbolic",
+    "camera-photo-symbolic",
+    "help-browser-symbolic",
+    DEFAULT_MODE_ICON,
+)
+
+
+class ModeError(ValueError):
+    """Base class for mode mutation errors."""
+
+
+class InvalidModeNameError(ModeError):
+    """Raised when a mode name is empty or otherwise invalid."""
+
+
+class ModeAlreadyExistsError(ModeError):
+    """Raised when creating or renaming to an existing name."""
+
+
+class ModeNotFoundError(ModeError):
+    """Raised when updating a mode that does not exist."""
+
+
+class ProtectedModeError(ModeError):
+    """Raised when attempting to rename a shipped mode."""
 
 
 class ModeManager:
@@ -290,19 +351,38 @@ class ModeManager:
         return next_name
 
     def create_mode(self, name: str, description: str = "", icon: str = DEFAULT_MODE_ICON, tools: dict | None = None, skills: dict | None = None, prompts: dict | None = None):
-        """Create a new mode. Overwrites an existing mode with the same name."""
+        """Create a mode with a trimmed, unique name.
+
+        Raises :class:`InvalidModeNameError` for a blank name and
+        :class:`ModeAlreadyExistsError` when the normalized name is in use.
+        """
+        name = self._validate_name(name)
+        if name in self.modes:
+            raise ModeAlreadyExistsError(f"Mode '{name}' already exists")
         self.modes[name] = self._build_mode(
             description, icon, tools, skills, prompts
         )
         self._save_modes()
+        return name
 
-    def update_mode(self, name: str, description: str | None = None, icon: str | None = None, tools: dict | None = None, skills: dict | None = None, prompts: dict | None = None):
-        """Update fields of an existing mode. Raises ``ValueError`` if unknown.
+    def update_mode(self, name: str, description: str | None = None, icon: str | None = None, tools: dict | None = None, skills: dict | None = None, prompts: dict | None = None, new_name: str | None = None):
+        """Update and optionally atomically rename an existing mode.
 
-        ``None`` arguments leave the corresponding field untouched.
+        ``None`` arguments leave the corresponding field untouched.  A rename
+        preserves insertion order and updates ``current-mode`` when the renamed
+        mode is active.  Shipped modes can be edited but cannot be renamed.
         """
         if name not in self.modes:
-            raise ValueError(f"Mode '{name}' not found")
+            raise ModeNotFoundError(f"Mode '{name}' not found")
+
+        target_name = name if new_name is None else self._validate_name(new_name)
+        if name in BUILT_IN_MODE_NAMES and target_name != name:
+            raise ProtectedModeError(f"Built-in mode '{name}' cannot be renamed")
+        if target_name != name and target_name in self.modes:
+            raise ModeAlreadyExistsError(
+                f"Mode '{target_name}' already exists"
+            )
+
         mode = self._normalize_mode(self.modes[name])
         if description is not None:
             mode["description"] = description
@@ -314,15 +394,35 @@ class ModeManager:
             mode["skills"] = self._clean_state_map(skills)
         if prompts is not None:
             mode["prompts"] = self._clean_prompt_map(prompts)
-        self.modes[name] = mode
+        mode = self._normalize_mode(mode)
+
+        # Rebuild the mapping once so a rename cannot expose an intermediate
+        # create/delete state and retains the original switcher position.
+        if target_name == name:
+            self.modes[name] = mode
+        else:
+            self.modes = {
+                (target_name if current_name == name else current_name): (
+                    mode if current_name == name else current_mode
+                )
+                for current_name, current_mode in self.modes.items()
+            }
+            if self.active_mode == name:
+                self.active_mode = target_name
+                self.settings.set_string("current-mode", target_name)
         self._save_modes()
+        return target_name
+
+    def rename_mode(self, name: str, new_name: str) -> str:
+        """Rename ``name`` without changing its configuration."""
+        return self.update_mode(name, new_name=new_name)
 
     def delete_mode(self, name: str) -> bool:
-        """Delete a mode. The built-in Normal mode cannot be deleted.
+        """Delete a custom mode. Shipped modes cannot be deleted.
 
         Returns ``True`` if deleted, ``False`` if it was protected or unknown.
         """
-        if name == DEFAULT_MODE_NAME:
+        if name in BUILT_IN_MODE_NAMES:
             return False
         if name not in self.modes:
             return False
@@ -336,6 +436,12 @@ class ModeManager:
     # ------------------------------------------------------------------ #
     # Internal helpers
     # ------------------------------------------------------------------ #
+    @staticmethod
+    def _validate_name(name: str) -> str:
+        if not isinstance(name, str) or not name.strip():
+            raise InvalidModeNameError("Mode name cannot be blank")
+        return name.strip()
+
     @staticmethod
     def _build_mode(description, icon, tools, skills, prompts) -> dict:
         return {

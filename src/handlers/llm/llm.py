@@ -20,6 +20,15 @@ class LLMHandler(Handler):
     def get_models_list(self):
         return tuple()
 
+    def get_duplication_settings(self) -> list[dict] | None:
+        """Return settings requested when duplicating this handler.
+
+        Handlers opt in to user-created provider copies by returning extra
+        settings in the same format used by :meth:`get_extra_settings`.
+        Returning ``None`` keeps the handler out of the duplication dialog.
+        """
+        return None
+
     def get_selected_model(self):
         return self.get_setting("model")
 

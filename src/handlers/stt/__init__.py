@@ -9,6 +9,7 @@ from .groqsr_handler import GroqSRHandler
 from .openaisr_handler import OpenAISRHandler
 from .whispercpp_handler import WhisperCPPHandler
 from .openwakeword_handler import OpenWakeWordHandler
+from .mistral_stt_handler import MistralSTTHandler
 
 __all__ = [
     "STTHandler",
@@ -22,4 +23,5 @@ __all__ = [
     "OpenAISRHandler",
     "WhisperCPPHandler",
     "OpenWakeWordHandler",
+    "MistralSTTHandler",
 ]

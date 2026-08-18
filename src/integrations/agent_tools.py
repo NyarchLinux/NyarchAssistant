@@ -1,12 +1,14 @@
 import threading
 import json
+import time
 from gi.repository import Gtk, Adw, GLib, Gio
 from ..extensions import NewelleExtension
-from ..tools import Tool, ToolResult, create_io_tool
+from ..tools import Tool, ToolResult
 from ..ui.widgets.subagent import SubagentWidget
 from ..ui.widgets.scheduled_task import ScheduledTaskWidget
 from ..ui.widgets.question import QuestionWidget, RestoredQuestionWidget
 from ..ui.widgets.comborow import ComboRowHelper
+from ..ui.widgets.status import StatusWidget
 
 
 
@@ -21,6 +23,21 @@ class AgentToolsIntegration(NewelleExtension):
     @property
     def controller(self):
         return self.ui_controller.window.controller
+
+    def _available_modes(self):
+        """Return the names of all modes, or [] if the controller isn't ready yet.
+
+        Safe to call at any point in the integration lifecycle (including
+        ``get_tools()``, which runs before the UI controller is wired up).
+        """
+        try:
+            controller = self.ui_controller.window.controller
+        except AttributeError:
+            return []
+        mm = getattr(controller, "mode_manager", None)
+        if mm is None:
+            return []
+        return list(mm.get_modes().keys())
 
     def _run_subagent(self, task: str, system_prompt: str, tools: str, skills: str = "", tool_uuid=None):
         """Run a subagent with the given task, system prompt, tools and skills.
@@ -252,6 +269,102 @@ class AgentToolsIntegration(NewelleExtension):
         result.set_output(output)
         return result
 
+    def _sleep(self, seconds: float):
+        """Wait for the specified number of seconds before continuing.
+
+        Args:
+            seconds: Number of seconds to sleep. Must be non-negative.
+        """
+        if seconds < 0:
+            seconds = 0
+        message = f"Slept for {seconds} second(s)."
+        result = ToolResult()
+        widget = StatusWidget(
+            title=_("Sleeping…"),
+            icon_name="alarm-symbolic",
+            subtitle=_("Waiting for {n} second(s)").format(n=seconds),
+        )
+        result.set_widget(widget)
+
+        def wait():
+            time.sleep(seconds)
+            # Update the widget in place on the GTK main thread, then unblock
+            # get_output() so the tool loop can continue.
+            def finish():
+                widget.update(title=message, subtitle=_("Paused before continuing"))
+            GLib.idle_add(finish)
+            result.set_output(message)
+
+        thread = threading.Thread(target=wait, daemon=True)
+        thread.start()
+        return result
+
+    def _restore_sleep(self, seconds: float):
+        message = f"Slept for {seconds} second(s)."
+        result = ToolResult()
+        result.set_widget(StatusWidget(
+            title=message,
+            icon_name="alarm-symbolic",
+            subtitle=_("Paused before continuing"),
+        ))
+        result.set_output(None)
+        return result
+
+    def _switch_mode(self, mode: str):
+        """Switch the assistant to a different mode.
+
+        Args:
+            mode: Name of the mode to activate.
+        """
+        mm = getattr(self.controller, "mode_manager", None)
+        result = ToolResult()
+        if mm is None:
+            result.set_output("Error: modes are not available.")
+            return result
+        try:
+            mm.set_active_mode(mode)
+        except ValueError:
+            available = ", ".join(mm.get_modes().keys())
+            result.set_output(f"Error: mode '{mode}' not found. Available modes: {available}")
+            return result
+        # Propagate skill overrides and rebuild prompts/tools so the next run
+        # uses the new mode. Mirrors ModeButton._on_mode_activated.
+        active = mm.get_active_mode()
+        self.controller.skill_manager.set_mode_overrides(active.get("skills", {}))
+        self.controller.update_settings()
+        # Refresh every tab's Mode switcher so the UI reflects the new mode.
+        try:
+            self.controller.ui_controller.window.refresh_mode_buttons()
+        except AttributeError:
+            pass
+        description = active.get("description", "") or ""
+        result.set_output(f"Switched to mode: {mode}")
+        result.set_widget(StatusWidget(
+            title=mode,
+            icon_name=active.get("icon", "applications-system-symbolic"),
+            subtitle=description or _("Mode activated"),
+            badge=_("active"),
+        ))
+        return result
+
+    def _restore_switch_mode(self, mode: str):
+        mm = getattr(self.controller, "mode_manager", None)
+        icon_name = "applications-system-symbolic"
+        description = ""
+        if mm is not None:
+            mode_data = mm.get_mode(mode) or {}
+            icon_name = mode_data.get("icon", icon_name)
+            description = mode_data.get("description", "") or ""
+        result = ToolResult()
+        result.set_widget(StatusWidget(
+            title=mode,
+            icon_name=icon_name,
+            subtitle=description or _("Mode activated"),
+            badge=_("active"),
+        ))
+        result.set_output(None)
+        return result
+
     def get_tools(self) -> list:
         return [
             Tool(
@@ -322,6 +435,43 @@ class AgentToolsIntegration(NewelleExtension):
                 restore_func=self._restore_ask_user,
                 default_on=True,
                 icon_name="dialog-question-symbolic",
+                tools_group=_("Agent"),
+            ),
+            Tool(
+                name="sleep",
+                description=(
+                    "Wait for a specified number of seconds before continuing. "
+                    "Useful when polling or waiting for a condition to become true."
+                ),
+                func=self._sleep,
+                title="Sleep",
+                restore_func=self._restore_sleep,
+                default_on=True,
+                icon_name="alarm-symbolic",
+                tools_group=_("Agent"),
+            ),
+            Tool(
+                name="switch_mode",
+                description=(
+                    "Switch the assistant to a different mode. Modes change which tools, skills and prompts are active. "
+                    "Use this when the user asks to change mode or when another mode is better suited to the task."
+                ),
+                func=self._switch_mode,
+                schema={
+                    "type": "object",
+                    "properties": {
+                        "mode": {
+                            "type": "string",
+                            "enum": self._available_modes(),
+                            "description": "Name of the mode to activate.",
+                        },
+                    },
+                    "required": ["mode"],
+                },
+                title="Switch Mode",
+                restore_func=self._restore_switch_mode,
+                default_on=True,
+                icon_name="applications-system-symbolic",
                 tools_group=_("Agent"),
             ),
         ]

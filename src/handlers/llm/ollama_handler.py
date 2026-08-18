@@ -257,7 +257,10 @@ class OllamaHandler(LLMHandler):
 
     def get_client_headers(self) -> dict[str, str]:
         """Headers passed to the Ollama Python client."""
-        return {}
+        api_key = self.get_setting("api", False, "")
+        if api_key is None or api_key.strip() == "":
+            return {}
+        return {"Authorization": "Bearer " + api_key.strip()}
 
     def create_client(self):
         from ollama import Client
@@ -283,6 +286,7 @@ class OllamaHandler(LLMHandler):
                 )
             )
         settings += [
+            ExtraSettings.EntrySetting("api", _("API Key"), _("Ollama API key"), "", password=True),
             ExtraSettings.EntrySetting("endpoint", _("API Endpoint"), _("API base url, change this to use interference APIs"), "http://localhost:11434"),
             ExtraSettings.ToggleSetting("serve", _("Automatically Serve"), _("Automatically run ollama serve in background when needed if it's not running. You can kill it with killall ollama"), False),
             ExtraSettings.ToggleSetting("thinking", _("Enable Thinking"), _("Allow thinking in the model, only some models are supported"), True, website="https://ollama.com/search?c=thinking"),
@@ -307,6 +311,18 @@ class OllamaHandler(LLMHandler):
         settings.append(get_streaming_extra_setting())
         settings.append(ExtraSettings.ButtonSetting("update", _("Update Ollama"), _("Update Ollama"), lambda x: self.install(), _("Update Ollama")))
         return settings
+
+    def get_duplication_settings(self) -> list[dict] | None:
+        if self.key != "ollama":
+            return None
+        return [
+            ExtraSettings.EntrySetting(
+                "endpoint",
+                _("API Endpoint"),
+                _("API base URL for the Ollama instance"),
+                self.get_setting("endpoint"),
+            )
+        ]
 
     def open_library(self, button):
         from ...ui.model_library import ModelLibraryWindow
@@ -575,4 +591,3 @@ class OllamaHandler(LLMHandler):
             return full_message.strip()
         except Exception as e:
             raise e
-
