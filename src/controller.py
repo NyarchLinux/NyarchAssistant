@@ -28,6 +28,7 @@ from .utility.pip import install_module
 from .utility.profile_settings import get_settings_dict_by_groups
 from .utility.source_attribution import format_source_context
 from .constants import AVAILABLE_INTEGRATIONS, AVAILABLE_WEBSEARCH, AVAILABLE_IMAGE_GENERATORS, DIR_NAME, SCHEMA_ID, PROMPTS, AVAILABLE_STT, AVAILABLE_TTS, AVAILABLE_LLMS, AVAILABLE_RAGS, AVAILABLE_PROMPTS, AVAILABLE_MEMORIES, AVAILABLE_EMBEDDINGS, AVAILABLE_INTERFACES, SETTINGS_GROUPS, restore_handlers, restore_prompts
+from .constants import AVAILABLE_AVATARS, AVAILABLE_TRANSLATORS
 import threading
 import pickle
 import tempfile
@@ -43,6 +44,19 @@ from enum import Enum
 from .handlers import Handler
 from .handlers.handler import SettingsCache
 from .ui_controller import UIController
+
+# Nyarch Specific 
+
+from .handlers.translator import TranslatorHandler
+from .handlers.avatar import AvatarHandler
+import subprocess
+
+if is_flatpak():
+    BASE_PATH = "/app/data"
+    ACCHAN_PATH = os.path.join(BASE_PATH, "live2d/web/arch-chan.png")
+else:
+    BASE_PATH = "/usr/share/nyarchassistant/data"
+    ACCHAN_PATH = os.path.join(BASE_PATH, "live2d/web/arch-chan.png") 
 """
 Manage Newelle Application, create handlers, check integrity, manage settings...
 """
@@ -61,8 +75,7 @@ class ReloadType(Enum):
         MEMORIES: Reload MEMORIES 
         EMBEDDINGS: Reload EMBEDDINGS 
 EXTENSIONS: Reload EXTENSIONS 
-        SECONDARY_LLM: Reload SECONDARY_LLM
-        RELOAD_CHAT: Reload RELOAD_CHAT
+        SECONDARY_LLM: Reload SECONDARY_LLM RELOAD_CHAT: Reload RELOAD_CHAT
     """
     NONE = 0
     LLM = 1
@@ -82,6 +95,9 @@ EXTENSIONS: Reload EXTENSIONS
     WAKEWORD = 15
     IMAGE_GENERATOR = 16 
     COMPACT_MODE = 17
+    # Nyarch Vars
+    AVATAR = 40
+    TRANSLATORS = 42
 
 class NewelleController:
     """Main controller, manages the application
@@ -263,6 +279,8 @@ class NewelleController:
         threading.Thread(target=self.handlers.cache_handlers).start()
         self.handlers.add_tools(self.tools)
         self.load_scheduled_tasks()
+        threading.Thread(target=self.remove_cache_audio).start()
+
     def init_paths(self) -> None:
         """Define paths for the application"""
         self.config_dir = GLib.get_user_config_dir()
@@ -332,6 +350,14 @@ class NewelleController:
         self.next_chat_id = len(self.chats)
         self.folders = {}
         self.next_folder_id = 0
+    
+    def remove_cache_audio(self):
+        """Remove audio cache"""
+        audio_cache = self.models_dir
+        for filename in os.listdir(audio_cache):
+            if filename.endswith(".wav") or filename.endswith(".mp3"):
+                file_path = os.path.join(audio_cache, filename)
+                os.remove(file_path)
 
     def load_chats(self, chat_id):
         """Load chats"""
@@ -902,13 +928,15 @@ class NewelleController:
         """Create missing directories"""
         # Create directories
         if not os.path.exists(self.data_dir):
-            os.makedirs(self.data_dir)
+            os.makedirs(self.data_dir, exist_ok=True)
         if not os.path.exists(self.extension_path):
-            os.makedirs(self.extension_path)
+            os.makedirs(self.extension_path, exist_ok=True)
         if not os.path.exists(self.extensions_cache):
-            os.makedirs(self.extensions_cache)
+            os.makedirs(self.extensions_cache, exist_ok=True)
         if not os.path.exists(self.models_dir):
-            os.makedirs(self.models_dir)
+            os.makedirs(self.models_dir, exist_ok=True)
+        if not os.path.exists(os.path.join(self.config_dir, "avatars")):
+            os.makedirs(os.path.join(self.config_dir, "avatars"), exist_ok=True)
         if not os.path.exists(self.newelle_dir):
             os.makedirs(self.newelle_dir, exist_ok=True)
         if not os.path.exists(self.skills_path):
@@ -918,6 +946,11 @@ class NewelleController:
             self.python_path.append(self.pip_path)
         else:
             threading.Thread(target=self.init_pip_path, args=(self.python_path,)).start()
+
+        # Arch-chan profile image
+
+        if not os.path.exists(self.config_dir + "/profiles/arch-chan.png"):
+            subprocess.run(["wget", "-O", self.config_dir + "/profiles/arch-chan.png", "https://nyarchlinux.moe/acchan.png"])
 
     def init_pip_path(self, path):
         """Install a pip module to init a pip path"""
@@ -1089,6 +1122,8 @@ class NewelleController:
             if ReloadType.MEMORIES:
                 self.require_tool_update()
             self.handlers.select_handlers(self.newelle_settings)
+        elif reload_type in [ReloadType.AVATAR, ReloadType.TRANSLATORS]:
+            self.handlers.select_handlers(self.newelle_settings)
         elif reload_type == ReloadType.RAG:
             self.handlers.select_handlers(self.newelle_settings)
             if self.newelle_settings.rag_on:
@@ -1112,7 +1147,6 @@ class NewelleController:
         elif reload_type == ReloadType.IMAGE_GENERATOR:
             self.handlers.select_handlers(self.newelle_settings)
             self.require_tool_update()
-
 
     def set_extensionsloader(self, extensionloader):
         """Change extension loader
@@ -1194,7 +1228,7 @@ class NewelleController:
         self.extensionloader = ExtensionLoader(self.extension_path, pip_path=self.pip_path,
                                                extension_cache=self.extensions_cache, settings=self.settings)
         self.extensionloader.load_extensions()
-        self.extensionloader.add_handlers(AVAILABLE_LLMS, AVAILABLE_TTS, AVAILABLE_STT, AVAILABLE_MEMORIES, AVAILABLE_EMBEDDINGS, AVAILABLE_RAGS, AVAILABLE_WEBSEARCH, AVAILABLE_IMAGE_GENERATORS=AVAILABLE_IMAGE_GENERATORS, AVAILABLE_INTERFACES=AVAILABLE_INTERFACES)
+        self.extensionloader.add_handlers(AVAILABLE_LLMS, AVAILABLE_TTS, AVAILABLE_STT, AVAILABLE_MEMORIES, AVAILABLE_EMBEDDINGS, AVAILABLE_RAGS, AVAILABLE_WEBSEARCH,AVAILABLE_AVATARS, AVAILABLE_TRANSLATORS, AVAILABLE_INTERFACES=AVAILABLE_INTERFACES, AVAILABLE_IMAGE_GENERATORS=AVAILABLE_IMAGE_GENERATORS)
         self.extensionloader.add_prompts(PROMPTS, AVAILABLE_PROMPTS)
         self.extensionloader.add_tools(self.tools)
         self.set_ui_controller(self.ui_controller)
@@ -2188,7 +2222,6 @@ class NewelleController:
                             tr = ToolResult()
                             tr.set_output(tool_result_output)
                             on_tool_result_callback(tool_name, tr)
-
                     console_output = tool_result_output
                     if console_output is None and tool_context_messages:
                         console_output = "Tool returned additional context."
@@ -2282,7 +2315,6 @@ class NewelleController:
             raise result_holder["error"]
         return result_holder.get("result")
 
-
 class NewelleSettings:
 
     def __init__(self, mode_manager=None):
@@ -2302,7 +2334,11 @@ class NewelleSettings:
         self.profile_settings = json.loads(self.settings.get_string("profiles"))
         self.current_profile = self.settings.get_string("current-profile")
         if len(self.profile_settings) == 0 or self.current_profile not in self.profile_settings:
-            self.profile_settings[self.current_profile] = {"settings": {}, "picture": None, "settings_groups": []}
+            if is_flatpak():
+                path = "/app/data/live2d/web/arch-chan.png"
+            else:
+                path = None
+            self.profile_settings[self.current_profile] = {"settings": {}, "picture": path, "settings_groups": []}
 
         # Init variables
         self.automatic_stt_status = False
@@ -2396,6 +2432,14 @@ class NewelleSettings:
         self.image_generator_settings = self.settings.get_string("image-generator-settings")
         self.hide_warning = settings.get_boolean("hide-warning")
         self.load_prompts()
+        # Nyarch Settings
+        self.avatar_enabled = settings.get_boolean("avatar-on")
+        self.hide_avatar_on_startup = settings.get_boolean("hide-avatar-on-startup")
+        self.avatar_settings = settings.get_string("avatars")
+        self.avatar = settings.get_string("avatar-model")
+        self.translator = settings.get_string("translator")  
+        self.translation_enabled = settings.get_boolean("translator-on")
+        self.translation_handler = settings.get_string("translator")
         # Adjust paths
         if os.path.exists(os.path.expanduser(self.main_path)):
             os.chdir(os.path.expanduser(self.main_path))
@@ -2520,6 +2564,11 @@ class NewelleSettings:
             self.secondary_stt_engine != new_settings.secondary_stt_engine or
             self.secondary_stt_settings != new_settings.secondary_stt_settings):
             reloads.append(ReloadType.WAKEWORD)
+        if self.avatar_enabled != new_settings.avatar_enabled or self.avatar_settings != new_settings.avatar_settings or self.avatar != new_settings.avatar:
+            reloads.append(ReloadType.AVATAR)
+        if self.translator != new_settings.translator or self.translation_enabled != new_settings.translation_enabled or self.translation_handler != new_settings.translation_handler:
+            reloads.append(ReloadType.TRANSLATORS)
+
         # Check prompts
         if len(self.prompts) != len(new_settings.prompts):
             reloads.append(ReloadType.PROMPTS)
@@ -2834,7 +2883,8 @@ class HandlersManager:
 
     def destroy(self):
         for handler in self.handlers.values():
-            handler.destroy()
+            if handler.schema_key != "avatars":
+                handler.destroy()
         for interface in self.interfaces.values():
             interface.stop()
 
@@ -2883,7 +2933,11 @@ class HandlersManager:
             newelle_settings.websearch_model = list(AVAILABLE_WEBSEARCH.keys())[0]
         if newelle_settings.image_generator not in AVAILABLE_IMAGE_GENERATORS:
             newelle_settings.image_generator = list(AVAILABLE_IMAGE_GENERATORS.keys())[0]
-      
+        if newelle_settings.avatar not in AVAILABLE_AVATARS:
+            newelle_settings.avatar = list(AVAILABLE_AVATARS.keys())[0]
+        if newelle_settings.translator not in AVAILABLE_TRANSLATORS:
+            newelle_settings.translator = list(AVAILABLE_TRANSLATORS.keys())[0]
+    
     def set_ui_controller(self, ui_controller):
         self.ui_controller = ui_controller
 
@@ -2918,6 +2972,9 @@ class HandlersManager:
         self.websearch : WebSearchHandler = self.get_object(AVAILABLE_WEBSEARCH, newelle_settings.websearch_model)
         self.image_generator : ImageGeneratorHandler = self.get_object(AVAILABLE_IMAGE_GENERATORS, newelle_settings.image_generator)
         self.refresh_interfaces(auto_start=not skip_auto_start_interfaces)
+        self.avatar : AvatarHandler = self.get_object(AVAILABLE_AVATARS, newelle_settings.avatar)
+        self.translator : TranslatorHandler = self.get_object(AVAILABLE_TRANSLATORS, newelle_settings.translator)
+
         # Assign handlers 
         self.integrationsloader.set_handlers(self.llm, self.stt, self.tts, self.secondary_llm, self.embedding, self.rag, self.memory, self.websearch)
         self.extensionloader.set_handlers(self.llm, self.stt, self.tts, self.secondary_llm, self.embedding, self.rag, self.memory, self.websearch)
@@ -3153,8 +3210,7 @@ class HandlersManager:
             self.secondary_llm.load_model(None)
         self.embedding.load_model()
         if self.settings.get_boolean("rag-on"):
-            self.rag.load()
-        
+            GLib.timeout_add(2000, lambda : threading.Thread(target=self.rag.load).start())
 
     def install_missing_handlers(self):
         """Install selected handlers that are not installed. Assumes that select_handlers has been called""" 
@@ -3196,6 +3252,11 @@ class HandlersManager:
             self.handlers[(key, self.convert_constants(AVAILABLE_INTERFACES), False)] = self.get_object(AVAILABLE_INTERFACES, key)
         for key in AVAILABLE_IMAGE_GENERATORS:
             self.handlers[(key, self.convert_constants(AVAILABLE_IMAGE_GENERATORS), False)] = self.get_object(AVAILABLE_IMAGE_GENERATORS, key)
+        # Nyarch Hanlders
+        for key in AVAILABLE_AVATARS:
+            self.handlers[(key, self.convert_constants(AVAILABLE_AVATARS))] = self.get_object(AVAILABLE_AVATARS, key)
+        for key in AVAILABLE_TRANSLATORS:
+            self.handlers[(key, self.convert_constants(AVAILABLE_TRANSLATORS))] = self.get_object(AVAILABLE_TRANSLATORS, key)
         self.handlers_cached.release()
     
     def convert_constants(self, constants: str | dict[str, Any]) -> (str | dict):
@@ -3233,6 +3294,10 @@ class HandlersManager:
                     return AVAILABLE_IMAGE_GENERATORS
                 case "extension":
                     return self.extensionloader.extensionsmap
+                case "avatar":
+                    return AVAILABLE_AVATARS
+                case "translator":
+                    return AVAILABLE_TRANSLATORS
                 case _:
                     raise Exception("Unknown constants")
         else:
@@ -3256,6 +3321,10 @@ class HandlersManager:
                 return "image_generator"
             elif constants == self.extensionloader.extensionsmap:
                 return "extension"
+            elif constants == AVAILABLE_AVATARS:
+                return "avatar"
+            elif constants == AVAILABLE_TRANSLATORS:
+                return "translator"
             else:
                 raise Exception("Unknown constants")
 
@@ -3293,6 +3362,10 @@ class HandlersManager:
         elif constants == AVAILABLE_WEBSEARCH:
             model = constants[key]["class"](self.settings, self.directory)
         elif constants == AVAILABLE_INTERFACES:
+            model = constants[key]["class"](self.settings, self.directory)
+        elif constants == AVAILABLE_AVATARS:
+            model = constants[key]["class"](self.settings, os.path.dirname(self.directory))
+        elif constants == AVAILABLE_TRANSLATORS:
             model = constants[key]["class"](self.settings, self.directory)
         elif constants == AVAILABLE_IMAGE_GENERATORS:
             model = constants[key]["class"](self.settings, self.directory)
@@ -3336,6 +3409,10 @@ class HandlersManager:
             return AVAILABLE_IMAGE_GENERATORS
         elif issubclass(type(handler), Interface):
             return AVAILABLE_INTERFACES
+        elif issubclass(type(handler), AvatarHandler):
+            return AVAILABLE_AVATARS
+        elif issubclass(type(handler), TranslatorHandler):
+            return AVAILABLE_TRANSLATORS
         else:
             raise Exception("Unknown handler")
     

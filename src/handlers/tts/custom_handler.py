@@ -1,7 +1,8 @@
 from subprocess import check_output
 from ...handlers import ExtraSettings
 from .tts import TTSHandler
-from ...utility.system import get_spawn_command 
+from ...utility.system import get_spawn_command
+from ...utility.strings import quote_string 
 
 
 class CustomTTSHandler(TTSHandler):
@@ -23,6 +24,6 @@ class CustomTTSHandler(TTSHandler):
     def save_audio(self, message, file):
         command = self.get_setting("command")
         if command is not None:
-            print(["bash", "-c", command.replace("{0}", file).replace("{1}", message)])
-            check_output(get_spawn_command() + ["bash", "-c", command.replace("{0}", file).replace("{1}", message)])
-        return 
+            print(["bash", "-c", command.replace("{0}", quote_string(file)).replace("{1}", quote_string(message))])
+            check_output(get_spawn_command() + ["bash", "-c", command.replace("{0}", quote_string(file)).replace("{1}", quote_string(message))])
+        return
