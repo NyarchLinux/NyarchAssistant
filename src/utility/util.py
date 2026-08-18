@@ -1,8 +1,12 @@
-from .media import get_image_base64, extract_image
-import time
+import gettext
+import hashlib
 import json
 import re
-import hashlib
+import time
+
+from .media import extract_image, get_image_base64
+
+_ = gettext.gettext
 
 
 class _ResponseText(str):
@@ -42,7 +46,7 @@ def _make_tool_call_id(name: str, arguments, occurrence_index: int = 0) -> str:
     ``[Tool: …, ID: X]`` console row keeps matching the assistant tool call
     derived from the same JSON block on the next round-trip.
     """
-    payload = f"{name or ''}|{_normalize_arguments_for_id(arguments)}|{occurrence_index}".encode("utf-8")
+    payload = f"{name or ''}|{_normalize_arguments_for_id(arguments)}|{occurrence_index}".encode()
     return "call_" + hashlib.sha1(payload).hexdigest()[:24]
 
 
@@ -758,7 +762,7 @@ def override_prompts(override_setting, PROMPTS):
     return prompt_list
 
 
-class PerformanceMonitor():
+class PerformanceMonitor:
     def __init__(self) -> None:
         self.times = []
         self.names = []
