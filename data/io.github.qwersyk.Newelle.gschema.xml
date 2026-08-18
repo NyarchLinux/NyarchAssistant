@@ -29,6 +29,9 @@
         <key name="compact-mode" type="b">
             <default>false</default>
         </key>
+        <key name="compact-input-bar" type="b">
+            <default>false</default>
+        </key>
         <key name="path" type="s">
             <default>"~"</default>
         </key>

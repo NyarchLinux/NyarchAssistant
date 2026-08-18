@@ -49,6 +49,8 @@ class MiniWindow(Gtk.Window):
             self.chat_panel.unparent()
             self.original_parent.append(self.placeholder)
         self.main_box.append(self.chat_panel)
+        # The mini window always uses the compact input bar, whatever the setting
+        self.main_window._apply_compact_input_bar(True)
 
     def _on_key_pressed(self, controller, keyval, keycode, state):
         if keyval == Gdk.KEY_Escape:
@@ -69,5 +71,7 @@ class MiniWindow(Gtk.Window):
 
             self.chat_panel = None
             self.original_parent = None
+            # Give each tab back the layout chosen in the settings
+            self.main_window._refresh_compact_input_bar()
 
         return False

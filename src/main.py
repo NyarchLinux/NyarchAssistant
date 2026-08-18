@@ -352,7 +352,7 @@ class MyApp(Adw.Application):
         self.win.show_stdout_monitor_dialog()
     
     def close_window(self, *a):
-        if hasattr(self,"mini_win"):
+        if getattr(self, "mini_win", None) is not None and self.mini_win.get_visible():
             self.mini_win.close()
         if all(element.poll() is not None for element in self.win.streams):
             settings = Gio.Settings.new('io.github.qwersyk.Newelle')
@@ -412,10 +412,21 @@ class MyApp(Adw.Application):
 
     def show_mini_window(self, *args):
         """Open the mini window hosting the chat panel of the main window"""
-        if hasattr(self, "mini_win"):
+        if getattr(self, "mini_win", None) is not None and self.mini_win.get_visible():
             self.mini_win.close()
         self.mini_win = MiniWindow(application=self, main_window=self.win)
         self.mini_win.present()
+
+    def toggle_mini_window(self, *a):
+        """Switch between the mini window and the full window"""
+        if getattr(self, "mini_win", None) is not None and self.mini_win.is_active():
+            # From the mini window: give the panel back and show the full window
+            self.mini_win.close()
+            self.win.present()
+        else:
+            # From the full window: host the chat panel in the mini window instead
+            self.show_mini_window()
+            self.win.hide()
 
     def focus_message(self, *a):
         self.win.focus_input()
@@ -540,4 +551,5 @@ def main(version):
     app.create_action('zoom', app.zoom, ['<primary>equal'])
     app.create_action('zoom_out', app.zoom_out, ['<primary>minus'])
     app.create_action('debug', app.debug, ['<primary>b'])
+    app.create_action('toggle_mini_window', app.toggle_mini_window, ['<primary>d'])
     app.run(sys.argv)
