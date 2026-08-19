@@ -25,6 +25,7 @@ class MyApp(Adw.Application):
         super().__init__(flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE, **kwargs)
         self.settings = Gio.Settings.new("io.github.qwersyk.Newelle")
         self.add_main_option("run-action", 0, GLib.OptionFlags.NONE, GLib.OptionArg.STRING, "Run an action", "ACTION")
+        self.add_main_option("mini", 0, GLib.OptionFlags.NONE, GLib.OptionArg.NONE, "Start in mini window mode", None)
         css = '''
         .code{
         background-color: rgb(38,38,38);
@@ -385,6 +386,8 @@ class MyApp(Adw.Application):
     
     def do_command_line(self, command_line):
         options = command_line.get_options_dict()
+        if options.contains("mini"):
+            self.start_in_mini = True
         if options.contains("run-action"):
             action_name = options.lookup_value("run-action").get_string()
             if self.lookup_action(action_name):
@@ -401,10 +404,13 @@ class MyApp(Adw.Application):
             self.win = MainWindow(application=app)
             self.win.connect("close-request", self.close_window)
 
-        if self.settings.get_string("startup-mode") == "mini":
+        if getattr(self, "start_in_mini", False) or self.settings.get_string("startup-mode") == "mini":
             self.settings.set_string("startup-mode", "normal")
+            # --mini is per-invocation: a later plain `newelle` must present the main window
+            self.start_in_mini = False
             if getattr(self.win, "ui_built", False):
                 self.show_mini_window()
+                self.win.hide()
             else:
                 self.win.connect("ui-built", self.show_mini_window)
         else:
