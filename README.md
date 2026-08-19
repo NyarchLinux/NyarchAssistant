@@ -88,13 +88,15 @@ application.
 
 A lightweight version of Newelle that can be triggered via keyboard shortcuts.
 
+If Newelle is already opened, you can use CTRL+G to toggle mini window mode.
 ### Configuration
 
 #### 1. Setup Hotkeys
 As an example, to set the mini window launch's hotkey to Ctrl+Space, execute this command:
 ```bash
-/bin/bash -c 'flatpak run --command=gsettings io.github.qwersyk.Newelle set io.github.qwersyk.Newelle startup-mode "mini" && flatpak run io.github.qwersyk.Newelle'
+flatpak run io.github.qwersyk.Newelle --mini
 ```
+or `newelle --mini` if not installed via flatpak.
 After that, enable the hotkey in settings.
 
 #### 2. Enable Window Centering
