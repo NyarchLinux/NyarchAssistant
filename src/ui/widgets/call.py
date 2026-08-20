@@ -243,7 +243,7 @@ class CallPanel(Gtk.Box):
         self.assistant_speaking = False
         self.user_speaking = False
         self.history_visible = False
-        self.listen_during_tts = True
+        self.listen_during_tts = False
 
         # Conversation turn state
         self._call_generation = 0
@@ -563,7 +563,7 @@ class CallPanel(Gtk.Box):
         listen_icon = Gtk.Image.new_from_icon_name("call-emergency-symbolic")
         listen_icon.set_pixel_size(24)
         self.listen_toggle_button.set_child(listen_icon)
-        self.listen_toggle_button.set_active(True)
+        self.listen_toggle_button.set_active(False)
         self.listen_toggle_button.connect("toggled", self._on_listen_toggle)
         right_controls.append(self.listen_toggle_button)
 
