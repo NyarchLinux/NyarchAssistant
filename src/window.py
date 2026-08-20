@@ -55,7 +55,7 @@ from .ui_controller import UIController
 from .extensions import ExtensionLoader
 
 from .controller import BASE_PATH
-LIVE2D_VERSION = 0.5
+LIVE2D_VERSION = 0.6
 
 
 

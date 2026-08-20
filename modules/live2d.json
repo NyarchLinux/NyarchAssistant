@@ -12,8 +12,8 @@
   "sources" : [
     {
       "type": "file",
-      "url": "https://github.com/NyarchLinux/live2d-lipsync-viewer/releases/download/0.5/pack.tar.xz",
-      "sha256": "a2a85f7c75878e88b0ec33946d374a7babdcc8a041196532d5d918d3740f265c",
+      "url": "https://github.com/NyarchLinux/live2d-lipsync-viewer/releases/download/0.6/pack.tar.xz",
+      "sha256": "7187016b8fb3093f598803bf8e8bce44abf937c760ff7623928f0e3a99be46a0",
       "dest-filename": "download.tar.xz"
     },
     {
