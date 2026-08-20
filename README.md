@@ -74,14 +74,16 @@ Nyarch Assistant supports extensions to enhance its functionality. You can eithe
 
 A lightweight version of Nyarch Assistant that can be triggered via keyboard shortcuts.
 
+If Nyarch Assistant is already opened, you can use CTRL+D to toggle mini window mode.
 ### Configuration
 
 #### 1. Set Global Keyboard Shortcut
 To configure the mini window launch (example using Ctrl+Space), set the following command in your system keyboard settings:
 
-```bash
-/bin/bash -c 'flatpak run --command=gsettings moe.nyarchlinux.assistant set moe.nyarchlinux.assistant startup-mode "mini" && flatpak run moe.nyarchlinux.assistant'
+```bash 
+flatpak run moe.nyarchlinux.assistant --mini
 ```
+Or, if you installed it via package (**Default on Nyarch**), use `nyarchassistant --mini`.
 
 #### 2. Enable Window Centering
 For GNOME desktop environment users, you may need to enable automatic window centering:

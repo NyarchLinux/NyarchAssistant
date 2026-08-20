@@ -95,6 +95,7 @@ EXTENSIONS: Reload EXTENSIONS
     WAKEWORD = 15
     IMAGE_GENERATOR = 16 
     COMPACT_MODE = 17
+    COMPACT_INPUT_BAR = 18
     # Nyarch Vars
     AVATAR = 40
     TRANSLATORS = 42
@@ -2357,6 +2358,7 @@ class NewelleSettings:
         self.auto_run = settings.get_boolean("auto-run")
         self.display_latex = settings.get_boolean("display-latex")
         self.compact_mode = settings.get_boolean("compact-mode")
+        self.compact_input_bar = settings.get_boolean("compact-input-bar")
         self.tts_enabled = settings.get_boolean("tts-on")
         self.tts_program = settings.get_string("tts")
         self.tts_voice = settings.get_string("tts-voice")
@@ -2580,6 +2582,8 @@ class NewelleSettings:
             reloads.append(ReloadType.RELOAD_CHAT)
         if self.compact_mode != new_settings.compact_mode:
             reloads.append(ReloadType.COMPACT_MODE)
+        if self.compact_input_bar != new_settings.compact_input_bar:
+            reloads.append(ReloadType.COMPACT_INPUT_BAR)
 
         return reloads
 

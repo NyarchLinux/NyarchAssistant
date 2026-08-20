@@ -60,6 +60,12 @@ LIVE2D_VERSION = 0.5
 
 
 class MainWindow(Adw.ApplicationWindow):
+    __gsignals__ = {
+        # Emitted once the UI has been built by build_main_window, so other
+        # windows (e.g. the mini window) can reparent parts of it
+        "ui-built": (GObject.SignalFlags.RUN_LAST, None, ()),
+    }
+
     def __init__(self, *args, **kwargs):
         self.first_load = True
         super().__init__(*args, **kwargs)
@@ -402,6 +408,8 @@ class MainWindow(Adw.ApplicationWindow):
             threading.Thread(target=self.check_version).start()
         self.controller.handlers.set_error_func(self.handle_error)
         GLib.timeout_add(10, build_model_popup)
+        self.ui_built = True
+        self.emit("ui-built")
         self.first_load = False
         GLib.idle_add(self.load_avatar)
         
@@ -597,6 +605,9 @@ class MainWindow(Adw.ApplicationWindow):
         # Create new ChatTab widget
         chat_tab = ChatTab(self, chat_id)
         chat_tab.connect("chat-name-changed", self._on_chat_name_changed)
+        # The mini window always uses the compact input bar
+        if self._mini_window_active():
+            chat_tab.set_compact_input(True)
         
         
         # Add to tab view
@@ -811,6 +822,36 @@ class MainWindow(Adw.ApplicationWindow):
                         chat_history.restore_hidden_compact_rows()
                 walk(child)
 
+    def _mini_window_active(self) -> bool:
+        """Whether the mini window is currently hosting the chat panel."""
+        app = self.get_application()
+        mini_win = getattr(app, "mini_win", None)
+        return mini_win is not None and getattr(mini_win, "chat_panel", None) is not None
+
+    def _apply_compact_input_bar(self, enabled: bool):
+        """Set the input bar layout of every open chat tab."""
+        chat_tabs = getattr(self, "chat_tabs", None)
+        if chat_tabs is None:
+            return
+        for i in range(chat_tabs.get_n_pages()):
+            page = chat_tabs.get_nth_page(i)
+            child = page.get_child() if page is not None else None
+            if isinstance(child, ChatTab):
+                child.set_compact_input(enabled)
+
+    def _refresh_compact_input_bar(self):
+        """Apply the effective compact input bar layout to every chat tab.
+
+        The mini window always uses the compact input bar, regardless of
+        the setting.
+        """
+        if self._mini_window_active():
+            self._apply_compact_input_bar(True)
+        else:
+            self._apply_compact_input_bar(
+                self.controller.newelle_settings.compact_input_bar
+            )
+
     def update_font_settings(self):
         ns = self.controller.newelle_settings
         parts = []
@@ -1014,6 +1055,8 @@ class MainWindow(Adw.ApplicationWindow):
         self.extensionloader = self.controller.extensionloader
         if ReloadType.COMPACT_MODE in reloads:
             self._refresh_compact_mode()
+        if ReloadType.COMPACT_INPUT_BAR in reloads:
+            self._refresh_compact_input_bar()
         # Nyarch Scpecific 
         self.translator = self.controller.handlers.translator
         self.avatar = self.controller.handlers.avatar
@@ -1875,6 +1918,8 @@ class MainWindow(Adw.ApplicationWindow):
 
         if ReloadType.COMPACT_MODE in reload_types:
             self._refresh_compact_mode()
+        if ReloadType.COMPACT_INPUT_BAR in reload_types:
+            self._refresh_compact_input_bar()
 
         # Update LLM UI - label first for responsiveness, delay expensive popup rebuild
         if ReloadType.LLM in reload_types or ReloadType.SECONDARY_LLM in reload_types:

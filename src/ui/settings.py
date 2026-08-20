@@ -541,6 +541,15 @@ class Settings(Adw.Window):
         self.settings.bind("compact-mode", switch, 'active', Gio.SettingsBindFlags.DEFAULT)
         self.interface.add(row)
 
+        row = Adw.ActionRow(
+            title=_("Compact input bar"),
+            subtitle=_("Show only the mic and send buttons next to the text, and move the other controls into a popover"),
+        )
+        switch = Gtk.Switch(valign=Gtk.Align.CENTER)
+        row.add_suffix(switch)
+        self.settings.bind("compact-input-bar", switch, 'active', Gio.SettingsBindFlags.DEFAULT)
+        self.interface.add(row)
+
         row = Adw.ActionRow(title=_("Reverse Chat Order"), subtitle=_("Show most recent chats on top in chat list (change chat to apply)"))
         switch = Gtk.Switch(valign=Gtk.Align.CENTER)
         row.add_suffix(switch)

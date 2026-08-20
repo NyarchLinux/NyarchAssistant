@@ -132,6 +132,11 @@ class ChatTab(Gtk.Box):
         
     def _build_input_box(self):
         """Build the stacked-card input box.
+
+        Two layouts share the same widgets:
+        - normal: text on top, controls in a row below it;
+        - compact: a single row where an options button and the mic/send
+          buttons float over the bottom-right corner of the text entry.
         """
         self.input_box = Gtk.Box(
             orientation=Gtk.Orientation.VERTICAL,
@@ -167,92 +172,16 @@ class ChatTab(Gtk.Box):
         # The outer card frames the entry; drop the inner MultilineEntry chrome.
         self.input_panel.remove_css_class("card")
         self.input_panel.remove_css_class("frame")
-        self.input_box.append(self.input_panel)
         self.input_panel.set_placeholder(_("Send a message..."))
 
-        # --- Actions row ---
-        actions_row = Gtk.Box(
-            orientation=Gtk.Orientation.HORIZONTAL,
-            spacing=4,
-            margin_start=2,
-            margin_end=2,
-        )
+        # --- Controls shared by both layouts ---
+        self._input_layout_compact = None
+        self._actions_row = None
+        self._compact_overlay = None
+        self._build_input_action_widgets()
 
-        # Left cluster order: attach / screen record / quick toggles / mode / effort
-        left_cluster = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2)
-
-        self.attach_button = Gtk.Button(
-            css_classes=["flat", "circular"], icon_name="attach-symbolic",
-            tooltip_text=_("Attach file"),
-        )
-        self.attach_button.connect("clicked", self.attach_file)
-        left_cluster.append(self.attach_button)
-
-        self.attached_image = Gtk.Image(visible=False)
-        self.attached_image.set_size_request(36, 36)
-        left_cluster.append(self.attached_image)
-
-        self.screen_record_button = Gtk.Button(
-            icon_name="media-record-symbolic",
-            css_classes=["flat", "circular"],
-            tooltip_text=_("Screen recording"),
-        )
-        self.screen_record_button.connect("clicked", self.start_screen_recording)
-        left_cluster.append(self.screen_record_button)
-        if not self.vision_model.supports_video_vision():
-            self.screen_record_button.set_visible(False)
-
-        # Quick toggles popover button
-        self._build_quick_toggles()
-        left_cluster.append(self.quick_toggles)
-
-        # Mode switcher (built only if the controller has a mode manager).
-        self.mode_button = None
-        if getattr(self.controller, "mode_manager", None) is not None:
-            self.mode_button = ModeButton(self.controller, self.window)
-            left_cluster.append(self.mode_button)
-
-        # Thinking-effort control (auto-hidden unless the model opts in).
-        self.thinking_button = self._build_thinking_control()
-        left_cluster.append(self.thinking_button)
-
-        actions_row.append(left_cluster)
-
-        # Right cluster (pushed to the end)
-        right_spacer = Gtk.Box(hexpand=True)
-        actions_row.append(right_spacer)
-        right_cluster = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
-        self.mic_button = Gtk.Button(
-            css_classes=["flat", "circular"],
-            icon_name="audio-input-microphone-symbolic",
-            width_request=36,
-            height_request=36,
-            tooltip_text=_("Record"),
-        )
-        self.mic_button.set_vexpand(False)
-        self.mic_button.set_valign(Gtk.Align.CENTER)
-        self.mic_button.connect("clicked", self.start_recording)
-        self.recording_button = self.mic_button
-        right_cluster.append(self.mic_button)
-
-        self.send_button = Gtk.Button(
-            css_classes=["suggested-action"],
-            icon_name="go-next-symbolic",
-            width_request=36,
-            height_request=36,
-            tooltip_text=_("Send"),
-        )
-        self.send_button.set_vexpand(False)
-        self.send_button.set_valign(Gtk.Align.CENTER)
-        right_cluster.append(self.send_button)
-
-        # Context usage indicator (pie-chart ring), bottom-right corner.
-        self.context_indicator = ContextIndicator()
-        self.context_indicator.set_valign(Gtk.Align.CENTER)
-        right_cluster.append(self.context_indicator)
-        actions_row.append(right_cluster)
-
-        self.input_box.append(actions_row)
+        # --- Layout (compact overlays the buttons on the text entry) ---
+        self.set_compact_input(self.controller.newelle_settings.compact_input_bar)
 
         self._update_attach_visibility()
 
@@ -272,6 +201,271 @@ class ChatTab(Gtk.Box):
 
         # Populate the thinking control from the current model's capabilities.
         self._populate_thinking_control()
+
+    def _build_input_action_widgets(self):
+        """Create the input controls used by the normal and compact layouts."""
+        self.attach_button = Gtk.Button(
+            css_classes=["flat", "circular"], icon_name="attach-symbolic",
+            tooltip_text=_("Attach file"),
+        )
+        self.attach_button.connect("clicked", self.attach_file)
+
+        self.attached_image = Gtk.Image(visible=False)
+        self.attached_image.set_size_request(36, 36)
+
+        self.screen_record_button = Gtk.Button(
+            icon_name="media-record-symbolic",
+            css_classes=["flat", "circular"],
+            tooltip_text=_("Screen recording"),
+        )
+        self.screen_record_button.connect("clicked", self.start_screen_recording)
+        if not self.vision_model.supports_video_vision():
+            self.screen_record_button.set_visible(False)
+
+        # Quick toggles popover button
+        self._build_quick_toggles()
+
+        # Mode switcher (built only if the controller has a mode manager).
+        self.mode_button = None
+        if getattr(self.controller, "mode_manager", None) is not None:
+            self.mode_button = ModeButton(self.controller, self.window)
+
+        # Thinking-effort control (auto-hidden unless the model opts in).
+        self.thinking_button = self._build_thinking_control()
+
+        self.mic_button = Gtk.Button(
+            css_classes=["flat", "circular"],
+            icon_name="audio-input-microphone-symbolic",
+            width_request=36,
+            height_request=36,
+            tooltip_text=_("Record"),
+        )
+        self.mic_button.set_vexpand(False)
+        self.mic_button.set_valign(Gtk.Align.CENTER)
+        self.mic_button.connect("clicked", self.start_recording)
+        self.recording_button = self.mic_button
+
+        self.send_button = Gtk.Button(
+            css_classes=["suggested-action"],
+            icon_name="go-next-symbolic",
+            width_request=36,
+            height_request=36,
+            tooltip_text=_("Send"),
+        )
+        self.send_button.set_vexpand(False)
+        self.send_button.set_valign(Gtk.Align.CENTER)
+
+        # Context usage indicator (pie-chart ring).
+        self.context_indicator = ContextIndicator()
+        self.context_indicator.set_valign(Gtk.Align.CENTER)
+
+    def set_compact_input(self, compact: bool):
+        """Switch the input bar between the normal and the compact layout.
+
+        The text entry and every control keep their state (typed text,
+        attachment, recording...) because the same widgets are reparented.
+        """
+        if self._input_layout_compact == compact:
+            return
+        self._teardown_input_layout()
+        if compact:
+            self._build_compact_input_layout()
+        else:
+            self._build_normal_input_layout()
+        self._input_layout_compact = compact
+
+    @staticmethod
+    def _detach_from_parent(widget):
+        """Unparent a widget so it can be moved into another container."""
+        parent = widget.get_parent()
+        if parent is None:
+            return
+        if isinstance(parent, Gtk.Overlay):
+            parent.remove_overlay(widget)
+        else:
+            parent.remove(widget)
+
+    def _teardown_input_layout(self):
+        """Remove the current layout, keeping the shared widgets alive."""
+        if self._input_layout_compact is not None:
+            if self._input_layout_compact:
+                # Free the text entry from the overlay before discarding it.
+                self._compact_overlay.set_child(None)
+                self.input_box.remove(self._compact_overlay)
+                self._compact_overlay = None
+            else:
+                self.input_box.remove(self.input_panel)
+                self.input_box.remove(self._actions_row)
+                self._actions_row = None
+        # Always detach the shared widgets: on the first layout build they
+        # still sit in their creation-time containers. Popovers wrap their
+        # child in an internal container and offer no remove(), so their
+        # content is detached first.
+        self.quick_toggles_popover.set_child(None)
+        if getattr(self, "compact_options_popover", None) is not None:
+            self.compact_options_popover.set_child(None)
+        for widget in (
+            self.attach_button, self.attached_image, self.screen_record_button,
+            self.quick_toggles, self.quick_toggles_box, self.mode_button,
+            self.thinking_button, self.mic_button, self.send_button,
+            self.context_indicator, getattr(self, "compact_options_button", None),
+        ):
+            if widget is not None:
+                self._detach_from_parent(widget)
+
+    def _build_normal_input_layout(self):
+        """Classic layout: text on top, controls in a row below it."""
+        # Undo the compact layout's text view and button adjustments.
+        self.input_panel.input_panel.set_bottom_margin(0)
+        self.mic_button.set_size_request(36, 36)
+        self.send_button.set_size_request(36, 36)
+        # The quick toggles go back into their own popover button.
+        self.quick_toggles_popover.set_child(self.quick_toggles_box)
+
+        actions_row = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL,
+            spacing=4,
+            margin_start=2,
+            margin_end=2,
+        )
+
+        # Left cluster order: attach / screen record / quick toggles / mode / effort
+        left_cluster = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2)
+        left_cluster.append(self.attach_button)
+        left_cluster.append(self.attached_image)
+        left_cluster.append(self.screen_record_button)
+        left_cluster.append(self.quick_toggles)
+        if self.mode_button is not None:
+            left_cluster.append(self.mode_button)
+        left_cluster.append(self.thinking_button)
+        actions_row.append(left_cluster)
+
+        # Right cluster (pushed to the end)
+        actions_row.append(Gtk.Box(hexpand=True))
+        right_cluster = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
+        right_cluster.append(self.mic_button)
+        right_cluster.append(self.send_button)
+        right_cluster.append(self.context_indicator)
+        actions_row.append(right_cluster)
+
+        self._actions_row = actions_row
+        self.input_box.append(self.input_panel)
+        self.input_box.append(actions_row)
+
+    def _build_compact_input_layout(self):
+        """Compact layout: a single row, the controls float over the text.
+
+        The options, mic and send buttons sit together on the bottom-right
+        corner, so the text keeps the full width and no extra row is added
+        below it. The context indicator stays hidden in this mode.
+        """
+        # Reserve the bottom of the text view so no text runs under the
+        # overlay buttons; this replaces the height of the actions row.
+        self.input_panel.input_panel.set_bottom_margin(30)
+        self.mic_button.set_size_request(28, 28)
+        self.send_button.set_size_request(28, 28)
+
+        self._ensure_compact_options()
+        self._populate_compact_options()
+
+        overlay = Gtk.Overlay()
+        overlay.set_child(self.input_panel)
+
+        right_cluster = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL,
+            spacing=2,
+            halign=Gtk.Align.END,
+            valign=Gtk.Align.END,
+            margin_end=2,
+            margin_bottom=2,
+        )
+        right_cluster.append(self.compact_options_button)
+        right_cluster.append(self.mic_button)
+        right_cluster.append(self.send_button)
+        overlay.add_overlay(right_cluster)
+
+        self._compact_overlay = overlay
+        self.input_box.append(overlay)
+
+    def _ensure_compact_options(self):
+        """Create the compact-layout options popover button (once)."""
+        if getattr(self, "compact_options_button", None) is not None:
+            return
+        self.compact_options_button = Gtk.MenuButton(
+            css_classes=["flat", "circular"],
+            icon_name="controls-big-symbolic",
+            tooltip_text=_("Input options"),
+        )
+        self.compact_options_button.set_valign(Gtk.Align.CENTER)
+        self.compact_options_popover = Gtk.Popover()
+        self.compact_options_button.set_popover(self.compact_options_popover)
+        # Apply the quick toggles when the popover is closed, like the
+        # standalone quick toggles popover does.
+        self.compact_options_popover.connect("closed", self._update_toggles)
+        # Rows are synced with the buttons' visibility every time it opens.
+        self.compact_options_popover.connect(
+            "notify::visible", self._sync_compact_options_rows
+        )
+        self.compact_options_box = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL, spacing=10
+        )
+        self.compact_options_box.set_margin_start(10)
+        self.compact_options_box.set_margin_end(10)
+        self.compact_options_box.set_margin_top(10)
+        self.compact_options_box.set_margin_bottom(10)
+        self.compact_options_box.set_size_request(280, -1)
+        self.compact_options_popover.set_child(self.compact_options_box)
+        self._compact_attach_row = None
+        self._compact_record_row = None
+
+    def _populate_compact_options(self):
+        """Fill the compact options popover with the controls hidden from the bar."""
+        box = self.compact_options_box
+        child = box.get_first_child()
+        while child is not None:
+            nxt = child.get_next_sibling()
+            box.remove(child)
+            child = nxt
+
+        # Attach + attachment preview
+        attach_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        attach_row.append(self.attach_button)
+        attach_row.append(Gtk.Label(
+            label=_("Attach file"), hexpand=True, xalign=0,
+        ))
+        attach_row.append(self.attached_image)
+        box.append(attach_row)
+        self._compact_attach_row = attach_row
+
+        # Screen recording
+        record_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        record_row.append(self.screen_record_button)
+        record_row.append(Gtk.Label(
+            label=_("Screen recording"), hexpand=True, xalign=0,
+        ))
+        box.append(record_row)
+        self._compact_record_row = record_row
+
+        box.append(Gtk.Separator())
+
+        # Quick toggles embedded directly, with no nested popover.
+        box.append(self.quick_toggles_box)
+
+        if self.mode_button is not None:
+            box.append(Gtk.Separator())
+            box.append(self.mode_button)
+        box.append(self.thinking_button)
+
+        self._sync_compact_options_rows()
+
+    def _sync_compact_options_rows(self, *args):
+        """Show the attach/record rows only when their buttons are visible."""
+        if getattr(self, "compact_options_button", None) is None:
+            return
+        if self._compact_attach_row is not None:
+            self._compact_attach_row.set_visible(self.attach_button.get_visible())
+        if self._compact_record_row is not None:
+            self._compact_record_row.set_visible(self.screen_record_button.get_visible())
 
     def _build_command_popover(self):
         """Build the slash-command hints popover attached to the input panel."""
@@ -458,7 +652,11 @@ class ChatTab(Gtk.Box):
             thread.start()
 
     def _build_quick_toggles(self):
-        """Build quick toggle buttons for settings (a popover MenuButton)."""
+        """Build quick toggle buttons for settings (a popover MenuButton).
+
+        The switches live in their own box (``quick_toggles_box``) so the
+        compact layout can embed them directly in its options popover.
+        """
         self.quick_toggles = Gtk.MenuButton(
             css_classes=["flat", "circular"], icon_name="controls-big",
             tooltip_text=_("Quick toggles"),
@@ -496,6 +694,7 @@ class ChatTab(Gtk.Box):
             row.append(switch)
             container.append(row)
         
+        self.quick_toggles_box = container
         self.quick_toggles_popover.set_child(container)
         self.quick_toggles.set_popover(self.quick_toggles_popover)
         self.quick_toggles_popover.connect("closed", self._update_toggles)

@@ -21,6 +21,7 @@ class Shortcuts(Gtk.Window):
         gr.append(Gtk.ShortcutsShortcut(title=_("Stop TTS"), accelerator='<primary>k'))
         gr.append(Gtk.ShortcutsShortcut(title=_("Zoom in"), accelerator='<primary>plus'))
         gr.append(Gtk.ShortcutsShortcut(title=_("Zoom out"), accelerator='<primary>minus'))
+        gr.append(Gtk.ShortcutsShortcut(title=_("Switch between full and mini window"), accelerator='<primary>d'))
 
         sect_main.append(gr)
         self.set_child(sect_main)
