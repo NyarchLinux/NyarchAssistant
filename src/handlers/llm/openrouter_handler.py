@@ -19,8 +19,8 @@ class OpenRouterHandler(OpenAIHandler):
     
     def get_extra_headers(self):
         return {
-            "HTTP-Referer": "https://github.com/qwersyk/Newelle",
-            "X-Title": "Newelle"
+            "HTTP-Referer": "https://github.com/NyarchLinux/NyarchAssistant",
+            "X-Title": "Nyarch Assistant"
         }
 
     def get_extra_body(self):

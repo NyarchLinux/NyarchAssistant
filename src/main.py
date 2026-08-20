@@ -9,6 +9,7 @@ from .utility.util import convert_history_openai
 gi.require_version('Gtk', '4.0')
 gi.require_version('GtkSource', '5')
 gi.require_version('Adw', '1')
+gi.require_version("WebKit", "6.0")
 from gi.repository import Gtk, Adw, Gio, Gdk, GLib
 from .ui_controller import HeadlessController 
 from .ui.settings import Settings
@@ -23,7 +24,7 @@ class MyApp(Adw.Application):
     def __init__(self, version, **kwargs):
         self.version = version
         super().__init__(flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE, **kwargs)
-        self.settings = Gio.Settings.new("io.github.qwersyk.Newelle")
+        self.settings = Gio.Settings.new("moe.nyarchlinux.assistant")
         self.add_main_option("run-action", 0, GLib.OptionFlags.NONE, GLib.OptionArg.STRING, "Run an action", "ACTION")
         self.add_main_option("mini", 0, GLib.OptionFlags.NONE, GLib.OptionArg.NONE, "Start in mini window mode", None)
         css = '''
@@ -287,17 +288,17 @@ class MyApp(Adw.Application):
 
     def on_about_action(self, *a):
         Adw.AboutWindow(transient_for=self.props.active_window,
-                        application_name='Newelle',
-                        application_icon='io.github.qwersyk.Newelle',
+                        application_name='Nyarch Assistant',
+                        application_icon='moe.nyarchlinux.assistant',
                         developer_name='qwersyk',
                         version=self.version,
-                        issue_url='https://github.com/qwersyk/Newelle/issues',
-                        website='https://github.com/qwersyk/Newelle',
+                        issue_url='https://github.com/NyarchLinux/NyarchAssistant/issues',
+                        website='https://github.com/NyarchLinux/NyarchAssistant',
                         developers=['Yehor Hliebov  https://github.com/qwersyk',"Francesco Caracciolo https://github.com/FrancescoCaracciolo", "Pim Snel https://github.com/mipmip"],
                         documenters=["Francesco Caracciolo https://github.com/FrancescoCaracciolo"],
                         designers=["Nokse22 https://github.com/Nokse22", "Jared Tweed https://github.com/JaredTweed"],
                         translator_credits="\n".join(["Amine Saoud (Arabic) https://github.com/amiensa","Heimen Stoffels (Dutch) https://github.com/Vistaus","Albano Battistella (Italian) https://github.com/albanobattistella","Oliver Tzeng (Traditional Chinese, all languages) https://github.com/olivertzeng","Aritra Saha (Bengali, Hindi) https://github.com/olumolu","NorwayFun (Georgian) https://github.com/NorwayFun"]),
-                        copyright='© 2025 qwersyk').present()
+                        copyright='© 2026 qwersyk & Nyarch Linux').present()
 
     def thread_editing_action(self, *a):
         threadediting = ThreadEditing(self)
@@ -320,7 +321,7 @@ class MyApp(Adw.Application):
         self.settingswindow = settings
     
     def close_settings(self, *a):
-        settings = Gio.Settings.new('io.github.qwersyk.Newelle')
+        settings = Gio.Settings.new('moe.nyarchlinux.assistant')
         settings.set_int("chat", self.win.chat_id)
         settings.set_string("path", os.path.normpath(self.win.main_path))
         self.win.update_settings()
@@ -356,7 +357,7 @@ class MyApp(Adw.Application):
         if getattr(self, "mini_win", None) is not None and self.mini_win.get_visible():
             self.mini_win.close()
         if all(element.poll() is not None for element in self.win.streams):
-            settings = Gio.Settings.new('io.github.qwersyk.Newelle')
+            settings = Gio.Settings.new('moe.nyarchlinux.assistant')
             settings.set_int("window-width", self.win.get_width())
             settings.set_int("window-height", self.win.get_height())
             self.win.controller.close_application()
@@ -473,11 +474,12 @@ class MyApp(Adw.Application):
 
         shutdown_command_sessions()
         self.win.save_chat()
-        settings = Gio.Settings.new('io.github.qwersyk.Newelle')
+        settings = Gio.Settings.new('moe.nyarchlinux.assistant')
         settings.set_int("chat", self.win.chat_id)
         settings.set_string("path", os.path.normpath(self.win.main_path))
         self.win.stream_number_variable += 1
         Gtk.Application.do_shutdown(self)
+        os._exit(1)
 
     def zoom(self, *a):
         zoom = min(250, self.settings.get_int("zoom") + 10)
@@ -544,7 +546,7 @@ def run_headless(interface_key, version):
 
 
 def main(version):
-    app = MyApp(application_id="io.github.qwersyk.Newelle", version = version)
+    app = MyApp(application_id="moe.nyarchlinux.assistant", version = version)
     app.create_action('reload_chat', app.reload_chat, ['<primary>r'])
     app.create_action('reload_folder', app.reload_folder, ['<primary>e'])
     app.create_action('new_chat', app.new_chat, ['<primary>t'])

@@ -9,11 +9,12 @@ import random
 class ReplaceHelper:
     DISTRO = None
     controller = None
+    AVATAR_HANDLER = None
 
     @staticmethod
     def set_controller(controller):
         ReplaceHelper.controller = controller
-
+ 
     @staticmethod
     def get_distribution() -> str:
         """
@@ -26,6 +27,8 @@ class ReplaceHelper:
         if ReplaceHelper.DISTRO is None:
             try:
                 ReplaceHelper.DISTRO = subprocess.check_output(get_spawn_command() + ['bash', '-c', 'lsb_release -ds']).decode('utf-8').strip()
+                if ReplaceHelper.DISTRO == "\"Arch Linux\"" and os.path.exists(os.path.expanduser("~/.config/nyarch")):
+                    ReplaceHelper.DISTRO = "Nyarch Linux"
             except subprocess.CalledProcessError:
                 ReplaceHelper.DISTRO = "Unknown"
         
@@ -91,6 +94,31 @@ class ReplaceHelper:
             tools_settings=tools_settings,
             expanded_tools=expanded_tools,
         )
+        return ReplaceHelper.controller.tools.get_tools_prompt(enabled_tools_dict=enabled_tools, tools_settings=tools_settings)
+   
+    @staticmethod
+    def set_handler(handler):
+        ReplaceHelper.AVATAR_HANDLER = handler
+
+    @staticmethod
+    def get_expressions() -> str:
+        if ReplaceHelper.AVATAR_HANDLER is None:
+            return ""
+        result = ""
+        for expression in ReplaceHelper.AVATAR_HANDLER.get_expressions():
+            if expression is not None:
+                result += " (" + expression + ")"
+        return result
+
+    @staticmethod
+    def get_motions() -> str:
+        if ReplaceHelper.AVATAR_HANDLER is None:
+            return ""
+        result = ""
+        for motion in ReplaceHelper.AVATAR_HANDLER.get_motions():
+            if motion is not None:
+                result += " (" + motion + ")"
+        return result
 
     @staticmethod
     def get_skills_catalog() -> str:
@@ -141,6 +169,10 @@ def replace_variables(text: str) -> str:
         text = text.replace("{TOOLS}", ReplaceHelper.get_tools_json())
     if "{SKILLS}" in text:
         text = text.replace("{SKILLS}", ReplaceHelper.get_skills_catalog())
+    if "{EXPRESSIONS}" in text:
+        text = text.replace("{EXPRESSIONS}", ReplaceHelper.get_expressions())
+    if "{MOTIONS}" in text:
+        text = text.replace("{MOTIONS}", ReplaceHelper.get_motions())
     return text
 
 def replace_variables_dict() -> dict:
@@ -154,6 +186,8 @@ def replace_variables_dict() -> dict:
         "{DISPLAY}": ReplaceHelper.gisplay_server(),
         "{TOOLS}": ReplaceHelper.get_tools_json(),
         "{SKILLS}": ReplaceHelper.get_skills_catalog(),
+        "{EXPRESSIONS}": ReplaceHelper.get_expressions(),
+        "{MOTIONS}": ReplaceHelper.get_motions()
     }
 
 class PromptFormatter:

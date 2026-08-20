@@ -16,10 +16,13 @@ from ..utility.util import PerformanceMonitor
 from ..handlers import Handler
 
 from ..constants import AVAILABLE_EMBEDDINGS, AVAILABLE_LLMS, AVAILABLE_MEMORIES, AVAILABLE_PROMPTS, AVAILABLE_TTS, AVAILABLE_STT, PROMPTS, AVAILABLE_RAGS, AVAILABLE_WEBSEARCH, AVAILABLE_IMAGE_GENERATORS
+from ..constants import AVAILABLE_TRANSLATORS, AVAILABLE_AVATARS
+
 from ..utility.pip import install_module
 from .extension import ExtensionPage
 from .interfaces import InterfacesPage
 from .extra_settings import ExtraSettingsBuilder
+
 from .widgets import ComboRowHelper, CopyBox 
 from .widgets import MultilineEntry
 from ..utility.system import can_escape_sandbox, get_spawn_command, open_website, open_folder, is_flatpak 
@@ -42,6 +45,7 @@ class Settings(Adw.Window):
         self.set_modal(True)
         self.set_resizable(False)
         self.downloading = {}
+        self.model_threads = {}
         self.slider_labels = {}
         self.directory = GLib.get_user_config_dir()
         # Load extensions 
@@ -54,7 +58,6 @@ class Settings(Adw.Window):
         self.prompts_settings = self.controller.newelle_settings.prompts_settings
         self.prompts = self.controller.newelle_settings.prompts
         self.sandbox = can_escape_sandbox()
-       
         self.handlers = self.controller.handlers
         # Page building
         self.general_page = Adw.PreferencesPage(icon_name="settings-symbolic", title=_("General"))
@@ -66,9 +69,9 @@ class Settings(Adw.Window):
             title=_("Permissions"),
         )
         self.MemoryPage = Adw.PreferencesPage(icon_name="vcard-symbolic", title=_("Knowledge"))
-        self.VoicePage = Adw.PreferencesPage(icon_name="audio-input-microphone-symbolic", title=_("Voice"))
         self.SkillsPage = Adw.PreferencesPage(icon_name="skills-symbolic", title=_("Skills"))
         self.MCPPage = Adw.PreferencesPage(icon_name="internet-symbolic", title=_("MCP Servers"))
+        self.AvatarPage = Adw.PreferencesPage(icon_name="avatar-symbolic", title=_("Avatar"))
         # Dictionary containing all the rows for settings update
         self.settingsrows = {}
         self.extra_settings_builder = ExtraSettingsBuilder(
@@ -116,7 +119,7 @@ class Settings(Adw.Window):
 
         secondary_LLM_enabled = Gtk.Switch(valign=Gtk.Align.CENTER)
         self.settings.bind("secondary-llm-on", secondary_LLM_enabled, 'active', Gio.SettingsBindFlags.DEFAULT)
-        secondary_LLM = Adw.ExpanderRow(title=_('Secondary Language Model'), subtitle=_("Model used for secondary tasks, like offer, chat name and memory generation"))
+        secondary_LLM = Adw.ExpanderRow(title=_('Secondary Language Model'), subtitle=_("Model used for secondary tasks, like offers, chat name and memory generation"))
         secondary_LLM.add_action(secondary_LLM_enabled)
         # Add the secondary model selector as its own expander.
         # Add LLMs
@@ -194,7 +197,7 @@ class Settings(Adw.Window):
 
         # Build the TTS settings
         self.Voicegroup = Adw.PreferencesGroup(title=_('Voice'))
-        self.VoicePage.add(self.Voicegroup)
+        self.AvatarPage.add(self.Voicegroup)
         tts_enabled = Gtk.Switch(valign=Gtk.Align.CENTER)
         self.settings.bind("tts-on", tts_enabled, 'active', Gio.SettingsBindFlags.DEFAULT)
         tts_program = Adw.ExpanderRow(title=_('Text To Speech Program'), subtitle=_("Choose which text to speech to use"))
@@ -205,6 +208,18 @@ class Settings(Adw.Window):
         for tts_key in AVAILABLE_TTS:
            row = self.build_row(AVAILABLE_TTS, tts_key, selected, group) 
            tts_program.add_row(row)
+        # Build the Translators settings
+        group = Gtk.CheckButton()
+        selected = self.settings.get_string("translator")
+        tts_enabled = Gtk.Switch(valign=Gtk.Align.CENTER)
+        self.settings.bind("translator-on", tts_enabled, 'active', Gio.SettingsBindFlags.DEFAULT)
+        translator_program = Adw.ExpanderRow(title=_('Translator program'), subtitle=_("Translate the output of the LLM before passing it to the TTS Program"))
+        translator_program.add_action(tts_enabled)
+        for translator_key in AVAILABLE_TRANSLATORS:
+            row = self.build_row(AVAILABLE_TRANSLATORS, translator_key, selected, group)
+            translator_program.add_row(row)
+        self.Voicegroup.add(translator_program)
+        
         # Build the Speech to Text settings
         stt_engine = Adw.ExpanderRow(title=_('Speech To Text Engine'), subtitle=_("Choose which speech recognition engine you want"))
         self.Voicegroup.add(stt_engine)
@@ -368,6 +383,26 @@ class Settings(Adw.Window):
 
         self.Voicegroup.add(self.wakeword_row)
         # Build prompts settings 
+        
+        # Build the AVATAR settings
+        self.avatargroup = Adw.PreferencesGroup(title=_('Avatar'))
+        self.AvatarPage.add(self.avatargroup)
+        avatar_enabled = Gtk.Switch(valign=Gtk.Align.CENTER)
+        self.settings.bind("avatar-on", avatar_enabled, 'active', Gio.SettingsBindFlags.DEFAULT)
+        avatar = Adw.ExpanderRow(title=_('Avatar model'), subtitle=_("Choose which avatar model to choose"))
+        avatar.add_action(avatar_enabled)
+        self.avatargroup.add(avatar)
+        hide_avatar_on_startup = Gtk.Switch(valign=Gtk.Align.CENTER)
+        hide_avatar_row = Adw.ActionRow(title=_('Hide avatar on startup'), subtitle=_('Keep the avatar panel collapsed when starting'))
+        hide_avatar_row.add_suffix(hide_avatar_on_startup)
+        self.settings.bind("hide-avatar-on-startup", hide_avatar_on_startup, 'active', Gio.SettingsBindFlags.DEFAULT)
+        self.avatargroup.add(hide_avatar_row)
+        group = Gtk.CheckButton()
+        selected = self.settings.get_string("avatar-model")
+        for avatar_key in AVAILABLE_AVATARS:
+           row = self.build_row(AVAILABLE_AVATARS, avatar_key, selected, group) 
+           avatar.add_row(row) 
+        
         self.prompt = Adw.PreferencesGroup(title=_('Prompt control'))
         add_prompt_btn = Gtk.Button(icon_name="list-add-symbolic")
         add_prompt_btn.add_css_class("flat")
@@ -785,7 +820,7 @@ class Settings(Adw.Window):
             ("General", _("General"), "settings-symbolic", self.general_page),
             ("LLM", _("LLM"), "brain-augemnted-symbolic", self.LLMPage),
             ("Memory", _("Knowledge"), "vcard-symbolic", self.MemoryPage),
-            ("Voice", _("Voice"), "audio-input-microphone-symbolic", self.VoicePage),
+            ("avatar", _("Avatar"), "avatar-symbolic", self.AvatarPage),
             ("Prompts", _("Prompts"), "question-round-outline-symbolic", self.PromptsPage),
             ("Tools", _("Tools"), "tools-symbolic", self.ToolsPage),
             ("Permissions", _("Permissions"), "key-symbolic", self.PermissionsPage),
@@ -3333,6 +3368,8 @@ class Settings(Adw.Window):
                 row.add_action(delete_button)
             else:
                 row.add_suffix(delete_button)
+        if "website" in model:
+            row.add_suffix(self.create_web_button(model["website"]))
         # Add check button
         button = Gtk.CheckButton(name=key, group=group, active=active)
         button.connect("toggled", self.choose_row, constants, secondary)
@@ -3340,9 +3377,6 @@ class Settings(Adw.Window):
         self._apply_handler_row_blocked_style(button, handler)
         row.add_prefix(button)
 
-        if "website" in model:
-            wbbutton = self.create_web_button(model["website"])
-            row.add_suffix(wbbutton)
         return row
 
     def copy_settings(self, button, constants: dict[str, Any], handler: Handler):
@@ -3444,6 +3478,10 @@ class Settings(Adw.Window):
             setting_name = "websearch-model"
         elif constants == AVAILABLE_IMAGE_GENERATORS:
             setting_name = "image-generator"
+        elif constants == AVAILABLE_AVATARS:
+            setting_name = "avatar-model"
+        elif constants == AVAILABLE_TRANSLATORS:
+            setting_name = "translator"
         else:
             return
 
@@ -3747,6 +3785,7 @@ class Settings(Adw.Window):
     def on_setting_change(self, constants: dict[str, Any], handler: Handler, key: str, force_change : bool = False):
         self.extra_settings_builder.on_setting_change(constants, handler, key, force_change)
 
+
     def setting_change_entry(self, entry, constants, handler : Handler):
         self.extra_settings_builder.setting_change_entry(entry, constants, handler)
 
@@ -3764,6 +3803,7 @@ class Settings(Adw.Window):
 
     def setting_change_combo(self, helper, value, constants, handler):
         self.extra_settings_builder.setting_change_combo(helper, value, constants, handler)
+
 
     def add_download_button(self, handler : Handler, row : Adw.ActionRow | Adw.ExpanderRow): 
         """Add download button for an handler dependencies. If clicked it will call handler.install()
@@ -3944,10 +3984,10 @@ class Settings(Adw.Window):
 
         # Aggiungi il testo dell'errore
         dialog.set_body_use_markup(True)
-        dialog.set_body(_("Newelle does not have enough permissions to run commands on your system, please run the following command"))
+        dialog.set_body(_("Nyarch Assistant does not have enough permissions to run commands on your system, please run the following command"))
         dialog.add_response("close", _("Understood"))
         dialog.set_default_response("close")
-        dialog.set_extra_child(CopyBox("flatpak --user override --talk-name=org.freedesktop.Flatpak --filesystem=home io.github.qwersyk.Newelle", "bash"))
+        dialog.set_extra_child(CopyBox("flatpak --user override --talk-name=org.freedesktop.Flatpak --filesystem=home moe.nyarchlinux.assistant", "bash"))
         dialog.set_close_response("close")
         dialog.set_response_appearance("close", Adw.ResponseAppearance.DESTRUCTIVE)
         dialog.connect('response', lambda dialog, response_id: dialog.destroy())

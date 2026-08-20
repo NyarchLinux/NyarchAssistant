@@ -38,7 +38,7 @@ class TipsCarousel(Gtk.Box):
         Builds the layout of the widget (label, carousel, indicators).
         """
         # Title for the tips section
-        tips_label = Gtk.Label(label=_("Newelle Tips"))
+        tips_label = Gtk.Label(label=_("Nyarch Assistant Tips"))
         tips_label.add_css_class("heading") # Use a suitable style class for a section title
         tips_label.set_halign(Gtk.Align.START) # Center the title
         tips_label.set_margin_bottom(5) # Reduce margin here, box spacing handles the rest

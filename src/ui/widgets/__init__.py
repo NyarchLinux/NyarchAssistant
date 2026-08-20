@@ -35,6 +35,7 @@ from .chat_tab import ChatTab
 from .mode_switcher import ModeButton
 from .mode_editor import ModeEditorDialog
 from .call import CallPanel
+from .avatar_call import AvatarCallWidget
 
 __all__ = [
     "ProfileRow",
@@ -80,5 +81,5 @@ __all__ = [
     "ChatTab",
     "ModeButton",
     "ModeEditorDialog",
-    "CallPanel"
+    "AvatarCallWidget"
 ]
