@@ -1849,14 +1849,45 @@ class NewelleController(WorkspaceController):
             profiles = {}
         if not isinstance(profiles, dict):
             profiles = {}
-        picture = ACCHAN_PATH if is_flatpak() else None
-        for name in (ROOT_PROFILE, self.settings.get_string("current-profile")):
+        picture = ACCHAN_PATH if (is_flatpak() or os.path.exists(ACCHAN_PATH)) else None
+        migrated = False
+        if "Assistant" in profiles and ROOT_PROFILE != "Assistant":
+            if ROOT_PROFILE not in profiles:
+                profiles[ROOT_PROFILE] = profiles.pop("Assistant")
+                profiles[ROOT_PROFILE]["parent"] = None
+                if not profiles[ROOT_PROFILE].get("picture") and picture:
+                    profiles[ROOT_PROFILE]["picture"] = picture
+            else:
+                asst = profiles["Assistant"]
+                if not asst.get("settings") and not asst.get("settings_groups"):
+                    profiles.pop("Assistant")
+            for prof in profiles.values():
+                if isinstance(prof, dict) and prof.get("parent") == "Assistant":
+                    prof["parent"] = ROOT_PROFILE
+            migrated = True
+        if ROOT_PROFILE in profiles:
+            if profiles[ROOT_PROFILE].get("parent") is not None:
+                profiles[ROOT_PROFILE]["parent"] = None
+                migrated = True
+            if not profiles[ROOT_PROFILE].get("picture") and picture:
+                profiles[ROOT_PROFILE]["picture"] = picture
+                migrated = True
+        current_profile = self.settings.get_string("current-profile")
+        if current_profile == "Assistant" and "Assistant" not in profiles:
+            self.settings.set_string("current-profile", ROOT_PROFILE)
+            current_profile = ROOT_PROFILE
+            migrated = True
+        for name in (ROOT_PROFILE, current_profile):
             if name and name not in profiles:
                 profiles[name] = new_profile_record(picture=picture, parent=None if name == ROOT_PROFILE else ROOT_PROFILE)
+                migrated = True
+        if migrated:
+            self._save_profiles(profiles)
         return profiles
 
     def _save_profiles(self, profiles):
-        self.newelle_settings.profile_settings = profiles
+        if hasattr(self, "newelle_settings"):
+            self.newelle_settings.profile_settings = profiles
         self.profile_settings = profiles
         self.settings.set_string("profiles", json.dumps(profiles))
 
@@ -3450,12 +3481,46 @@ class NewelleSettings:
             settings (): settings manager object 
         """
         self.settings = settings
-        self.profile_settings = json.loads(self.settings.get_string("profiles"))
+        try:
+            self.profile_settings = json.loads(self.settings.get_string("profiles"))
+        except (TypeError, ValueError):
+            self.profile_settings = {}
+        if not isinstance(self.profile_settings, dict):
+            self.profile_settings = {}
         self.current_profile = self.settings.get_string("current-profile")
-        picture = ACCHAN_PATH if is_flatpak() else None
+        picture = ACCHAN_PATH if (is_flatpak() or os.path.exists(ACCHAN_PATH)) else None
+        migrated = False
+        if "Assistant" in self.profile_settings and ROOT_PROFILE != "Assistant":
+            if ROOT_PROFILE not in self.profile_settings:
+                self.profile_settings[ROOT_PROFILE] = self.profile_settings.pop("Assistant")
+                self.profile_settings[ROOT_PROFILE]["parent"] = None
+                if not self.profile_settings[ROOT_PROFILE].get("picture") and picture:
+                    self.profile_settings[ROOT_PROFILE]["picture"] = picture
+            else:
+                asst = self.profile_settings["Assistant"]
+                if not asst.get("settings") and not asst.get("settings_groups"):
+                    self.profile_settings.pop("Assistant")
+            for prof in self.profile_settings.values():
+                if isinstance(prof, dict) and prof.get("parent") == "Assistant":
+                    prof["parent"] = ROOT_PROFILE
+            migrated = True
+        if ROOT_PROFILE in self.profile_settings:
+            if self.profile_settings[ROOT_PROFILE].get("parent") is not None:
+                self.profile_settings[ROOT_PROFILE]["parent"] = None
+                migrated = True
+            if not self.profile_settings[ROOT_PROFILE].get("picture") and picture:
+                self.profile_settings[ROOT_PROFILE]["picture"] = picture
+                migrated = True
+        if self.current_profile == "Assistant" and "Assistant" not in self.profile_settings:
+            self.settings.set_string("current-profile", ROOT_PROFILE)
+            self.current_profile = ROOT_PROFILE
+            migrated = True
         for name in (ROOT_PROFILE, self.current_profile):
-            if name not in self.profile_settings:
+            if name and name not in self.profile_settings:
                 self.profile_settings[name] = new_profile_record(picture=picture, parent=None if name == ROOT_PROFILE else ROOT_PROFILE)
+                migrated = True
+        if migrated:
+            self.settings.set_string("profiles", json.dumps(self.profile_settings))
 
         # Init variables
         self.automatic_stt_status = False

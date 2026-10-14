@@ -45,7 +45,7 @@ from .utility.strings import (
     count_tokens,
 )
 from .utility.replacehelper import PromptFormatter, replace_variables, ReplaceHelper, replace_variables_dict
-from .utility.profile_settings import get_settings_dict, get_settings_dict_by_groups, restore_settings_from_dict, restore_settings_from_dict_by_groups
+from .utility.profile_settings import ROOT_PROFILE, get_settings_dict, get_settings_dict_by_groups, restore_settings_from_dict, restore_settings_from_dict_by_groups
 from .utility.audio_recorder import AudioRecorder
 from .utility.media import extract_supported_files
 from .utility.system import is_flatpak
@@ -1937,8 +1937,8 @@ class MainWindow(WorkspaceWindow, Adw.ApplicationWindow):
                 profile,
                 self.profile_settings[profile]["picture"],
                 self.current_profile == profile,
-                allow_delete=profile != "Assistant" and profile != self.current_profile,
-                allow_edit=profile != "Assistant"
+                allow_delete=profile != ROOT_PROFILE and profile != self.current_profile,
+                allow_edit=profile != ROOT_PROFILE
             )
             profiles.append(account_row)
             account_row.set_on_forget(self.delete_profile)

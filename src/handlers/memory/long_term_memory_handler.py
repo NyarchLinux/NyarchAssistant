@@ -24,6 +24,7 @@ from ...handlers.embeddings.embedding import EmbeddingHandler
 from ...handlers.llm.llm import LLMHandler
 from ...handlers.rag.rag_handler import RAGHandler
 from ...tools import create_io_tool
+from ...utility.profile_settings import ROOT_PROFILE
 from ...utility.strings import clean_prompt, remove_thinking_blocks
 
 DEFAULTS = {
@@ -131,9 +132,9 @@ class LongTermMemoryHandler(MemoryHandler):
     # Scope
     def get_current_profile(self) -> str:
         try:
-            return self.settings.get_string("current-profile") or "Assistant"
+            return self.settings.get_string("current-profile") or ROOT_PROFILE
         except Exception:
-            return "Assistant"
+            return ROOT_PROFILE
 
     @staticmethod
     def _private_key(profile: str) -> str:

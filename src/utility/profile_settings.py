@@ -82,7 +82,7 @@ def restore_settings_from_dict_by_groups(settings, settings_dict, groups: list, 
 # group always resolves to exactly one owner, and the live value of a group is
 # always saved back into that owner.
 
-ROOT_PROFILE = "Assistant"
+ROOT_PROFILE = "Arch-chan"
 # Path and active mode belong to the workspace, even in older profile snapshots.
 WORKSPACE_KEYS = ("path", "current-mode")
 
