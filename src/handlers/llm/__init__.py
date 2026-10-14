@@ -13,6 +13,7 @@ from .openrouter_handler import OpenRouterHandler
 from .newelle_handler import NewelleAPIHandler
 from .deepseek_handler import DeepseekHandler
 from .llama_cpp_handler import LlamaCPPHandler
+from .nyarch_handler import NyarchApiHandler
 
 __all__ = [
     "LLMHandler",
@@ -31,4 +32,5 @@ __all__ = [
     "NewelleAPIHandler",
     "DeepseekHandler",
     "LlamaCPPHandler",
+    "NyarchApiHandler"
 ]
