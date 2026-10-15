@@ -47,7 +47,8 @@ PROFILE_PAGE_GROUPS = {
     "General": ["interface", "general"],
     "LLM": ["LLM"],
     "Memory": ["Embedding", "memory", "websearch", "image_generator", "rag"],
-    "Voice": ["TTS", "STT", "wakeword", "voice_mode"],
+    "avatar": ["avatar", "TTS", "STT", "wakeword", "voice_mode"],
+    "Voice": ["avatar", "TTS", "STT", "wakeword", "voice_mode"],
     "Prompts": ["prompts"],
     "Tools": ["tools"],
     "Permissions": ["general", "tools"],
@@ -225,6 +226,25 @@ class Settings(Adw.Window):
            image_generator_row.add_row(row)
         # Build the RAG settings
         self.build_rag_settings()
+
+        # Build the AVATAR settings
+        self.avatargroup = Adw.PreferencesGroup(title=_('Avatar'))
+        self.AvatarPage.add(self.avatargroup)
+        avatar_enabled = Gtk.Switch(valign=Gtk.Align.CENTER)
+        self.settings.bind("avatar-on", avatar_enabled, 'active', Gio.SettingsBindFlags.DEFAULT)
+        avatar = Adw.ExpanderRow(title=_('Avatar model'), subtitle=_("Choose which avatar model to choose"))
+        avatar.add_action(avatar_enabled)
+        self.avatargroup.add(avatar)
+        hide_avatar_on_startup = Gtk.Switch(valign=Gtk.Align.CENTER)
+        hide_avatar_row = Adw.ActionRow(title=_('Hide avatar on startup'), subtitle=_('Keep the avatar panel collapsed when starting'))
+        hide_avatar_row.add_suffix(hide_avatar_on_startup)
+        self.settings.bind("hide-avatar-on-startup", hide_avatar_on_startup, 'active', Gio.SettingsBindFlags.DEFAULT)
+        self.avatargroup.add(hide_avatar_row)
+        group = Gtk.CheckButton()
+        selected = self.settings.get_string("avatar-model")
+        for avatar_key in AVAILABLE_AVATARS:
+           row = self.build_row(AVAILABLE_AVATARS, avatar_key, selected, group) 
+           avatar.add_row(row) 
 
         # Build the TTS settings
         self.Voicegroup = Adw.PreferencesGroup(title=_('Voice'))
@@ -423,25 +443,6 @@ class Settings(Adw.Window):
         self.Voicegroup.add(self.wakeword_row)
         self._build_voice_mode_settings()
         # Build prompts settings 
-        
-        # Build the AVATAR settings
-        self.avatargroup = Adw.PreferencesGroup(title=_('Avatar'))
-        self.AvatarPage.add(self.avatargroup)
-        avatar_enabled = Gtk.Switch(valign=Gtk.Align.CENTER)
-        self.settings.bind("avatar-on", avatar_enabled, 'active', Gio.SettingsBindFlags.DEFAULT)
-        avatar = Adw.ExpanderRow(title=_('Avatar model'), subtitle=_("Choose which avatar model to choose"))
-        avatar.add_action(avatar_enabled)
-        self.avatargroup.add(avatar)
-        hide_avatar_on_startup = Gtk.Switch(valign=Gtk.Align.CENTER)
-        hide_avatar_row = Adw.ActionRow(title=_('Hide avatar on startup'), subtitle=_('Keep the avatar panel collapsed when starting'))
-        hide_avatar_row.add_suffix(hide_avatar_on_startup)
-        self.settings.bind("hide-avatar-on-startup", hide_avatar_on_startup, 'active', Gio.SettingsBindFlags.DEFAULT)
-        self.avatargroup.add(hide_avatar_row)
-        group = Gtk.CheckButton()
-        selected = self.settings.get_string("avatar-model")
-        for avatar_key in AVAILABLE_AVATARS:
-           row = self.build_row(AVAILABLE_AVATARS, avatar_key, selected, group) 
-           avatar.add_row(row) 
         
         self.prompt = Adw.PreferencesGroup(title=_('Prompt control'))
         add_prompt_btn = Gtk.Button(icon_name="list-add-symbolic")
