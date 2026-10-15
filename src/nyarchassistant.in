@@ -45,7 +45,85 @@ def parse_args():
     args, remaining = parser.parse_known_args()
     return args, remaining
 
+
+def preload_gtk4_layer_shell():
+    """Load gtk4-layer-shell before GTK pulls in libwayland-client.
+
+    The library hooks libwayland-client, so it only works when loaded first;
+    otherwise Gtk4LayerShell.is_supported() reports False and Voice Mode
+    falls back to X11 positioning.
+    """
+    import ctypes
+
+    try:
+        ctypes.CDLL('libgtk4-layer-shell.so.0', mode=ctypes.RTLD_GLOBAL)
+    except OSError:
+        pass
+
+
+def forward_voice_request(arguments):
+    """Toggle an existing instance without importing the UI or AI handlers."""
+    if arguments != ['--voice']:
+        return None
+
+    from gi.repository import Gio, GLib
+
+    try:
+        connection = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+        owner = connection.call_sync(
+            'org.freedesktop.DBus',
+            '/org/freedesktop/DBus',
+            'org.freedesktop.DBus',
+            'GetNameOwner',
+            GLib.Variant('(s)', ('io.github.qwersyk.Newelle',)),
+            GLib.VariantType.new('(s)'),
+            Gio.DBusCallFlags.NO_AUTO_START,
+            1000,
+            None,
+        ).unpack()[0]
+    except GLib.Error:
+        # No existing instance (or no session bus): use normal startup.
+        return None
+
+    platform_data = {}
+    for variable, key in (
+        ('DESKTOP_STARTUP_ID', 'desktop-startup-id'),
+        ('XDG_ACTIVATION_TOKEN', 'activation-token'),
+    ):
+        value = os.environ.get(variable)
+        if value:
+            platform_data[key] = GLib.Variant('s', value)
+    try:
+        # Target the unique owner so a concurrent shutdown cannot cause D-Bus
+        # to launch another instance or deliver the toggle to a replacement.
+        connection.call_sync(
+            owner,
+            '/io/github/qwersyk/Newelle',
+            'org.freedesktop.Application',
+            'ActivateAction',
+            GLib.Variant('(sava{sv})', ('voice_mode', [], platform_data)),
+            GLib.VariantType.new('()'),
+            Gio.DBusCallFlags.NO_AUTO_START,
+            5000,
+            None,
+        )
+    except GLib.Error as error:
+        if Gio.DBusError.get_remote_error(error) in {
+            'org.freedesktop.DBus.Error.NameHasNoOwner',
+            'org.freedesktop.DBus.Error.ServiceUnknown',
+            'org.freedesktop.DBus.Error.UnknownObject',
+            'org.freedesktop.DBus.Error.UnknownMethod',
+        }:
+            return None
+        # Do not retry an uncertain delivery (e.g. a timeout): a second toggle
+        # could close the pill that the first request just opened.
+        print(error, file=sys.stderr)
+        return 1
+    return 0
+
+
 if __name__ == '__main__':
+    preload_gtk4_layer_shell()
     args, remaining = parse_args()
 
     if args.list_interfaces:
@@ -66,6 +144,10 @@ if __name__ == '__main__':
 
         from newelle import main
         sys.exit(main.run_headless(args.interface, VERSION))
+
+    forwarded_status = forward_voice_request(remaining)
+    if forwarded_status is not None:
+        sys.exit(forwarded_status)
 
     import gi
 

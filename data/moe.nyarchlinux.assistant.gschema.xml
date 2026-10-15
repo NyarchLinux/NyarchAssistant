@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist gettext-domain="nyarchassistant">
 	<schema id="moe.nyarchlinux.assistant" path="/moe/nyarchlinux/assistant/">
+        <key name="direct-audio-input" type="b"><default>false</default></key>
+        <key name="audio-transcribe" type="b"><default>false</default></key>
+        <key name="audio-transcription-timing" type="s">
+            <choices><choice value="before"/><choice value="after"/></choices>
+            <default>'before'</default>
+        </key>
         <key name="offers" type="i">
             <default>0</default>
         </key>
@@ -41,6 +47,9 @@
             <default>false</default>
         </key>
         <key name="prompts-settings" type="s">
+            <default>"{}"</default>
+          </key>
+        <key name="user-message-prompts" type="s">
             <default>"{}"</default>
           </key>
         <key name="prompts-order" type="s">
@@ -85,6 +94,52 @@
 	      <key name="tts-voice" type="s">
             <default>"{}"</default>
         </key>
+        <key name="voice-mode-chat" type="s">
+            <choices>
+                <choice value="new"/>
+                <choice value="current"/>
+                <choice value="shared"/>
+            </choices>
+            <default>"new"</default>
+        </key>
+        <key name="voice-mode-position" type="s">
+            <default>"bottom-center"</default>
+        </key>
+        <key name="voice-mode-margin" type="i">
+            <default>24</default>
+        </key>
+        <key name="voice-mode-mode" type="s">
+            <default>"current"</default>
+        </key>
+        <key name="voice-mode-workspace" type="s">
+            <default>"current"</default>
+        </key>
+        <key name="voice-mode-feedback" type="s">
+            <choices>
+                <choice value="required"/>
+                <choice value="tools"/>
+                <choice value="full"/>
+            </choices>
+            <default>"required"</default>
+        </key>
+        <key name="voice-mode-x11-override-dont-show" type="b">
+            <default>false</default>
+        </key>
+        <key name="voice-pill-theme" type="s">
+            <default>"newelle"</default>
+        </key>
+        <key name="voice-pill-background" type="s">
+            <default>"#202124"</default>
+        </key>
+        <key name="voice-pill-foreground" type="s">
+            <default>"#f7f7f8"</default>
+        </key>
+        <key name="voice-pill-accent" type="s">
+            <default>"#78aeed"</default>
+        </key>
+        <key name="voice-pill-opacity" type="d">
+            <default>0.96</default>
+        </key>
 	      <key name="avatar-on" type="b">
             <default>true</default>
         </key>
@@ -113,7 +168,7 @@
           <default>false</default>
         </key>
 	      <key name="memory-model" type="s">
-            <default>"user-summary"</default>
+            <default>"long_term_memory"</default>
         </key>
 	      <key name="memory-settings" type="s">
             <default>"{}"</default>
@@ -199,6 +254,9 @@
         <key name="current-mode" type="s">
           <default>"Normal"</default>
         </key>
+        <key name="subagents" type="s">
+          <default>"{}"</default>
+        </key>
         <key name="user-name" type="s">
           <default>"User"</default>
         </key>
@@ -243,12 +301,18 @@
         </key>
         <key name="skills-settings" type="s">
           <default>"{}"</default>
-        </key> 
+        </key>
+        <key name="subagents-settings" type="s">
+          <default>"{}"</default>
+        </key>
         <key name="scheduled-tasks" type="s">
           <default>"[]"</default>
         </key>
         <key name="remember-profile" type="b">
           <default>false</default>
+        </key>
+        <key name="hide-workspaces" type="b">
+            <default>false</default>
         </key>
         <key name="hide-history-on-launch" type="b">
             <default>false</default>
@@ -257,7 +321,7 @@
             <default>false</default>
         </key>
         <key name="max-tool-calls" type="i">
-            <range min="1" max="300"/>
+            <range min="1" max="1000"/>
             <default>70</default>
         </key>
         <key name="custom-document-folders" type="as">
@@ -265,6 +329,9 @@
         </key>
         <!-- Wakeword settings -->
         <key name="wakeword-on" type="b">
+            <default>false</default>
+        </key>
+        <key name="wakeword-voice-mode" type="b">
             <default>false</default>
         </key>
         <key name="wakeword-mode" type="s">
@@ -354,6 +421,15 @@
         </key>    
         <key name="hide-warning" type="b">
             <default>false</default>
+        </key>
+        <key name="usage-tracking" type="b">
+            <default>true</default>
+        </key>
+        <key name="usage-prices" type="s">
+            <default>"{}"</default>
+        </key>
+        <key name="usage-currency" type="s">
+            <default>"$"</default>
         </key>
 	</schema>
 </schemalist>

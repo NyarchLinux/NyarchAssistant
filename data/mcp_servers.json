@@ -1,5 +1,6 @@
 {
   "schema_version": 1,
+  "catalog_revision": 2,
   "applications": [
     {
       "id": "gmail",
@@ -197,9 +198,7 @@
         "args": [
           "run",
           "--with",
-          "mcp[cli]",
-          "--with",
-          "subprocess",
+          "mcp[cli]<2",
           "mcp",
           "run",
           "${setup_dir}/hyprmcp/server.py"
@@ -771,6 +770,8 @@
         "command": "uv",
         "args": [
           "run",
+          "--with",
+          "mcp<2",
           "--directory",
           "${setup_dir}",
           "python",

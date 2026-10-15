@@ -7,7 +7,7 @@ from gi.repository import Adw, Gtk, Gio, Gdk, GLib, GObject, Pango
 class ChatRow(Gtk.ListBoxRow):
     """A chat row widget styled according to Adwaita HIG"""
     
-    def __init__(self, chat_name: str, chat_index: int, is_selected: bool = False, level: int = 0, is_open: bool = False):
+    def __init__(self, chat_name: str, chat_index: int, is_selected: bool = False, level: int = 0, is_open: bool = False, search_excerpt: str | None = None):
         super().__init__()
         self.chat_index = chat_index
         self.is_selected = is_selected
@@ -74,7 +74,20 @@ class ChatRow(Gtk.ListBoxRow):
         )
         if chat_name != display_name:
             self.set_tooltip_text(chat_name)
-        self.main_box.append(self.name_label)
+        if search_excerpt is None:
+            self.main_box.append(self.name_label)
+        else:
+            text_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3, hexpand=True)
+            text_box.append(self.name_label)
+            text_box.append(Gtk.Label(
+                label=search_excerpt,
+                xalign=0,
+                ellipsize=Pango.EllipsizeMode.END,
+                max_width_chars=30,
+                css_classes=["dim-label", "caption"],
+            ))
+            self.main_box.append(text_box)
+            self.set_tooltip_text(chat_name + "\n" + search_excerpt)
         
         # Actions revealer (revealed on hover)
         self.actions_revealer = Gtk.Revealer(
@@ -147,9 +160,6 @@ class ChatRow(Gtk.ListBoxRow):
             self.chat_icon.remove_css_class("dim-label")
             self.chat_icon.add_css_class("accent")
             self.name_label.add_css_class("heading")
-            # Disable delete for selected chat
-            self.delete_button.set_sensitive(False)
-            self.delete_button.set_tooltip_text(_("Cannot delete current chat"))
         else:
             self.add_css_class("chat-row")
             if is_open:

@@ -17,7 +17,7 @@ class NewelleAPIHandler(OpenAIHandler):
     def get_models_list(self):
         return [("Medium", "Medium"), ("Smart", "Smart"), ("Small", "Small")]
 
-    def get_models(self, *args):
+    def get_models(self, *args, **kwargs):
         pass
     
     def get_extra_settings(self) -> list:

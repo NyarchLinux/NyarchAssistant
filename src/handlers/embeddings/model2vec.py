@@ -1,8 +1,11 @@
-from ...handlers.embeddings import EmbeddingHandler
+from ...handlers.embeddings import EmbeddingHandler, EmbeddingPurpose
 from ...handlers import ExtraSettings
 
 class Model2VecHandler(EmbeddingHandler):
     key="model2vec"
+    # Model2Vec's official model cards encode raw query and document strings.
+    default_query_prefix = ""
+    default_document_prefix = ""
 
     def __init__(self, settings, path):
         super().__init__(settings, path)
@@ -26,7 +29,7 @@ class Model2VecHandler(EmbeddingHandler):
     
     def get_extra_settings(self) -> list:
         return [
-            ExtraSettings.ComboSetting("model", "Model", "Model to use", self.get_models(), "minishlab/potion-base-8M")
+            ExtraSettings.ComboSetting("model", _("Model"), _("Model to use"), self.get_models(), "minishlab/potion-base-8M")
         ]
 
     def load_model(self):
@@ -40,8 +43,10 @@ class Model2VecHandler(EmbeddingHandler):
         self.loaded_model = model
 
 
-    def get_embedding(self, text: list[str]):
+    def get_embedding(
+        self, text: list[str], purpose: EmbeddingPurpose = None
+    ):
         if not hasattr(self, "model") or self.model is None:
             self.load_model()
-        embeddings = self.model.encode(text)
+        embeddings = self.model.encode(self._prepare_embedding_texts(text, purpose))
         return embeddings

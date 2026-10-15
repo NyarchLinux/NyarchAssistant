@@ -1,21 +1,48 @@
+import base64
+import fnmatch
 import gettext
 import hashlib
 import json
+import os
 import re
 import time
 
-from .media import extract_image, get_image_base64
+from .media import (
+    extract_image,
+    extract_audio,
+    get_file_base64,
+    get_image_base64,
+    get_user_message_context_ranges,
+    prepare_file_message,
+    prepare_audio_message,
+    save_api_attachment,
+    video_frame_content,
+)
 
 _ = gettext.gettext
 
 
-class _ResponseText(str):
-    """A normal string carrying JSON-safe provider state for its chat message."""
+class LLMResponse(str):
+    """Generated text with optional JSON-safe provider state and usage.
 
-    def __new__(cls, value: str, response_metadata: dict | None = None):
+    Usage contains provider-reported counts such as input_tokens, output_tokens,
+    cache_read_tokens and cache_write_tokens. Input totals include cached tokens;
+    output totals include reasoning tokens, when reported separately by providers.
+    Cache and reasoning counts are breakdowns, not additions to those totals.
+    Omit unknown counts; zero means
+    a measured zero. Read attributes before string operations, which return
+    plain strings. Streaming handlers attach usage to their final return value.
+    """
+
+    def __new__(cls, value: str, response_metadata: dict | None = None, *, usage: dict | None = None):
         result = super().__new__(cls, value)
         result.response_metadata = response_metadata
+        result.usage = dict(usage) if usage is not None else None
         return result
+
+
+# Keep legacy imports, positional construction and persisted references working.
+_ResponseText = LLMResponse
 
 
 def _normalize_arguments_for_id(arguments) -> str:
@@ -217,6 +244,40 @@ def convert_messages_openai_to_newelle(messages: list) -> tuple[str, list[dict],
             name = getattr(msg, "name", None)
         if content is None:
             content = ""
+        if isinstance(content, list):
+            parts = []
+            for item in content:
+                if not isinstance(item, dict):
+                    raise TypeError(_("Content parts must be objects"))
+                kind = item.get("type")
+                if kind in ("text", "input_text"):
+                    if not isinstance(item.get("text"), str):
+                        raise ValueError(_("Text content must be a string"))
+                    parts.append(item["text"])
+                elif role == "user" and kind in ("image_url", "video_url", "input_image"):
+                    value = item.get("image_url" if kind == "input_image" else kind)
+                    url = value.get("url") if isinstance(value, dict) else value
+                    if not isinstance(url, str):
+                        raise ValueError(_("Attachment URL is required"))
+                    lang = "video" if kind == "video_url" else "image"
+                    path = save_api_attachment(url, lang, remote=True)
+                    parts.append(f"```{lang}\n{path}\n```")
+                elif role == "user" and kind in ("file", "input_file"):
+                    file = item.get("file", {}) if kind == "file" else item
+                    if not isinstance(file, dict):
+                        raise ValueError(_("File content must be an object"))
+                    data = file.get("file_data") or file.get("file_url")
+                    if not isinstance(data, str):
+                        raise ValueError(_("File inputs require file_data or file_url; file IDs are not supported"))
+                    processing = file.get("processing", "auto")
+                    if processing not in ("auto", "direct", "rag"):
+                        raise ValueError(_("File processing must be auto, direct or rag"))
+                    path = save_api_attachment(data, file.get("filename") or "attachment", remote=bool(file.get("file_url")))
+                    lang = {"auto": "file", "direct": "file_direct", "rag": "file_rag"}[processing]
+                    parts.append(f"```{lang}\n{path}\n```")
+                else:
+                    raise ValueError(_("Unsupported content part: {0}").format(kind))
+            content = "\n".join(parts)
 
         if role == "system":
             system_prompt.append(content)
@@ -379,7 +440,7 @@ def extract_tools_from_prompts(prompts: list[str], remove_tool_prompt: bool = Tr
                 new_prompts.append(prompt)
     return tools_json, new_prompts
 
-def convert_history_openai(history: list, prompts: list, vision_support : bool = False, native_tool_calling: bool = True, keep_reasoning_content: bool = True):
+def convert_history_openai(history: list, prompts: list, vision_support : bool = False, native_tool_calling: bool = True, keep_reasoning_content: bool = True, supported_files: list | None = None, video_support: bool = False, video_mode: str = "native", audio_support: bool = False):
     """Converts Newelle history into OpenAI format
 
     Args:
@@ -387,6 +448,9 @@ def convert_history_openai(history: list, prompts: list, vision_support : bool =
         prompts (list): list of prompts 
         vision_support (bool): True if vision support
         keep_reasoning_content (bool): If to extract and keep reasoning_content variable
+        supported_files (list): Filename patterns accepted as file inputs
+        video_support (bool): Whether to encode video attachments
+        video_mode (str): "native" for video_url, "frames" for image sampling
 
     Returns:
        history in openai format 
@@ -396,6 +460,19 @@ def convert_history_openai(history: list, prompts: list, vision_support : bool =
         result.append({"role": "system", "content": "\n".join(prompts)})
     
     for msg_idx, message in enumerate(history):
+        if message.get("User") == "User":
+            message = {**message, "Message": prepare_audio_message(message.get("Message", ""), audio_support)}
+        audio_path, audio_caption = extract_audio(message.get("Message", ""))
+        if audio_path and audio_support and message.get("User") == "User":
+            with open(audio_path, "rb") as recording:
+                data = base64.b64encode(recording.read()).decode("ascii")
+            content = [{"type": "input_audio", "input_audio": {"data": data, "format": "wav"}}]
+            if audio_caption.strip():
+                content.insert(0, {"type": "text", "text": audio_caption})
+            result.append({"role": "user", "content": content})
+            continue
+        if message.get("User") == "User":
+            message = {**message, "Message": prepare_file_message(message["Message"])}
         if message["User"] == "Console":
             parsed = parse_tool_console_message(message["Message"]) if native_tool_calling else None
             if parsed is not None:
@@ -425,6 +502,49 @@ def convert_history_openai(history: list, prompts: list, vision_support : bool =
                         ast_msg["reasoning_content"] = message["Reasoning"]
                         print(ast_msg)
                     result.append(ast_msg)
+                    continue
+
+            if message["User"] == "User" and (supported_files or video_support):
+                content = []
+                text = message["Message"]
+                cursor = 0
+                context_ranges = get_user_message_context_ranges(text)
+                # Match all fenced blocks so attachment-like text inside an
+                # ordinary code block remains untouched.
+                for block in re.finditer(r"```(\w*)[^\S\n]*\n(.*?)\n```", text, re.DOTALL):
+                    if any(start <= block.start() < end for start, end in context_ranges):
+                        continue
+                    lang, body = block.group(1).lower(), block.group(2)
+                    enabled = (lang == "image" and vision_support) or (lang == "video" and video_support) or (lang == "file" and supported_files)
+                    if not enabled:
+                        continue
+                    attachments = []
+                    for path in body.splitlines():
+                        path = path.strip()
+                        if not path or path.startswith("#"):
+                            continue
+                        if lang == "image":
+                            attachments.append({"type": "image_url", "image_url": {"url": get_image_base64(path)}})
+                        elif lang == "video":
+                            if video_mode == "frames":
+                                attachments.extend(video_frame_content(path))
+                            else:
+                                url = path if path.startswith(("https://", "http://")) else get_file_base64(path)
+                                attachments.append({"type": "video_url", "video_url": {"url": url}})
+                        elif any(fnmatch.fnmatch(path.lower(), pattern.lower()) for pattern in supported_files):
+                            attachments.append({"type": "file", "file": {"filename": os.path.basename(path), "file_data": get_file_base64(path)}})
+                        else:
+                            attachments.append({"type": "text", "text": f"```file\n{path}\n```"})
+                    if not attachments:
+                        continue
+                    if block.start() > cursor:
+                        content.append({"type": "text", "text": text[cursor:block.start()]})
+                    content.extend(attachments)
+                    cursor = block.end()
+                if content:
+                    if cursor < len(text):
+                        content.append({"type": "text", "text": text[cursor:]})
+                    result.append({"role": "user", "content": content})
                     continue
 
             image, text = extract_image(message["Message"])
@@ -493,7 +613,20 @@ def aggregate_messages(messages: list, format="newelle"):
             current_message = message.copy()
             continue
 
-        if current_message[role_key] == message[role_key]:
+        structured_openai_message = (
+            format == "openai"
+            and (
+                current_message.get("tool_calls")
+                or message.get("tool_calls")
+                or current_message.get("function_call")
+                or message.get("function_call")
+            )
+        )
+
+        if (
+            current_message[role_key] == message[role_key]
+            and not structured_openai_message
+        ):
             content1 = current_message[content_key]
             content2 = message[content_key]
 
@@ -560,8 +693,63 @@ def _ensure_tool_call_id(tc: object, occurrence_index: int) -> str:
     return new_id
 
 
+def _orphan_tool_message_as_user(message: dict) -> dict:
+    """Preserve an unpaired tool result without sending an invalid tool role."""
+    name = str(message.get("name", "") or "").strip()
+    call_id = str(message.get("tool_call_id", "") or "").strip()
+    details = ", ".join(
+        detail
+        for detail in (
+            f"tool: {name}" if name else "",
+            f"ID: {call_id}" if call_id else "",
+        )
+        if detail
+    )
+    header = "Console tool result"
+    if details:
+        header += f" ({details})"
+
+    content = message.get("content", "")
+    if not isinstance(content, str):
+        content = json.dumps(content, ensure_ascii=False, default=str)
+    return {"role": "user", "content": f"{header}:\n{content}"}
+
+
+def _sanitize_tool_message_sequence(messages: list) -> list:
+    """Downgrade tool rows that do not answer the active assistant call set."""
+    out = []
+    pending_ids: list[str] | None = None
+
+    for message in messages:
+        role = message.get("role") if isinstance(message, dict) else None
+        tool_calls = message.get("tool_calls") if isinstance(message, dict) else None
+
+        if role == "assistant" and tool_calls:
+            pending_ids = [
+                _ensure_tool_call_id(tool_call, index)
+                for index, tool_call in enumerate(tool_calls)
+            ]
+            out.append(message)
+            continue
+
+        if role == "tool":
+            call_id = message.get("tool_call_id")
+            call_id = call_id if isinstance(call_id, str) else str(call_id or "")
+            if pending_ids is not None and call_id in pending_ids:
+                pending_ids.remove(call_id)
+                out.append(message)
+            else:
+                out.append(_orphan_tool_message_as_user(message))
+            continue
+
+        pending_ids = None
+        out.append(message)
+
+    return out
+
+
 def balance_native_tool_call_responses(messages: list) -> list:
-    """Ensure each assistant ``tool_calls`` entry has a matching ``role: tool`` message.
+    """Return a valid assistant/tool sequence for OpenAI-compatible APIs.
 
     Display-only tools may omit console output (no ``[Tool: …]`` row in history). Several
     APIs then reject the turn (e.g. mismatched function call / response counts). Missing
@@ -569,6 +757,12 @@ def balance_native_tool_call_responses(messages: list) -> list:
 
     Assistant ``tool_calls`` lacking an id are backfilled with a deterministic
     ``call_<hash>`` so the synthesized tool reply can reference a stable id.
+
+    Tool context can be stored between parallel tool results in Newelle history.
+    Matching results are moved next to their assistant call, as required by the
+    Chat Completions protocol. Results whose assistant call was removed by context
+    trimming are retained as user-visible console context instead of an invalid
+    orphan ``role: tool`` message.
     """
     if not messages:
         return messages
@@ -584,15 +778,30 @@ def balance_native_tool_call_responses(messages: list) -> list:
                 (_ensure_tool_call_id(tc, idx), _tool_call_dict_name(tc))
                 for idx, tc in enumerate(tcs)
             ]
+            # A tool can add user context before a parallel sibling finishes.
+            # Search the remainder of this assistant turn, but never steal a
+            # result from a later assistant message.
             j = i + 1
-            following_tools: list = []
-            while j < n and isinstance(messages[j], dict) and messages[j].get("role") == "tool":
-                following_tools.append(messages[j])
+            while j < n:
+                following = messages[j]
+                if (
+                    isinstance(following, dict)
+                    and following.get("role") == "assistant"
+                ):
+                    break
                 j += 1
+            following_tools = [
+                (index, messages[index])
+                for index in range(i + 1, j)
+                if (
+                    isinstance(messages[index], dict)
+                    and messages[index].get("role") == "tool"
+                )
+            ]
             matched = [False] * len(following_tools)
             for eid, ename in expected:
                 found: int | None = None
-                for fi, fm in enumerate(following_tools):
+                for fi, (_message_index, fm) in enumerate(following_tools):
                     if matched[fi]:
                         continue
                     rid = fm.get("tool_call_id")
@@ -602,17 +811,29 @@ def balance_native_tool_call_responses(messages: list) -> list:
                         break
                 if found is not None:
                     matched[found] = True
+                    out.append(following_tools[found][1])
                 else:
                     row = {"role": "tool", "tool_call_id": eid, "content": VOID_TOOL_RESULT_PLACEHOLDER}
                     if ename:
                         row["name"] = ename
                     out.append(row)
-            out.extend(following_tools)
+            matched_indices = {
+                message_index
+                for is_matched, (message_index, _message) in zip(
+                    matched, following_tools
+                )
+                if is_matched
+            }
+            out.extend(
+                messages[index]
+                for index in range(i + 1, j)
+                if index not in matched_indices
+            )
             i = j
         else:
             out.append(msg)
             i += 1
-    return out
+    return _sanitize_tool_message_sequence(out)
 
 
 def embed_image(text: str, image: str):

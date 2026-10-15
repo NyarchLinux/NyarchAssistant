@@ -66,22 +66,22 @@ class AgenticMemoryHandler(MemoryHandler):
 
     def get_extra_settings(self) -> list:
         return [
-            ExtraSettings.ButtonSetting("reset_memory", "Reset Memory", "Reset all memory files and index", lambda _x: self.reset_memory(), label="Reset Memory"),
-            ExtraSettings.ButtonSetting("open_folder", "Open Memory Folder", "Open the folder where memories are stored", lambda _x: self._open_folder(), label="Open Folder"),
-            ExtraSettings.ScaleSetting("similarity_threshold", "Similarity Threshold", "Minimum similarity for retrieved memories (0-1)", 0.3, 0.0, 1.0, 2),
-            ExtraSettings.ScaleSetting("context_threshold", "Context Threshold", "Minimum similarity for auto-adding to context (0-1)", 0.7, 0.0, 1.0, 2),
-            ExtraSettings.ScaleSetting("max_results", "Max Results", "Maximum number of results to return from search", 5, 1, 20, 0),
-            ExtraSettings.ScaleSetting("chunk_size", "Chunk Size", "Maximum characters per memory chunk", 500, 100, 2000, 0),
-            ExtraSettings.ScaleSetting("update_freq", "Update Frequency", "Number of messages between automatic memory consolidation (0=disabled)", 20, 0, 50, 0),
-            ExtraSettings.ScaleSetting("extract_freq", "Extract Frequency", "Number of messages between automatic memory extractions (0=disabled, only manual tool usage)", 0, 0, 50, 0),
-            ExtraSettings.ToggleSetting("auto_add_context", "Auto-add to Context", "Automatically add relevant memories to the conversation context", True),
-            ExtraSettings.ToggleSetting("store_interactions", "Store Interactions", "Store user interactions in separate file for vector search", True),
-            ExtraSettings.ToggleSetting("keepalive_memory", "Always add main memory to prompt", "This option will always add consolidated memory to prompt in any request", False),
-            ExtraSettings.MultilineEntrySetting("extract_prompt", "Extract Prompt",
-                "Prompt for extracting important info from conversations. {user} and {assistant} will be replaced.",
+            ExtraSettings.ButtonSetting("reset_memory", _("Reset Memory"), _("Reset all memory files and index"), lambda _x: self.reset_memory(), label=_("Reset Memory")),
+            ExtraSettings.ButtonSetting("open_folder", _("Open Memory Folder"), _("Open the folder where memories are stored"), lambda _x: self._open_folder(), label=_("Open Folder")),
+            ExtraSettings.ScaleSetting("similarity_threshold", _("Similarity Threshold"), _("Minimum similarity for retrieved memories (0-1)"), 0.3, 0.0, 1.0, 2),
+            ExtraSettings.ScaleSetting("context_threshold", _("Context Threshold"), _("Minimum similarity for auto-adding to context (0-1)"), 0.7, 0.0, 1.0, 2),
+            ExtraSettings.ScaleSetting("max_results", _("Max Results"), _("Maximum number of results to return from search"), 5, 1, 20, 0),
+            ExtraSettings.ScaleSetting("chunk_size", _("Chunk Size"), _("Maximum characters per memory chunk"), 500, 100, 2000, 0),
+            ExtraSettings.ScaleSetting("update_freq", _("Update Frequency"), _("Number of messages between automatic memory consolidation (0=disabled)"), 20, 0, 50, 0),
+            ExtraSettings.ScaleSetting("extract_freq", _("Extract Frequency"), _("Number of messages between automatic memory extractions (0=disabled, only manual tool usage)"), 0, 0, 50, 0),
+            ExtraSettings.ToggleSetting("auto_add_context", _("Auto-add to Context"), _("Automatically add relevant memories to the conversation context"), True),
+            ExtraSettings.ToggleSetting("store_interactions", _("Store Interactions"), _("Store user interactions in separate file for vector search"), True),
+            ExtraSettings.ToggleSetting("keepalive_memory", _("Always add main memory to prompt"), _("This option will always add consolidated memory to prompt in any request"), False),
+            ExtraSettings.MultilineEntrySetting("extract_prompt", _("Extract Prompt"),
+                _("Prompt for extracting important info from conversations. {user} and {assistant} will be replaced."),
                 self._get_default_extract_prompt(), refresh=self._restore_extract_prompt, refresh_icon="star-filled-rounded-symbolic"),
-            ExtraSettings.MultilineEntrySetting("consolidate_prompt", "Consolidate Prompt",
-                "Prompt for memory consolidation. {conversations} and {existing_memories} will be replaced.",
+            ExtraSettings.MultilineEntrySetting("consolidate_prompt", _("Consolidate Prompt"),
+                _("Prompt for memory consolidation. {conversations} and {existing_memories} will be replaced."),
                 self._get_default_consolidate_prompt(), refresh=self._restore_consolidate_prompt, refresh_icon="star-filled-rounded-symbolic"),
         ]
 
@@ -313,7 +313,7 @@ Recent conversations:
             return
 
         texts = [chunk.content for chunk in self.chunks]
-        embeddings = self.embedding.get_embedding(texts)
+        embeddings = self.embedding.get_embedding(texts, purpose="document")
 
         for i, chunk in enumerate(self.chunks):
             chunk.embedding = embeddings[i].tolist() if hasattr(embeddings[i], 'tolist') else list(embeddings[i])
@@ -622,7 +622,9 @@ Recent conversations:
         max_results = int(self.get_setting("max_results", return_value=5))
 
         # Generate query embedding
-        query_embedding = self.embedding.get_embedding([query])[0]
+        query_embedding = self.embedding.get_embedding(
+            [query], purpose="query"
+        )[0]
         if hasattr(query_embedding, 'tolist'):
             query_embedding = query_embedding.tolist()
 

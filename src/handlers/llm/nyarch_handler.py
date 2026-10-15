@@ -9,6 +9,7 @@ class NyarchApiHandler(OpenAIHandler):
 
     def __init__(self, settings, path):
         super().__init__(settings, path)
+        self.models = self.get_models_list()
         self.set_setting("endpoint", "https://llm.nyarchlinux.moe")
         self.set_setting("advanced_params", False)
         self.set_setting("api", "nya")
@@ -16,7 +17,7 @@ class NyarchApiHandler(OpenAIHandler):
     def get_models_list(self):
         return [("Medium", "Medium"), ("Smart", "Smart"), ("Small", "Small")]
 
-    def get_models(self):
+    def get_models(self, *args, **kwargs):
         pass
     
     def get_extra_settings(self) -> list:

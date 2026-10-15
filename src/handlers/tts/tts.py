@@ -18,8 +18,7 @@ class TTSHandler(Handler):
         self.settings = settings
         self.path = path
         self.voices = tuple()
-        self.on_start = lambda : None
-        self.on_stop  = lambda : None
+        self._signal_callbacks = {"start": [], "stop": []}
         self.play_process = None
 
     def get_extra_settings(self) -> list:
@@ -72,10 +71,38 @@ class TTSHandler(Handler):
         return file_name
     
     def connect(self, signal: str, callback: Callable):
-        if signal == "start":
-            self.on_start = callback
-        elif signal == "stop":
-            self.on_stop = callback
+        """Subscribe to playback lifecycle events and return a listener token."""
+        if signal not in self._signal_callbacks:
+            raise ValueError(f"Unknown TTS signal: {signal}")
+        token = (signal, callback)
+        self._signal_callbacks[signal].append(callback)
+        return token
+
+    def disconnect(self, token):
+        """Remove a listener returned by :meth:`connect`."""
+        if not token or len(token) != 2:
+            return
+        signal, callback = token
+        callbacks = self._signal_callbacks.get(signal, [])
+        try:
+            callbacks.remove(callback)
+        except ValueError:
+            pass
+
+    def _emit(self, signal: str):
+        for callback in tuple(self._signal_callbacks.get(signal, ())):
+            try:
+                callback()
+            except Exception as exc:
+                print(f"TTS {signal} callback error: {exc}")
+
+    def on_start(self):
+        """Notify listeners that playback has started."""
+        self._emit("start")
+
+    def on_stop(self):
+        """Notify listeners that playback has stopped."""
+        self._emit("stop")
 
     def playsound(self, path):
         """Play an audio from the given path, handling incorrect file extensions"""

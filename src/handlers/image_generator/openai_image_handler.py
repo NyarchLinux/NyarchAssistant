@@ -58,18 +58,29 @@ class OpenAIImageHandler(ImageGeneratorHandler):
         return ["openai"]
 
     def get_extra_settings(self) -> list:
+        custom = self.get_setting("custom_model", False, False)
+        default_model = self.models[0][0] if self.models else self.default_models[0][0]
+        if custom:
+            model_settings = [
+                ExtraSettings.EntrySetting("model", _("Model"), _("Name of the image generation model to use"), default_model),
+            ]
+        else:
+            model_settings = [
+                ExtraSettings.ComboSetting("model", _("Model"), _("Image generation model"), self.models, default_model, refresh=lambda x: self._refresh_models()),
+            ]
         return [
-            ExtraSettings.EntrySetting("api", "API Key", "OpenAI API key", "", password=True),
-            ExtraSettings.EntrySetting("endpoint", "API Endpoint", "Custom endpoint for OpenAI-compatible services. Leave empty for default OpenAI endpoint.", "", website="https://platform.openai.com/docs/api-reference/images"),
-            ExtraSettings.ComboSetting("model", "Model", "Image generation model", self.models, self.default_models[0][0], refresh=lambda x: self._refresh_models()),
-            ExtraSettings.SpinSetting("height", "Height", "Height of the generated image", 512, 256, 2048, 0),
-            ExtraSettings.SpinSetting("width", "Width", "Width of the generated image", 512, 256, 2048, 0),
-            ExtraSettings.ComboSetting("quality", "Quality", "Image quality (dall-e-3 only)", (
+            ExtraSettings.EntrySetting("api", _("API Key"), _("OpenAI API key"), "", password=True),
+            ExtraSettings.EntrySetting("endpoint", _("API Endpoint"), _("Custom endpoint for OpenAI-compatible services. Leave empty for default OpenAI endpoint."), "", website="https://platform.openai.com/docs/api-reference/images"),
+            ExtraSettings.ToggleSetting("custom_model", _("Use Custom Model"), _("Use a custom model name instead of selecting from the list"), False, update_settings=True),
+            *model_settings,
+            ExtraSettings.SpinSetting("height", _("Height"), _("Height of the generated image"), 512, 256, 2048, 0),
+            ExtraSettings.SpinSetting("width", _("Width"), _("Width of the generated image"), 512, 256, 2048, 0),
+            ExtraSettings.ComboSetting("quality", _("Quality"), _("Image quality (dall-e-3 only)"), (
                 ("standard", "Standard"),
                 ("hd", "HD"),
                 ), "standard"),
-            ExtraSettings.MultilineEntrySetting("positive-prompt", "Positive Prompt Template", "Prompt template, [input] will be replaced with the user prompt", "[input]"),
-            ExtraSettings.EntrySetting("style", "Style", "Generation style: vivid or natural (dall-e-3 only)", "vivid"),
+            ExtraSettings.MultilineEntrySetting("positive-prompt", _("Positive Prompt Template"), _("Prompt template, [input] will be replaced with the user prompt"), "[input]"),
+            ExtraSettings.EntrySetting("style", _("Style"), _("Generation style: vivid or natural (dall-e-3 only)"), "vivid"),
         ]
 
     def _refresh_models(self):
@@ -84,7 +95,12 @@ class OpenAIImageHandler(ImageGeneratorHandler):
         client = openai.Client(api_key=self.get_setting("api"), base_url=self._get_endpoint())
 
         model = self.get_setting("model")
-        size = self.get_setting("size")
+        width = self.get_setting("width")
+        height = self.get_setting("height")
+        try:
+            size = f"{int(width)}x{int(height)}"
+        except (TypeError, ValueError):
+            size = "1024x1024"
         quality = self.get_setting("quality")
         response_format = "url"
         style = self.get_setting("style")

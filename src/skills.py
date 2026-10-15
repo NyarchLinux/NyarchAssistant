@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import copy
 
 from .modes import ENABLE, REMOVE
 
@@ -95,6 +96,14 @@ class SkillManager:
                        ("enable"/"remove"/"no_change"). ``None`` resets them.
         """
         self.mode_skill_overrides = overrides or {}
+
+    def fork_with_mode_overrides(self, overrides):
+        """Return a request-local manager view with independent Mode state."""
+        fork = copy.copy(self)
+        fork.skills = dict(self.skills)
+        fork.activated_skills = set()
+        fork.mode_skill_overrides = dict(overrides or {})
+        return fork
 
     def _load_settings(self):
         raw = self.settings.get_string("skills-settings")
@@ -211,16 +220,19 @@ class SkillManager:
             lines.append(f"- **{skill.name}**: {skill.description}")
         return "\n".join(lines)
 
-    def activate_skill(self, name):
-        """Return the full skill body with structured wrapping, or an error message."""
+    def render_skill(self, name, require_enabled=True):
+        """Return a skill's wrapped instructions without changing activation state.
+
+        ``require_enabled`` keeps the normal main-agent behavior by default,
+        while scoped runtimes such as configured subagents can authorize their
+        own explicit skill selection independently of profile and Mode toggles.
+        """
         skill = self.skills.get(name)
         if skill is None:
             return f"Skill '{name}' not found. Available skills: {', '.join(self.skills.keys())}"
 
-        if not self.is_skill_enabled(name):
+        if require_enabled and not self.is_skill_enabled(name):
             return f"Skill '{name}' is disabled."
-
-        self.activated_skills.add(name)
 
         resources = self._list_resources(skill.base_dir)
         resource_section = ""
@@ -236,6 +248,14 @@ class SkillManager:
             f"{resource_section}\n"
             f"</skill_content>"
         )
+
+    def activate_skill(self, name):
+        """Return the full skill body with structured wrapping, or an error message."""
+        output = self.render_skill(name, require_enabled=True)
+        skill = self.skills.get(name)
+        if skill is not None and self.is_skill_enabled(name):
+            self.activated_skills.add(name)
+        return output
 
     def _list_resources(self, base_dir, max_files=50):
         """List non-SKILL.md files in the skill directory."""

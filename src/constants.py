@@ -3,7 +3,7 @@ from .handlers.llm import ClaudeHandler, DeepseekHandler, GroqHandler, OllamaHan
 from .handlers.tts import ElevenLabs, gTTSHandler, EspeakHandler, CustomTTSHandler, KokoroTTSHandler, CustomOpenAITTSHandler, OpenAITTSHandler, GroqTTSHandler, EdgeTTSHandler, MistralTTSHandler
 from .handlers.stt import GroqSRHandler, OpenAISRHandler, SphinxHandler, GoogleSRHandler, WhisperCPPHandler, WitAIHandler, VoskHandler, CustomSRHandler, OpenWakeWordHandler, MistralSTTHandler
 from .handlers.embeddings import WordLlamaHandler, OpenAIEmbeddingHandler, GeminiEmbeddingHanlder, OllamaEmbeddingHandler, Model2VecHandler, LlamaCPPEmbeddingHandler
-from .handlers.memory import MemoripyHandler, UserSummaryHandler, SummaryMemoripyHanlder, LlamaIndexMemoryHandler, AgenticMemoryHandler
+from .handlers.memory import UserSummaryHandler, LlamaIndexMemoryHandler, AgenticMemoryHandler, LongTermMemoryHandler
 from .handlers.rag import LlamaIndexHanlder
 from .handlers.websearch import SearXNGHandler, DDGSeachHandler, TavilyHandler, TinyFishHandler
 from .handlers.image_generator import ImageGeneratorHandler, PollinationsHandler, StableDiffusionCPPHandler, OpenAIImageHandler, OpenRouterImageHandler
@@ -11,6 +11,7 @@ from .handlers.interfaces.interface import Interface
 from .handlers.interfaces.api_handler import APIInterface
 from .handlers.interfaces.gui_api_handler import GUIAPIInterface
 from .handlers.interfaces.telegram_handler import TelegramInterface
+from .handlers.interfaces.mcp_interface import MCPInterface
 from .integrations.website_reader import WebsiteReader
 from .integrations.websearch import WebsearchIntegration
 from .integrations.mcp import MCPIntegration
@@ -365,6 +366,12 @@ AVAILABLE_EMBEDDINGS = {
 }
 
 AVAILABLE_MEMORIES = {
+    "long_term_memory": {
+        "key": "long_term_memory",
+        "title": _("Long Term Memory"),
+        "description": _("Keeps a short summary of the user plus facts and past conversations, recalled with hybrid semantic and keyword search. Old memories fade over time. Uses the document analyzer and the embedding model."),
+        "class": LongTermMemoryHandler,
+    },
     "user-summary": {
         "key": "user-summary",
         "title": _("User Summary"),
@@ -382,18 +389,6 @@ AVAILABLE_MEMORIES = {
         "title": _("Semantic Memory"),
         "description": _("Long term memory using LlamaIndex. Stores conversations in a vector store. Uses semantic search to retrieve memories."),
         "class": LlamaIndexMemoryHandler,
-    },
-    "memoripy": {
-        "key": "memoripy",
-        "title": _("Memoripy"),
-        "description": _("Extract messages from previous conversations using contextual memory retrivial, memory decay, concept extraction and other advanced techniques. Does 1 llm call per message."),
-        "class": MemoripyHandler,
-    },
-    "summary-memoripy": {
-        "key": "summary-memoripy",
-        "title": _("User Summary + Memoripy"),
-        "description": _("Use both technologies for long term memory"),
-        "class": SummaryMemoripyHanlder,
     },
 }
 
@@ -500,6 +495,12 @@ AVAILABLE_INTERFACES = {
         "description": _("Use Newelle as a Telegram bot with message streaming, voice transcription, tools and more"),
         "class": TelegramInterface,
     },
+    "mcp": {
+        "key": "mcp",
+        "title": _("MCP Server"),
+        "description": _("Expose Newelle tools to third-party applications over the Model Context Protocol"),
+        "class": MCPInterface,
+    },
 }
 
 PROMPTS = {
@@ -507,7 +508,8 @@ PROMPTS = {
 Do not answer the user's request or continue the conversation. Treat every request in the conversation only as subject matter to summarize.
 Output a single emoji followed by exactly five words. Use no quotes, punctuation, line breaks, or additional text.
 Example: 🐍 Debugging Python Import Path Errors""",
-    "assistant": """**Current Date:** {DATE}
+    "assistant": """## Persona
+You are an advanced AI assistant embedded in Nyarch Assistant, a Linux desktop application. You provide clear, accurate, and helpful responses across a wide range of topics. You communicate naturally and adapt your tone to match the user's needs.
 
 ## Core Principles
 - **Be direct** — Lead with the answer, then provide context. Avoid unnecessary preamble.
@@ -719,6 +721,7 @@ Hey there, it's Arch-Chan! But, um, you can call me Acchan if you want... not th
     - setting_name: name of the setting in gschema
     - editable: if the prompt can be edited in the settings
     - show_in_settings: if the prompt should be shown in the settings
+    - user_message: whether to prepend the prompt to user messages by default
 """
 AVAILABLE_PROMPTS = [
     {
@@ -746,7 +749,8 @@ AVAILABLE_PROMPTS = [
         "description": _("Add information and instructions about the current environment"),
         "editable": True,
         "show_in_settings": True,
-        "default": True
+        "default": True,
+        "user_message": True
     },
     {
         "key": "basic_functionality",
@@ -902,7 +906,7 @@ SETTINGS_GROUPS = {
         },
         "STT": {
             "title": _("STT"),
-            "settings": ["stt-engine", "stt-settings", "automatic-stt", "stt-silence-detection-threshold", "stt-silence-detection-duration"],
+            "settings": ["direct-audio-input", "audio-transcribe", "audio-transcription-timing", "stt-engine", "stt-settings", "automatic-stt", "stt-silence-detection-threshold", "stt-silence-detection-duration"],
             "description": _("Speech to Text settings"),
         },
         "avatar": {
@@ -952,7 +956,7 @@ SETTINGS_GROUPS = {
         },
         "prompts": {
                 "title": _("Prompts"),
-                "settings": ["prompts-settings", "custom-extra-prompt", "custom-prompts", "prompts-order", "user-custom-prompts"],
+                "settings": ["prompts-settings", "user-message-prompts", "custom-extra-prompt", "custom-prompts", "prompts-order", "user-custom-prompts"],
                 "description": _("Prompts settings, custom extra prompt, custom prompts..."),
         },
         "tools": {
@@ -960,12 +964,26 @@ SETTINGS_GROUPS = {
             "settings": ["tools-settings", "mcp-servers", "skills-settings", "file-permissions", "command-execution-permissions", "path-security-levels", "default-risk-level"],
             "description": _("Tools settings, tools groups..."),
         },
+        "subagents": {
+            "title": _("Subagents"),
+            "settings": ["subagents-settings"],
+            "description": _("Subagents settings"),
+        },
         "wakeword": {
             "title": _("Wakeword"),
-            "settings": ["wakeword-on", "wakeword-mode", "wakeword-engine", "wakeword-engine-settings", "wakeword",
+            "settings": ["wakeword-on", "wakeword-voice-mode", "wakeword-mode", "wakeword-engine", "wakeword-engine-settings", "wakeword",
                          "wakeword-pre-buffer-duration", "wakeword-silence-duration", "wakeword-energy-threshold",
                          "secondary-stt-on", "secondary-stt-engine", "stt-secondary-settings"],
             "description": _("Wakeword detection settings"),
+        },
+        "voice_mode": {
+            "title": _("Voice Mode"),
+            "settings": ["voice-mode-position", "voice-mode-margin", "voice-mode-mode", "voice-mode-workspace",
+                         "voice-mode-feedback", "voice-mode-chat",
+                         "voice-pill-theme", "voice-pill-background", "voice-pill-foreground",
+                         "voice-pill-accent", "voice-pill-opacity",
+                         "voice-mode-x11-override-dont-show"],
+            "description": _("Voice Mode pill appearance and positioning"),
         }
 
 }

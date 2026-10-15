@@ -1,15 +1,109 @@
 from abc import abstractmethod
 from typing import Callable, Any
+import functools
 import json
 from ..handler import Handler
-from ...utility.media import extract_image 
-from ...utility.strings import extract_json
+from ...utility.util import LLMResponse
+from ...utility.media import extract_image, prepare_file_message, prepare_audio_message, audio_text
+from ...utility.strings import extract_json, normalize_thinking_tags
+from ...utility.usage_tracker import get_usage_tracker
+
+__all__ = ["LLMHandler", "LLMResponse"]
+
+
+def _track_usage(method):
+    """Record usage statistics for a generation method of an LLM handler."""
+    @functools.wraps(method)
+    def wrapper(self, *args, **kwargs):
+        tracker = get_usage_tracker()
+        if not tracker.enabled or not tracker.begin_generation(self):
+            return method(self, *args, **kwargs)
+        try:
+            result = method(self, *args, **kwargs)
+        finally:
+            tracker.end_generation(self)
+        try:
+            prompt = kwargs.get("prompt", args[0] if len(args) > 0 else "")
+            history = kwargs.get("history", args[1] if len(args) > 1 else [])
+            system_prompt = kwargs.get("system_prompt", args[2] if len(args) > 2 else [])
+            try:
+                model = self.get_selected_model()
+            except Exception:
+                model = ""
+            tracker.submit(
+                getattr(self, "key", "") or type(self).__name__,
+                str(model or ""),
+                getattr(result, "usage", None),
+                result,
+                prompt,
+                history,
+                system_prompt,
+            )
+        except Exception as error:
+            print(f"Error tracking LLM usage: {error}")
+        return result
+    wrapper._usage_tracked = True
+    return wrapper
+
+
+def _normalize_response(result):
+    if isinstance(result, LLMResponse):
+        normalized = normalize_thinking_tags(str(result))
+        if normalized == result:
+            return result
+        return LLMResponse(normalized, result.response_metadata, usage=result.usage)
+    if isinstance(result, str):
+        return normalize_thinking_tags(result)
+    return result
+
+
+def _normalize_thinking(method):
+    """Rewrite model-specific reasoning markers into ``<think>`` blocks."""
+    @functools.wraps(method)
+    def wrapper(self, *args, **kwargs):
+        if method.__name__ == "generate_text_stream":
+            if "on_update" in kwargs:
+                original = kwargs["on_update"]
+            elif len(args) > 3:
+                original = args[3]
+            else:
+                original = None
+            if callable(original):
+                def on_update(text, *extra):
+                    return original(normalize_thinking_tags(text), *extra)
+                if "on_update" in kwargs:
+                    kwargs["on_update"] = on_update
+                else:
+                    args = args[:3] + (on_update,) + args[4:]
+        return _normalize_response(method(self, *args, **kwargs))
+    wrapper._thinking_normalized = True
+    return wrapper
 
 class LLMHandler(Handler):
-    """Every LLM model handler should extend this class."""
+    """Every LLM model handler should extend this class.
+
+    Generation methods may return plain str or LLMResponse with optional usage
+    and provider state. For example: LLMResponse(text, usage={"input_tokens": 42}).
+    Metadata belongs to each response, never shared handler state. Streaming
+    callbacks remain text-only; return metadata with the final complete text.
+    """
     history = []
     prompts = []
     schema_key = "llm-settings"
+
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        # Wrapping here covers built-in, duplicated and extension handlers and
+        # every caller (chat, secondary tasks, memory, RAG, API interfaces).
+        for name in ("generate_text", "generate_text_stream"):
+            method = cls.__dict__.get(name)
+            if not callable(method):
+                continue
+            if not getattr(method, "_thinking_normalized", False):
+                method = _normalize_thinking(method)
+            if not getattr(method, "_usage_tracked", False):
+                method = _track_usage(method)
+            setattr(cls, name, method)
 
     def __init__(self, settings, path):
         super().__init__(settings, path)
@@ -42,6 +136,10 @@ class LLMHandler(Handler):
     def is_secondary(self) -> bool:
         """ Return if the LLM is a secondary one"""
         return self.schema_key == "llm-secondary-settings"
+
+    def supports_audio(self) -> bool:
+        """Whether the configured model and endpoint accept audio input."""
+        return False
 
     def supports_vision(self) -> bool:
         """ Return if the LLM supports receiving images"""
@@ -149,7 +247,8 @@ class LLMHandler(Handler):
         Returns:
             str: Response of the bot
         """        
-        return self.generate_text(message, history, system_prompt)
+        history = [{**item, "Message": prepare_file_message(prepare_audio_message(item["Message"], self.supports_audio()))} if item.get("User") == "User" else item for item in history]
+        return self.generate_text(prepare_file_message(prepare_audio_message(message, self.supports_audio())), history, system_prompt)
 
     def send_message_stream(self, message:str, history: list[dict[str, str]] = [], system_prompt: list[str] = [], on_update: Callable[[str], Any] = (), extra_args : list = []) -> str:
         """Send a message to the bot
@@ -163,7 +262,8 @@ class LLMHandler(Handler):
         Returns:
             str: Response of the bot
         """        
-        return self.generate_text_stream(message, history, system_prompt, on_update, extra_args)
+        history = [{**item, "Message": prepare_file_message(prepare_audio_message(item["Message"], self.supports_audio()))} if item.get("User") == "User" else item for item in history]
+        return self.generate_text_stream(prepare_file_message(prepare_audio_message(message, self.supports_audio())), history, system_prompt, on_update, extra_args)
  
     def get_suggestions(self, request_prompt:str = "", amount:int=1, history: list[dict[str, str]] = []) -> list[str]:
         """Get suggestions for the current chat. The default implementation expects the result as a JSON Array containing the suggestions
@@ -181,7 +281,7 @@ class LLMHandler(Handler):
         history = ""
         # Only get the last four elements and reconstruct partial history
         for message in history[-4:] if len(history) >= 4 else history:
-            image, text = extract_image(message["Message"])
+            image, text = extract_image(audio_text(message["Message"]))
             history += message["User"] + ": " + text + "\n"
         for i in range(0, amount):
             if req >= max_requests:
@@ -222,7 +322,7 @@ class LLMHandler(Handler):
             # next turn in the conversation and answer the user instead of naming it.
             processed_history = []
             for message in history:
-                image, text = extract_image(message["Message"])
+                image, text = extract_image(audio_text(message["Message"]))
                 processed_history.append({
                     "User": message["User"],
                     "Message": text[:500],

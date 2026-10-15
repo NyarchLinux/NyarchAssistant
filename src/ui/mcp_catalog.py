@@ -9,6 +9,7 @@ import os
 import re
 import shlex
 import shutil
+import signal
 import socket
 import stat
 import subprocess
@@ -21,9 +22,23 @@ from urllib.parse import urljoin, urlparse
 import requests
 from gi.repository import Adw, Gdk, GdkPixbuf, Gio, GLib, Gtk
 
+from ..utility.download_manager import (
+    DownloadCancelled,
+    DownloadKind,
+    get_download_manager,
+)
+from ..utility.system import (
+    can_escape_sandbox,
+    get_spawn_command,
+    is_flatpak,
+    open_website,
+)
 from . import _IMAGE_REQUEST_HEADERS, _pixbuf_from_image_data
-from ..utility.system import can_escape_sandbox, get_spawn_command, is_flatpak, open_website
-
+from .extensions_catalog import (
+    ExtensionCatalogError,
+    inspect_python_source,
+    install_extension_files,
+)
 
 _ = gettext.gettext
 
@@ -34,9 +49,11 @@ DEFAULT_CATALOG_URL = (
 )
 MAX_CATALOG_BYTES = 1024 * 1024
 MAX_LOGO_BYTES = 512 * 1024
+MAX_EXTENSION_BYTES = 2 * 1024 * 1024
 PLACEHOLDER_RE = re.compile(r"\$\{([A-Za-z][A-Za-z0-9_]*)\}")
 FIELD_ID_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,63}$")
 ENV_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+EXTENSION_FILENAME_RE = re.compile(r"^[A-Za-z0-9_.-]+\.py$")
 RESERVED_TEMPLATE_VALUES = {"setup_dir"}
 ALLOWED_FIELD_TYPES = {"text", "secret", "url", "file", "directory"}
 ALLOWED_AUTH_TYPES = {"none", "bearer", "oauth"}
@@ -80,6 +97,106 @@ def _validate_https_url(value, label):
     parsed = urlparse(value)
     if parsed.scheme != "https" or not parsed.netloc:
         raise CatalogValidationError(f"{label} must use HTTPS")
+
+
+def _get_extension_config(application):
+    """Return the extension download configuration for a catalog item."""
+    extension = application.get("extension")
+    if isinstance(extension, str):
+        return {"url": extension}
+    if isinstance(extension, dict):
+        return extension
+    extension_url = application.get("extension_url")
+    if isinstance(extension_url, str):
+        return {"url": extension_url}
+    download_url = application.get("download_url")
+    if application.get("type") == "extension" and isinstance(download_url, str):
+        return {"url": download_url}
+    url = application.get("url")
+    if application.get("type") == "extension" and isinstance(url, str):
+        return {"url": url}
+    return None
+
+
+def _is_extension_application(application):
+    return (
+        application.get("type") == "extension"
+        or _get_extension_config(application) is not None
+    )
+
+
+def _validate_extension_config(extension, prefix):
+    if not isinstance(extension, dict):
+        raise CatalogValidationError(f"{prefix} must be an object")
+    _validate_https_url(extension.get("url"), f"{prefix}.url")
+    filename = extension.get("filename")
+    if filename is not None and (
+        not isinstance(filename, str)
+        or not EXTENSION_FILENAME_RE.fullmatch(filename)
+    ):
+        raise CatalogValidationError(
+            f"{prefix}.filename must be a simple Python filename"
+        )
+    extension_id = extension.get("id")
+    if extension_id is not None and (
+        not isinstance(extension_id, str) or not FIELD_ID_RE.fullmatch(extension_id)
+    ):
+        raise CatalogValidationError(f"{prefix}.id must be a valid extension ID")
+    _optional_string(extension.get("description"), f"{prefix}.description", 500)
+
+
+def _extension_filename(application):
+    extension = _get_extension_config(application) or {}
+    filename = extension.get("filename")
+    if filename:
+        return filename
+    url_name = Path(urlparse(extension["url"]).path).name
+    if EXTENSION_FILENAME_RE.fullmatch(url_name):
+        return url_name
+    return f"{application['id']}.py"
+
+
+def _download_extension(url, task=None):
+    """Download one extension source file without executing it."""
+    _validate_https_url(url, "extension URL")
+    current_url = url
+    for _redirect in range(4):
+        _validate_https_url(current_url, "extension URL")
+        with requests.get(
+            current_url,
+            stream=True,
+            timeout=(5, 30),
+            allow_redirects=False,
+        ) as response:
+            if response.is_redirect or response.is_permanent_redirect:
+                location = response.headers.get("location")
+                if not location:
+                    raise ExtensionCatalogError("The extension download redirected without a target")
+                current_url = urljoin(current_url, location)
+                continue
+            response.raise_for_status()
+            content_length = int(response.headers.get("content-length", 0) or 0)
+            if content_length > MAX_EXTENSION_BYTES:
+                raise ExtensionCatalogError("The extension file is larger than 2 MB")
+            chunks = []
+            size = 0
+            for chunk in response.iter_content(64 * 1024):
+                if not chunk:
+                    continue
+                if task is not None:
+                    task.check_cancelled()
+                size += len(chunk)
+                if size > MAX_EXTENSION_BYTES:
+                    raise ExtensionCatalogError("The extension file is larger than 2 MB")
+                chunks.append(chunk)
+                if task is not None:
+                    task.update(
+                        fraction=size / content_length if content_length else None,
+                        transferred_bytes=size,
+                        total_bytes=content_length or None,
+                    )
+            return b"".join(chunks)
+    raise ExtensionCatalogError("The extension download redirected too many times")
 
 
 def _validate_relative_setup_path(value, label):
@@ -207,13 +324,21 @@ def validate_catalog(payload):
     """Validate and return a catalog payload.
 
     Catalogs may be downloaded, so validation deliberately accepts only data
-    that maps to the MCP transport primitives Newelle already supports. It
-    never accepts shell snippets or setup commands.
+    that maps to the MCP transport primitives or extension download records
+    Newelle already supports. It never accepts shell snippets or setup
+    commands.
     """
     if not isinstance(payload, dict):
         raise CatalogValidationError("catalog must be a JSON object")
     if payload.get("schema_version") != CATALOG_SCHEMA_VERSION:
         raise CatalogValidationError("unsupported catalog schema version")
+    catalog_revision = payload.get("catalog_revision", 0)
+    if (
+        isinstance(catalog_revision, bool)
+        or not isinstance(catalog_revision, int)
+        or not 0 <= catalog_revision <= 2**31 - 1
+    ):
+        raise CatalogValidationError("catalog_revision must be a non-negative integer")
     applications = payload.get("applications")
     if not isinstance(applications, list) or not applications:
         raise CatalogValidationError("catalog applications must be a non-empty list")
@@ -233,6 +358,22 @@ def validate_catalog(payload):
         _required_string(application.get("name"), f"{prefix}.name", 120)
         _required_string(application.get("description"), f"{prefix}.description", 500)
         _validate_https_url(application.get("logo_url"), f"{prefix}.logo_url")
+
+        extension = _get_extension_config(application)
+        if extension is not None:
+            _validate_extension_config(extension, f"{prefix}.extension")
+            if application.get("type") not in {None, "extension"}:
+                raise CatalogValidationError(
+                    f"{prefix}.type must be extension when an extension is provided"
+                )
+            if application.get("server") is not None:
+                raise CatalogValidationError(
+                    f"{prefix}.server is not allowed for extension applications"
+                )
+            continue
+
+        if application.get("type") == "extension":
+            raise CatalogValidationError(f"{prefix}.extension is required")
 
         setup = application.get("setup", {})
         if not isinstance(setup, dict):
@@ -497,7 +638,7 @@ def _setup_directory_path(config_dir, additional_setup):
     return setup_path
 
 
-def _ensure_git_repository(additional_setup, setup_dir):
+def _ensure_git_repository(additional_setup, setup_dir, task=None):
     """Clone a catalog repository once and verify its expected files."""
     setup_path = Path(setup_dir)
     required_relative_paths = additional_setup["required_paths"]
@@ -517,23 +658,70 @@ def _ensure_git_repository(additional_setup, setup_dir):
         tempfile.mkdtemp(prefix=f".{setup_path.name}.", dir=setup_path.parent)
     )
     try:
-        result = subprocess.run(
-            get_spawn_command()
-            + [
-                "git",
-                "clone",
-                "--depth",
-                "1",
-                additional_setup["repository"],
-                str(staging_path),
-            ],
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=180,
-        )
-        if result.returncode != 0:
-            detail = (result.stderr or result.stdout or "").strip()
+        if task is not None:
+            task.update(
+                phase=_("Downloading MCP setup"),
+                reset_progress=True,
+                cancellable=True,
+            )
+        with tempfile.TemporaryFile(mode="w+", encoding="utf-8") as output:
+            process = subprocess.Popen(
+                get_spawn_command()
+                + [
+                    "git",
+                    "clone",
+                    "--depth",
+                    "1",
+                    additional_setup["repository"],
+                    str(staging_path),
+                ],
+                stdout=output,
+                stderr=subprocess.STDOUT,
+                text=True,
+                start_new_session=True,
+            )
+            timed_out = False
+            for _tick in range(900):
+                try:
+                    process.wait(timeout=0.2)
+                    break
+                except subprocess.TimeoutExpired:
+                    if task is not None and task.cancel_requested:
+                        try:
+                            os.killpg(process.pid, signal.SIGTERM)
+                        except OSError:
+                            process.terminate()
+                        try:
+                            process.wait(timeout=5)
+                        except subprocess.TimeoutExpired:
+                            try:
+                                os.killpg(process.pid, signal.SIGKILL)
+                            except OSError:
+                                process.kill()
+                            process.wait(timeout=5)
+                        raise DownloadCancelled()
+            else:
+                timed_out = True
+                try:
+                    os.killpg(process.pid, signal.SIGTERM)
+                except OSError:
+                    process.terminate()
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    try:
+                        os.killpg(process.pid, signal.SIGKILL)
+                    except OSError:
+                        process.kill()
+                    process.wait(timeout=5)
+            output.seek(0)
+            detail = output.read().strip()
+            returncode = process.returncode
+        if timed_out:
+            raise RuntimeError(
+                _("Automatic MCP setup timed out while downloading the repository.")
+            )
+        if returncode != 0:
             raise RuntimeError(
                 _("Could not download the automatic setup repository{}.").format(
                     f": {detail[-500:]}" if detail else ""
@@ -561,8 +749,6 @@ def _ensure_git_repository(additional_setup, setup_dir):
                 missing_command
             )
         ) from exc
-    except subprocess.TimeoutExpired as exc:
-        raise RuntimeError(_("Automatic MCP setup timed out while downloading the repository.")) from exc
     finally:
         if staging_path is not None:
             shutil.rmtree(staging_path, ignore_errors=True)
@@ -714,6 +900,19 @@ def _load_cached_catalog(path):
         return None
 
 
+def _catalog_revision(catalog):
+    return catalog.get("catalog_revision", 0) if catalog is not None else 0
+
+
+def _select_initial_catalog(bundled_catalog, cached_catalog, minimum_revision=0):
+    if (
+        cached_catalog is not None
+        and _catalog_revision(cached_catalog) >= minimum_revision
+    ):
+        return cached_catalog
+    return bundled_catalog
+
+
 def _save_cached_catalog(path, catalog):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     temporary_path = f"{path}.tmp"
@@ -813,7 +1012,7 @@ def _load_logo(url, callback):
 
 
 class ConnectApplicationView(Gtk.Box):
-    """Browse and connect catalog applications inside the MCP settings page."""
+    """Browse catalog applications and extensions inside the MCP settings page."""
 
     def __init__(self, parent, controller, on_connected=None, catalog_url=None):
         super().__init__(orientation=Gtk.Orientation.VERTICAL)
@@ -824,7 +1023,17 @@ class ConnectApplicationView(Gtk.Box):
             "NEWELLE_MCP_CATALOG_URL", DEFAULT_CATALOG_URL
         )
         self.cache_path = os.path.join(controller.config_dir, "mcp_servers_catalog.json")
-        self.catalog = _load_cached_catalog(self.cache_path) or load_bundled_catalog()
+        bundled_catalog = load_bundled_catalog()
+        self.minimum_catalog_revision = (
+            _catalog_revision(bundled_catalog)
+            if self.catalog_url == DEFAULT_CATALOG_URL
+            else 0
+        )
+        self.catalog = _select_initial_catalog(
+            bundled_catalog,
+            _load_cached_catalog(self.cache_path),
+            self.minimum_catalog_revision,
+        )
         self.application_rows = []
         self.field_entries = {}
         self.field_definitions = {}
@@ -983,7 +1192,11 @@ class ConnectApplicationView(Gtk.Box):
 
             heading.append(
                 Gtk.Image(
-                    icon_name="go-next-symbolic",
+                    icon_name=(
+                        "folder-download-symbolic"
+                        if _is_extension_application(application)
+                        else "go-next-symbolic"
+                    ),
                     valign=Gtk.Align.CENTER,
                 )
             )
@@ -1063,6 +1276,10 @@ class ConnectApplicationView(Gtk.Box):
                 catalog = fetch_remote_catalog(self.catalog_url)
                 if self.closed:
                     return
+                if _catalog_revision(catalog) < self.minimum_catalog_revision:
+                    raise CatalogValidationError(
+                        "remote catalog revision is older than the bundled catalog"
+                    )
                 _save_cached_catalog(self.cache_path, catalog)
                 GLib.idle_add(self._finish_catalog_refresh, catalog, None, show_error)
             except (CatalogValidationError, OSError, requests.RequestException) as exc:
@@ -1105,6 +1322,10 @@ class ConnectApplicationView(Gtk.Box):
         if self.setup_page is not None:
             self.stack.remove(self.setup_page)
         self.setup_page = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+
+        if _is_extension_application(application):
+            self._show_extension_setup(application)
+            return
 
         header = Gtk.Box(
             orientation=Gtk.Orientation.HORIZONTAL,
@@ -1311,6 +1532,103 @@ class ConnectApplicationView(Gtk.Box):
         self.stack.set_visible_child_name("setup")
         self._queue_scroll_to_catalog()
 
+    def _show_extension_setup(self, application):
+        """Show the confirmation page for a downloadable extension."""
+        header = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL,
+            spacing=12,
+            margin_top=12,
+            margin_bottom=6,
+            margin_start=12,
+            margin_end=12,
+        )
+        back_button = Gtk.Button(
+            icon_name="go-previous-symbolic",
+            tooltip_text=_("Back to applications"),
+            css_classes=["flat"],
+        )
+        back_button.connect("clicked", lambda _button: self._show_catalog())
+        header.append(back_button)
+        setup_title = Gtk.Label(
+            label=_catalog_text(application["name"]),
+            xalign=0,
+            hexpand=True,
+            valign=Gtk.Align.CENTER,
+        )
+        setup_title.add_css_class("title-3")
+        header.append(setup_title)
+        self.setup_page.append(header)
+
+        clamp = Adw.Clamp(maximum_size=720, tightening_threshold=600)
+        content = Gtk.Box(
+            orientation=Gtk.Orientation.VERTICAL,
+            spacing=18,
+            margin_top=18,
+            margin_bottom=24,
+            margin_start=18,
+            margin_end=18,
+        )
+        clamp.set_child(content)
+
+        application_group = Adw.PreferencesGroup()
+        application_row = Adw.ActionRow(
+            title=_catalog_text(application["name"]),
+            subtitle=_catalog_text(application["description"]),
+        )
+        application_row.add_prefix(self._create_avatar(application, size=54))
+        application_group.add(application_row)
+        content.append(application_group)
+
+        extension = _get_extension_config(application)
+        extension_group = Adw.PreferencesGroup(title=_("Extension"))
+        extension_description = extension.get("description") or _(
+            "This will download and install a third-party Newelle extension."
+        )
+        extension_group.add(
+            Adw.ActionRow(
+                title=_("Third-party code"),
+                subtitle=_catalog_text(extension_description),
+                icon_name="dialog-warning-symbolic",
+            )
+        )
+        source_row = Adw.ActionRow(
+            title=_("Download link"),
+            subtitle=extension["url"],
+            icon_name="internet-symbolic",
+        )
+        source_button = Gtk.Button(
+            label=_("Open"),
+            valign=Gtk.Align.CENTER,
+        )
+        source_button.connect(
+            "clicked", lambda _button, url=extension["url"]: open_website(url)
+        )
+        source_row.add_suffix(source_button)
+        extension_group.add(source_row)
+        content.append(extension_group)
+
+        action_box = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL,
+            spacing=12,
+            margin_top=12,
+        )
+        self.connect_spinner = Gtk.Spinner(valign=Gtk.Align.CENTER)
+        self.connect_spinner.set_visible(False)
+        action_box.append(self.connect_spinner)
+        self.connect_button = Gtk.Button(
+            label=_("Install Extension"),
+            hexpand=True,
+        )
+        self.connect_button.add_css_class("suggested-action")
+        self.connect_button.connect("clicked", self._install_extension)
+        action_box.append(self.connect_button)
+        content.append(action_box)
+
+        self.setup_page.append(clamp)
+        self.stack.add_named(self.setup_page, "setup")
+        self.stack.set_visible_child_name("setup")
+        self._queue_scroll_to_catalog()
+
     def _queue_scroll_to_catalog(self):
         GLib.timeout_add(
             self.stack.get_transition_duration() + 16,
@@ -1339,6 +1657,143 @@ class ConnectApplicationView(Gtk.Box):
         adjustment.set_value(
             min(max(target, adjustment.get_lower()), maximum)
         )
+        return False
+
+    def _install_extension(self, _button):
+        if self.connecting:
+            return
+        application = self.selected_application
+        extension = _get_extension_config(application)
+        if extension is None:
+            return
+        if self._is_extension_installed(application):
+            self.toast_overlay.add_toast(
+                Adw.Toast(title=_("This extension is already installed"))
+            )
+            return
+
+        self.connecting = True
+        self.connect_button.set_sensitive(False)
+        self.connect_spinner.set_visible(True)
+        self.connect_spinner.start()
+        original_label = self.connect_button.get_label()
+        application_name = _catalog_text(application["name"])
+
+        def worker():
+            try:
+                manager = get_download_manager()
+                with manager.operation(
+                    _("Install extension {name}").format(name=application_name),
+                    kind=DownloadKind.EXTENSION,
+                    source_id=f"extension-catalog:{application['id']}",
+                    phase=_("Downloading extension"),
+                    cancellable=True,
+                ) as task:
+                    content = _download_extension(extension["url"], task=task)
+                    check = inspect_python_source(content)
+                    if not check.get("is_extension"):
+                        raise ExtensionCatalogError(
+                            check.get("error") or _(
+                                "The downloaded file is not a Newelle extension"
+                            )
+                        )
+                    task.update(
+                        phase=_("Installing extension"),
+                        reset_progress=True,
+                        cancellable=False,
+                    )
+                    installed = install_extension_files(
+                        [
+                            {
+                                "path": _extension_filename(application),
+                                "is_python": True,
+                                "is_extension": True,
+                                "content": content,
+                            }
+                        ],
+                        self.controller.extension_path,
+                    )
+                error = None
+            except DownloadCancelled:
+                installed = None
+                error = _("Download cancelled")
+            except (
+                ExtensionCatalogError,
+                requests.RequestException,
+                OSError,
+                ValueError,
+            ) as exc:
+                installed = None
+                error = str(exc)
+            GLib.idle_add(
+                self._finish_extension_install,
+                installed,
+                error,
+                original_label,
+                application_name,
+            )
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _finish_extension_install(
+        self, installed, error, original_label, application_name
+    ):
+        if self.closed:
+            return False
+        self.connecting = False
+        self.connect_spinner.stop()
+        self.connect_spinner.set_visible(False)
+        if error is not None or not installed:
+            self.connect_button.set_sensitive(True)
+            self.connect_button.set_label(original_label)
+            self.toast_overlay.add_toast(
+                Adw.Toast(
+                    title=_("Could not install {}: {}").format(
+                        application_name, error or _("Unknown error")
+                    )
+                )
+            )
+            return False
+
+        try:
+            self.controller.reload_extensions()
+            installed_names = {os.path.basename(path) for path in installed}
+            installed_extension = next(
+                (
+                    extension
+                    for extension_id, filename in self.controller.extensionloader.filemap.items()
+                    if filename in installed_names
+                    for extension in [
+                        self.controller.extensionloader.get_extension_by_id(extension_id)
+                    ]
+                    if extension is not None
+                ),
+                None,
+            )
+            if installed_extension is None:
+                raise RuntimeError(
+                    _("The downloaded file could not be loaded as an extension")
+                )
+            installed_extension.install_in_background(
+                _("Install extension {name}").format(
+                    name=application_name
+                )
+            )
+        except (OSError, RuntimeError, TypeError, ValueError) as exc:
+            self.connect_button.set_sensitive(True)
+            self.connect_button.set_label(original_label)
+            self.toast_overlay.add_toast(
+                Adw.Toast(title=_("Could not activate extension: {}").format(exc))
+            )
+            return False
+
+        if self.on_connected is not None:
+            self.on_connected()
+        self.connect_button.set_label(_("Installed"))
+        self.toast_overlay.add_toast(
+            Adw.Toast(title=_("{} installed").format(application_name))
+        )
+        self._populate_catalog()
         return False
 
     def _build_field_row(self, field):
@@ -1559,16 +2014,32 @@ class ConnectApplicationView(Gtk.Box):
                     "additional_setup"
                 )
                 if additional_setup is not None and automatic_setup_enabled:
-                    setup_directory = _setup_directory_path(
-                        self.controller.config_dir, additional_setup
-                    )
-                    _ensure_git_repository(
-                        additional_setup,
-                        setup_directory,
-                    )
-                    post_setup = additional_setup.get("post_setup")
-                    if post_setup is not None and post_setup.get("type") == "gimp_plugin":
-                        _install_gimp_plugin(additional_setup, setup_directory)
+                    manager = get_download_manager()
+                    with manager.operation(
+                        _("Install MCP setup for {name}").format(
+                            name=application_name
+                        ),
+                        kind=DownloadKind.MCP,
+                        source_id=f"mcp:{application_id}",
+                        phase=_("Downloading MCP setup"),
+                        cancellable=True,
+                    ) as task:
+                        setup_directory = _setup_directory_path(
+                            self.controller.config_dir, additional_setup
+                        )
+                        _ensure_git_repository(
+                            additional_setup,
+                            setup_directory,
+                            task=task,
+                        )
+                        post_setup = additional_setup.get("post_setup")
+                        if post_setup is not None and post_setup.get("type") == "gimp_plugin":
+                            task.update(
+                                phase=_("Installing MCP integration"),
+                                reset_progress=True,
+                                cancellable=False,
+                            )
+                            _install_gimp_plugin(additional_setup, setup_directory)
 
                 if server["type"] == "http" and auth.get("type") == "oauth":
                     from ..integrations.mcp_oauth import run_oauth_flow
@@ -1684,12 +2155,10 @@ class ConnectApplicationView(Gtk.Box):
         if error is not None:
             self.connect_button.set_sensitive(True)
             self.connect_button.set_label(original_label)
-            self.toast_overlay.add_toast(
-                Adw.Toast(
-                    title=_("Could not connect {}: {}").format(
-                        application_name, error
-                    )
-                )
+            self.parent_window.show_error_dialog(
+                _("Error"),
+                _("Could not connect {}: {}").format(application_name, error),
+                parent=self.parent_window,
             )
             return False
 
@@ -1715,6 +2184,8 @@ class ConnectApplicationView(Gtk.Box):
         self.stack.set_visible_child_name("catalog")
 
     def _is_application_connected(self, application):
+        if _is_extension_application(application):
+            return self._is_extension_installed(application)
         handler = self.controller.get_mcp_integration()
         if handler is not None and any(
             isinstance(existing, dict)
@@ -1731,6 +2202,17 @@ class ConnectApplicationView(Gtk.Box):
             if any(PLACEHOLDER_RE.search(part) for part in identifier_parts):
                 return False
         return self._is_server_connected(server)
+
+    def _is_extension_installed(self, application):
+        filename = _extension_filename(application)
+        extension_loader = self.controller.extensionloader
+        extension_id = (_get_extension_config(application) or {}).get("id")
+        if extension_id and extension_loader.get_extension_by_id(extension_id) is not None:
+            return True
+        return any(
+            extension_filename == filename
+            for extension_filename in extension_loader.filemap.values()
+        ) or os.path.isfile(os.path.join(self.controller.extension_path, filename))
 
     def _is_server_connected(self, server):
         handler = self.controller.get_mcp_integration()

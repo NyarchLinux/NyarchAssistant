@@ -12,8 +12,7 @@
         "--socket=wayland",
         "--talk-name=org.freedesktop.Flatpak",
         "--filesystem=home",
-        "--socket=pulseaudio",
-        "--talk-name=org.gnome.Shell.Screencast"
+        "--socket=pulseaudio"
     ],
 
     "cleanup" : [
@@ -29,47 +28,51 @@
     ],
 
     "modules" : [
-      "modules/vte.json",
+        "modules/gtk4-layer-shell.json",
+        "modules/vte.json",
     	"modules/git.json",
-      "modules/python3-requests.json",
-      "modules/python3-requests-toolbelt.json",
+        "modules/python3-requests.json",
+        "modules/python3-requests-toolbelt.json",
     	"modules/python3-expandvars.json",
-      "modules/python3-lxml.json",
-      "modules/python3-lxml_html_clean.json",
+        "modules/python3-lxml.json",
+        "modules/python3-lxml_html_clean.json",
     	"modules/python3-gtts.json",
     	"modules/portaudio.json",
     	"modules/python3-pyaudio.json",
     	"modules/python3-six.json",
-      "modules/python3-pillow.json",
-      "modules/python3-matplotlib.json",
-      "modules/python3-pylatexenc.json",
+        "modules/python3-pillow.json",
+        "modules/python3-matplotlib.json",
+        "modules/python3-pylatexenc.json",
 	    "modules/python3-speechrecognition.json",
-      "modules/python3-openai.json",
+        "modules/python3-openai.json",
     	"modules/python3-pydub.json",
     	"modules/python3-voicevox-client.json",
-      "modules/python3-livepng.json",
-      "modules/python3-wordllama.json",
-      "modules/python3-edge-tts.json",
-      "modules/python3-newspaper3k.json",
-      "modules/live2d.json",
-      "modules/python3-scikit-learn.json",
-      "modules/python3-markdownify.json",
-      "modules/python3-mcp.json",
-      "modules/llama-cpp-prebuilt.json",
-      "modules/python3-faiss-cpu.json",
-      "modules/python3-llamaindex.json",
-      "modules/python3-model2vec.json",
-      "modules/python3-ddgs.json",
-      "modules/python3-pysilero-vad.json",
-      "modules/python3-openwakeword.json",
-      {
+        "modules/python3-livepng.json",
+        "modules/python3-wordllama.json",
+        "modules/python3-edge-tts.json",
+        "modules/python3-newspaper3k.json",
+        "modules/live2d.json",
+        "modules/python3-scikit-learn.json",
+        "modules/python3-markdownify.json",
+        "modules/python3-mcp.json",
+        "modules/python3-setuptools_rust.json",
+        "modules/python3-tiktoken.json",
+        "modules/llama-cpp-prebuilt.json",
+        "modules/python3-faiss-cpu.json",
+        "modules/python3-llamaindex.json",
+        "modules/python3-model2vec.json",
+        "modules/python3-ddgs.json",
+        "modules/python3-pysilero-vad.json",
+        "modules/python3-openwakeword.json",
+        {
             "name" : "nyarchassistant",
             "builddir" : true,
             "buildsystem" : "meson",
             "sources" : [
                 {
-                    "type" : "git",
-                    "url" : "."
+                    "type" : "dir",
+                    "path" : ".",
+                    "skip" : [".git", ".flatpak-builder", "flatpak-app", "builddir"]
                 }
             ]
         }

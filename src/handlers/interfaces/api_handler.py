@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import io
 import json
@@ -106,6 +107,12 @@ class APIInterface(ChatInterface):
                 description=_("Path for the .jsonl log. ~ expands to home; the folder is created on demand."),
                 default=self._default_log_file_path(),
             ),
+            ExtraSettings.ToggleSetting(
+                key="use_bang_for_commands",
+                title=_("Use ! instead of / for commands in /v2 API"),
+                description=_("Use ! for /v2 API commands, for example !start."),
+                default=False,
+            ),
         ]
 
 
@@ -123,6 +130,18 @@ class APIInterface(ChatInterface):
     def _is_logging_to_file(self) -> bool:
         """Return True when the user opted-in to persisting API logs to a file."""
         return bool(self.get_setting("log_to_file", search_default=True, return_value=False))
+
+    def _use_bang_for_commands(self) -> bool:
+        """Return True when /v2 API commands should use ! instead of /."""
+        return bool(self.get_setting("use_bang_for_commands", search_default=True, return_value=False))
+
+    def _try_handle_v2_command(self, user_id, text: str) -> str | None:
+        """Handle a /v2 command with the configured command prefix."""
+        if self._use_bang_for_commands():
+            if not text.startswith("!"):
+                return None
+            text = "/" + text[1:]
+        return self.try_handle_command(user_id, text)
 
     def _resolve_log_file_path(self) -> str:
         """Return the configured NDJSON log file path, expanding `~`.
@@ -286,7 +305,7 @@ class APIInterface(ChatInterface):
             model_config = {"extra": "ignore"}
 
             role: str
-            content: Optional[str] = None
+            content: str | list[dict] | None = None
             tool_calls: Optional[list] = None
             tool_call_id: Optional[str] = None
             name: Optional[str] = None
@@ -323,6 +342,47 @@ class APIInterface(ChatInterface):
             allow_methods=["*"],
             allow_headers=["*"],
         )
+
+        class WorkspaceRequest(BaseModel):
+            name: Optional[str] = None
+            profile: Optional[str] = None
+            path: Optional[str] = None
+            mode: Optional[str] = None
+
+        def workspace_action(action, workspace_id=None, **data):
+            try:
+                wid = controller.remote_workspace_action(action, workspace_id, **data)
+                return {"workspace_id": wid, **controller.list_workspaces_info()}
+            except KeyError as error:
+                raise HTTPException(status_code=404, detail=str(error))
+            except ValueError as error:
+                raise HTTPException(status_code=400, detail=str(error))
+            except RuntimeError as error:
+                raise HTTPException(status_code=409, detail=str(error))
+
+        @app.get("/v2/workspaces")
+        def list_workspaces():
+            return controller.list_workspaces_info()
+
+        @app.post("/v2/workspaces")
+        def create_workspace(req: WorkspaceRequest):
+            return workspace_action("create", **req.model_dump(exclude_unset=True))
+
+        @app.patch("/v2/workspaces/{workspace_id}")
+        def edit_workspace(workspace_id: str, req: WorkspaceRequest):
+            return workspace_action("edit", workspace_id, **req.model_dump(exclude_unset=True))
+
+        @app.post("/v2/workspaces/{workspace_id}/switch")
+        def switch_workspace(workspace_id: str):
+            return workspace_action("switch", workspace_id)
+
+        @app.delete("/v2/workspaces/{workspace_id}")
+        def delete_workspace(workspace_id: str):
+            return workspace_action("delete", workspace_id)
+
+        @app.post("/v2/workspaces/{workspace_id}/chats/{chat_id}")
+        def transfer_chat(workspace_id: str, chat_id: int):
+            return workspace_action("move", workspace_id, chat_id=chat_id)
 
         @app.get("/v1/models")
         @app.get("/v2/models")
@@ -378,7 +438,11 @@ class APIInterface(ChatInterface):
             self._chat_completion_log_print("request (raw body)", req_dump)
 
             llm = controller.handlers.llm
-            last_user_message, history, system_prompt = convert_messages_openai_to_newelle(request.messages)
+            try:
+                last_user_message, history, system_prompt = await asyncio.to_thread(convert_messages_openai_to_newelle, request.messages)
+                system_prompt += await asyncio.to_thread(controller.get_document_prompt, history)
+            except (TypeError, ValueError, OSError) as error:
+                return JSONResponse(status_code=400, content={"error": {"message": str(error), "type": "invalid_request_error"}})
             embed_openai_tools_in_system_prompt(system_prompt, request.tools)
 
             # When the user opted-in to logging, dump the full system prompt,
@@ -429,7 +493,10 @@ class APIInterface(ChatInterface):
 
             # Extract only the last user message (history is ignored — use the
             # persistent chat owned by this user for full context).
-            last_user_message, _hist, _sys = convert_messages_openai_to_newelle(request.messages)
+            try:
+                last_user_message, _hist, _sys = await asyncio.to_thread(convert_messages_openai_to_newelle, request.messages)
+            except (TypeError, ValueError, OSError) as error:
+                return JSONResponse(status_code=400, content={"error": {"message": str(error), "type": "invalid_request_error"}})
 
             if not last_user_message:
                 return JSONResponse(
@@ -449,12 +516,13 @@ class APIInterface(ChatInterface):
             # ── /option with a paused run ────────────────────────────────────
             # Resolve the interaction first so the LLM thread unblocks, then
             # stream/collect the continuation from the saved event queue.
-            if stripped.startswith("/option") and user_key in self._pending_streams:
+            command_prefix = "!" if self._use_bang_for_commands() else "/"
+            if stripped.startswith(f"{command_prefix}option") and user_key in self._pending_streams:
                 pending_q = self._pending_streams.pop(user_key)
                 # Resolve the interaction (fires callback → unblocks LLM thread).
                 # The returned "✅ …" string is intentionally discarded here;
                 # the actual output comes from the resumed stream.
-                self.try_handle_command(user_key, stripped)
+                self._try_handle_v2_command(user_key, stripped)
                 self._log(
                     f"[API v2/chat/completions] resuming paused run user={user_key!r} "
                     f"completion_id={completion_id} stream={request.stream}"
@@ -468,8 +536,8 @@ class APIInterface(ChatInterface):
                         user_key, completion_id, created, model_name, pending_q
                     )
 
-            # ── Slash commands ───────────────────────────────────────────────
-            cmd_response = self.try_handle_command(user_key, last_user_message)
+            # ── Commands ─────────────────────────────────────────────────────
+            cmd_response = self._try_handle_v2_command(user_key, last_user_message)
             if cmd_response is not None:
                 self._chat_completion_log_print(
                     f"v2 command response user={user_key!r}", {"response": cmd_response}

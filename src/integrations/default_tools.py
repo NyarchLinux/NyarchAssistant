@@ -1,7 +1,10 @@
 from ..extensions import NewelleExtension
 from ..tools import InteractionOption, Tool, ToolResult, create_io_tool 
 from ..ui.widgets import CommandSessionActionWidget, CopyBox
+from gettext import gettext as _
 import os
+import threading
+from ..utility.screenshot import capture_screenshot
 from ..utility.system import is_flatpak
 from ..utility.system import get_spawn_command
 from ..utility.strings import quote_string, add_S_to_sudo
@@ -9,6 +12,7 @@ from ..utility.command_runner import (
     CommandRunner,
     DEFAULT_COMMAND_TIMEOUT,
     MAX_COMMAND_TIMEOUT,
+    get_command_execution_manager,
 )
 from ..utility.command_sessions import (
     CommandSessionError,
@@ -19,7 +23,7 @@ from ..utility.command_sessions import (
     format_session_result,
     get_command_session_manager,
 )
-from gi.repository import Gtk, Gio
+from gi.repository import Gtk, Gio, GLib
 from ..ui import load_image_with_callback
 from ..ui.widgets.terminal_dialog import TerminalDialog
 
@@ -28,8 +32,19 @@ class DefaultToolsIntegration(NewelleExtension):
     id = "default_tools"
     name = "Default Tools"
 
+    def _request_settings(self):
+        """Return settings bound to the chat currently invoking a tool."""
+        window = getattr(getattr(self, "ui_controller", None), "window", None)
+        controller = getattr(window, "controller", None)
+        if controller is not None:
+            getter = getattr(controller, "_request_context", None)
+            context = getter() if getter is not None else None
+            if context is not None:
+                return context["settings"]
+        return self.settings
+
     def _on_copybox_terminal_clicked(self, copybox, command, execution_request_mode):
-        shell_command = "cd " + quote_string(os.getcwd()) + "; " + command + "; exec bash"
+        shell_command = "cd " + quote_string(self._request_settings().get_string("path")) + "; " + command + "; exec bash"
 
         if not self.settings.get_boolean("virtualization"):
             shell_command = add_S_to_sudo(shell_command)
@@ -37,7 +52,9 @@ class DefaultToolsIntegration(NewelleExtension):
         else:
             terminal_command = ["bash", "-c", "export TERM=xterm-256color;" + shell_command]
 
-        terminal = TerminalDialog()
+        terminal = TerminalDialog(
+            parent_window=getattr(getattr(self, "ui_controller", None), "window", None)
+        )
 
         def save_output(save):
             if save is None:
@@ -50,16 +67,20 @@ class DefaultToolsIntegration(NewelleExtension):
 
     def _on_session_terminal_clicked(self, session_widget, session_id, chat_id):
         try:
-            session = get_command_session_manager().get(
-                session_id,
-                self._session_owner(chat_id),
-            )
-            if not session.is_running:
-                session_widget.set_active_session_available(False)
-                return
+            opened = self.open_session_terminal(session_id, chat_id)
         except CommandSessionError:
+            opened = False
+        if not opened:
             session_widget.set_active_session_available(False)
-            return
+
+    def open_session_terminal(self, session_id: str, chat_id: int | None) -> bool:
+        """Open a live persistent session in an interactive terminal dialog."""
+        session = get_command_session_manager().get(
+            session_id,
+            self._session_owner(chat_id),
+        )
+        if not session.is_running:
+            return False
 
         terminal_dialogs = getattr(self, "_session_terminal_dialogs", None)
         if terminal_dialogs is None:
@@ -68,9 +89,12 @@ class DefaultToolsIntegration(NewelleExtension):
         existing_dialog = terminal_dialogs.get(session.session_id)
         if existing_dialog is not None:
             existing_dialog.present()
-            return
+            return True
 
-        terminal = TerminalDialog(confirm_output=False)
+        terminal = TerminalDialog(
+            confirm_output=False,
+            parent_window=getattr(getattr(self, "ui_controller", None), "window", None),
+        )
         terminal.set_title(f"{terminal.get_title()} · {session.session_id}")
         terminal.load_session(session)
         terminal_dialogs[session.session_id] = terminal
@@ -79,16 +103,88 @@ class DefaultToolsIntegration(NewelleExtension):
             if terminal_dialogs.get(session.session_id) is dialog:
                 terminal_dialogs.pop(session.session_id, None)
 
-        terminal.connect("closed", forget_dialog)
+        terminal.connect("close-request", forget_dialog)
         terminal.present()
+        return True
+
+    def terminate_session(self, session_id: str, chat_id: int | None) -> None:
+        """Terminate and forget a persistent session owned by a chat."""
+        manager = get_command_session_manager()
+        session = manager.get(session_id, self._session_owner(chat_id))
+        session.terminate()
+        manager.forget(session)
+
+    def cancel_command_execution(self, execution_id: str, chat_id: int | None) -> None:
+        """Cancel a tracked bounded command owned by a chat."""
+        manager = get_command_execution_manager()
+        manager.cancel(execution_id, self._session_owner(chat_id))
+
+    @staticmethod
+    def _activity_chat_id(owner, scope):
+        """Extract a chat ID from the internal chat-scoped owner token."""
+        if not isinstance(owner, tuple) or len(owner) != 3:
+            return None
+        if owner[0] != "chat" or owner[1] != scope:
+            return None
+        try:
+            return int(owner[2])
+        except (TypeError, ValueError):
+            return owner[2]
+
+    def get_active_command_activities(self) -> list[dict]:
+        """Return active command and persistent-session work for the GUI scope."""
+        scope = id(getattr(self, "ui_controller", self))
+        controller = None
+        ui_controller = getattr(self, "ui_controller", None)
+        if ui_controller is not None:
+            window = getattr(ui_controller, "window", None)
+            controller = getattr(window, "controller", None)
+            if controller is None:
+                controller = getattr(ui_controller, "controller", None)
+        chats = getattr(controller, "chats", {}) or {}
+        groups = {}
+
+        def group_for(chat_id):
+            if chat_id not in groups:
+                chat_entry = chats.get(chat_id, {})
+                if not chat_entry and isinstance(chat_id, str):
+                    try:
+                        chat_entry = chats.get(int(chat_id), {})
+                    except ValueError:
+                        pass
+                groups[chat_id] = {
+                    "chat_id": chat_id,
+                    "chat_name": chat_entry.get(
+                        "name", _("Chat {id}").format(id=chat_id)
+                    ),
+                    "sessions": [],
+                    "executions": [],
+                }
+            return groups[chat_id]
+
+        for session in get_command_session_manager().list_all():
+            if not session.is_running:
+                continue
+            chat_id = self._activity_chat_id(session.owner, scope)
+            if chat_id is not None:
+                group_for(chat_id)["sessions"].append(session)
+
+        for execution in get_command_execution_manager().list_all():
+            if not execution.is_running:
+                continue
+            chat_id = self._activity_chat_id(execution.owner, scope)
+            if chat_id is not None:
+                group_for(chat_id)["executions"].append(execution)
+
+        return sorted(groups.values(), key=lambda group: str(group["chat_name"]).lower())
 
     def _host_prefix(self) -> list[str]:
-        if is_flatpak() and not self.settings.get_boolean("virtualization"):
+        if is_flatpak() and not self._request_settings().get_boolean("virtualization"):
             return get_spawn_command()
         return []
 
     def _working_dir(self) -> str:
-        return self.settings.get_string("path") or os.getcwd()
+        return self._request_settings().get_string("path") or os.getcwd()
 
     def _timeout(self, timeout_seconds: int | None) -> int:
         if timeout_seconds is None:
@@ -103,7 +199,9 @@ class DefaultToolsIntegration(NewelleExtension):
             chat_id = self.ui_controller.get_current_chat_id()
         if chat_id is None:
             raise CommandSessionError("A chat ID is required for terminal sessions")
-        controller_scope = id(getattr(self, "ui_controller", self))
+        window = getattr(getattr(self, "ui_controller", None), "window", None)
+        controller = window.controller if window is not None else getattr(getattr(self, "ui_controller", None), "controller", None)
+        controller_scope = id(controller.workspace_storage) if controller is not None else id(getattr(self, "ui_controller", self))
         return ("chat", controller_scope, str(chat_id))
 
     @staticmethod
@@ -149,6 +247,7 @@ class DefaultToolsIntegration(NewelleExtension):
         self,
         command: str | None,
         timeout_seconds: int | None = None,
+        chat_id: int | None = None,
     ) -> str:
         """Run one non-interactive command and return its bounded result."""
         if command is None:
@@ -158,6 +257,8 @@ class DefaultToolsIntegration(NewelleExtension):
             command,
             self._working_dir(),
             host_prefix=self._host_prefix(),
+            owner=(self._session_owner(chat_id) if chat_id is not None else None),
+            execution_manager=get_command_execution_manager(),
         ).to_output()
 
     def _start_session(self, command: str, chat_id: int | None, wait_ms: int, max_output_chars: int) -> str:
@@ -196,7 +297,8 @@ class DefaultToolsIntegration(NewelleExtension):
                 )
             )
 
-        perm_manager = CommandPermissionManager.get_instance(self.settings)
+        request_settings = self._request_settings()
+        perm_manager = CommandPermissionManager.get_instance(request_settings)
         working_dir = self._working_dir()
         action, reason = perm_manager.check_command(command, working_dir)
 
@@ -215,7 +317,11 @@ class DefaultToolsIntegration(NewelleExtension):
                             max_output_chars,
                         )
                     else:
-                        output = self.execute_command(approved_command, timeout_seconds)
+                        output = self.execute_command(
+                            approved_command,
+                            timeout_seconds,
+                            chat_id=chat_id,
+                        )
                 except Exception as error:
                     output = self._error_output(
                         action_name,
@@ -253,7 +359,7 @@ class DefaultToolsIntegration(NewelleExtension):
             result.set_widget(widget)
             return result
 
-        if action == CommandAction.ALLOW and self.settings.get_boolean("auto-run"):
+        if action == CommandAction.ALLOW and request_settings.get_boolean("auto-run"):
             widget._on_execution_run_clicked(None)
         else:
             result.set_intreaction_options([
@@ -442,6 +548,41 @@ class DefaultToolsIntegration(NewelleExtension):
         result.set_output(None)
         return result
 
+    def take_screenshot(self, interactive: bool = False):
+        result = ToolResult()
+
+        def capture():
+            try:
+                path = capture_screenshot(
+                    os.path.join(self.extension_path, "screenshots"),
+                    interactive=interactive,
+                    is_cancelled=lambda: result.is_cancelled,
+                )
+                if result.is_cancelled:
+                    os.unlink(path)
+                    return
+                message = f"```image\n{path}\n```"
+                result.set_context_messages([message])
+                result.set_display_text(message)
+                result.set_output(message)
+            except (GLib.Error, OSError, RuntimeError) as error:
+                if not result.is_cancelled:
+                    result.set_output(
+                        _("Screenshot failed. A desktop portal with screenshot support is required: {error}").format(error=error)
+                    )
+
+        threading.Thread(target=capture, daemon=True).start()
+        return result
+
+    def take_screenshot_restore(self, tool_uuid: str, **_kwargs):
+        # History restoration must never initiate another capture.
+        output = self.ui_controller.get_tool_result_by_id(tool_uuid)
+        result = ToolResult()
+        result.set_output(output)
+        if isinstance(output, str) and output.startswith("```image\n"):
+            result.set_display_text(output)
+        return result
+
     def read_image(
         self,
         path: str | None = None,
@@ -588,7 +729,7 @@ class DefaultToolsIntegration(NewelleExtension):
                 title="Show Image",
                 default_on=True,
                 restore_func=self.show_image,
-                tools_group=_("Media Display")
+                tools_group=_("Media")
 
             ),
             Tool(
@@ -608,9 +749,29 @@ class DefaultToolsIntegration(NewelleExtension):
                 title="Read Image",
                 default_on=True,
                 restore_func=self.read_image,
-                tools_group=_("Media Display"),
+                tools_group=_("Media"),
                 icon_name="image-x-generic-symbolic",
 
+            ),
+            Tool(
+                name="take_screenshot",
+                description=_("Take a screenshot through the desktop portal and add it to the model context. The desktop may ask for permission. Requires a portal backend with screenshot support."),
+                func=self.take_screenshot,
+                schema={
+                    "type": "object",
+                    "properties": {
+                        "interactive": {
+                            "type": "boolean",
+                            "default": False,
+                            "description": _("Ask the desktop to offer screenshot options, such as selecting an area or window, where supported."),
+                        },
+                    },
+                },
+                title=_("Take Screenshot"),
+                restore_func=self.take_screenshot_restore,
+                default_on=True,
+                tools_group=_("Media"),
+                icon_name="camera-photo-symbolic",
             ),
             Tool(
                 name="show_video",
@@ -619,7 +780,7 @@ class DefaultToolsIntegration(NewelleExtension):
                 title="Show Video",
                 default_on=True,
                 restore_func=self.show_video,
-                tools_group=_("Media Display")
+                tools_group=_("Media")
 
             ),
             create_io_tool("speech_to_text","Recognize audio files and return their text.",  self.speech_to_text, default_on=False, tools_group=_("Audio")),

@@ -1,4 +1,4 @@
-from .embedding import EmbeddingHandler
+from .embedding import EmbeddingHandler, EmbeddingPurpose
 from ...handlers import ExtraSettings
 import numpy as np 
 
@@ -32,13 +32,13 @@ class OpenAIEmbeddingHandler(EmbeddingHandler):
             list containing the extra settings
         """
         api_settings = [ 
-            ExtraSettings.EntrySetting("api", _("API Key"), _("API Key for " + provider_name), ""),
+            ExtraSettings.EntrySetting("api", _("API Key"), _("API Key for " + provider_name), "",password=True),
         ]
         endpoint_settings = [
             ExtraSettings.EntrySetting("endpoint", _("API Endpoint"), _("API base url, change this to use different APIs"), "https://api.openai.com/v1/"),
         ]
         custom_model = [
-            ExtraSettings.ToggleSetting("custom_model", _("Use Custom Model"), _("Use a custom model"), False)
+            ExtraSettings.ToggleSetting("custom_model", _("Use Custom Model"), _("Use a custom model"), False, update_settings=True)
         ]
         models_settings = [ 
             ExtraSettings.EntrySetting("model", _("Model"), _("Name of the Embedding Model to use"), self.models[0][0]),
@@ -71,15 +71,17 @@ class OpenAIEmbeddingHandler(EmbeddingHandler):
                 settings += models_settings
             else:
                 settings += automatic_models_settings
-        return settings
+        return settings + self.get_prefix_settings()
     def get_extra_settings(self) -> list:
         return self.build_extra_settings("OpenAI", True, True, True, "https://platform.openai.com/docs/guides/embeddings#embedding-models", True)
 
-    def get_embedding(self, text: list[str]) -> np.ndarray:
+    def get_embedding(
+        self, text: list[str], purpose: EmbeddingPurpose = None
+    ) -> np.ndarray:
         from openai import Client
         client = Client(api_key=self.get_setting("api"), base_url=self.get_setting("endpoint"))
         embedding = client.embeddings.create(
-            input=text,
+            input=self._prepare_embedding_texts(text, purpose),
             model=self.get_setting("model")
         )
         res = []
@@ -96,5 +98,4 @@ class OpenAIEmbeddingHandler(EmbeddingHandler):
         elif model == "text-embedding-ada-002":
             return 1536
         else:
-            return len(self.get_embedding([""]))
-
+            return super().get_embedding_size()

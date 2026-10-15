@@ -1,9 +1,12 @@
 import numpy as np
-from .embedding import EmbeddingHandler
+from .embedding import EmbeddingHandler, EmbeddingPurpose
 from ...handlers import ExtraSettings
 
 class WordLlamaHandler(EmbeddingHandler):
     key = "wordllama"
+    # WordLlama's official retrieval examples embed raw queries and candidates.
+    default_query_prefix = ""
+    default_document_prefix = ""
 
 
     def __init__(self, settings, path):
@@ -16,7 +19,7 @@ class WordLlamaHandler(EmbeddingHandler):
     
     def get_extra_settings(self) -> list:
         return [
-            ExtraSettings.ComboSetting("model_size", "Model Size", "Size of the embedding", ["128", "256", "512", "1024"],"256"),
+            ExtraSettings.ComboSetting("model_size", _("Model Size"), _("Size of the embedding"), ["128", "256", "512", "1024"],"512"),
         ]
 
     def load_model(self):
@@ -31,9 +34,11 @@ class WordLlamaHandler(EmbeddingHandler):
         else:
             self.wl = WordLlama.load(truncate_dim=size)
 
-    def get_embedding(self, text: list[str]) -> np.ndarray:
+    def get_embedding(
+        self, text: list[str], purpose: EmbeddingPurpose = None
+    ) -> np.ndarray:
         if self.wl is not None:
-            return self.wl.embed(text)
+            return self.wl.embed(self._prepare_embedding_texts(text, purpose))
         else:
             return np.array([])
 

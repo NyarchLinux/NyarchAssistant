@@ -5,10 +5,10 @@ import xml.dom.minidom
 import json
 from gi.repository import GLib
 import tiktoken
-from .media import extract_file, extract_image, extract_video
+from .media import extract_file, extract_image, extract_video, audio_text
 
 def clean_prompt(prompt: str) -> str:
-    prompt = remove_thinking_blocks(prompt)
+    prompt = audio_text(remove_thinking_blocks(prompt))
     _, message = extract_file(prompt)
     _, message = extract_image(message)
     _, message = extract_video(message)
@@ -372,6 +372,29 @@ def remove_markdown(text: str) -> str:
 
     return text.strip()
 
+def build_chat_title(message: str, max_length: int = 30) -> str:
+    """
+    Build a short chat title from the beginning of a message.
+
+    Strip attachment codeblocks before the general markdown cleanup: the
+    inline-code rule in ``remove_markdown`` would otherwise break the fences
+    and leak their content into the title. Remaining markdown is removed and
+    whitespace is collapsed to a single line.
+
+    Args:
+        message: The message to build the title from
+        max_length: Maximum number of characters kept
+
+    Returns:
+        The title, truncated with an ellipsis when needed. Empty when the
+        message has no usable text.
+    """
+    text = re.sub(r'```[\s\S]*?```', ' ', str(message))
+    text = " ".join(remove_markdown(text).split())
+    if len(text) > max_length:
+        text = text[:max_length].rstrip() + "…"
+    return text
+
 def convert_think_codeblocks(text: str) -> str:
     """Convert think codeblocks to markdown
 
@@ -409,19 +432,59 @@ def extract_reasoning_content(message):
     # If no think block is found
     return None, message.strip()
 
+# Gemma 4 style: <|channel>thought ... <channel|>
+_GEMMA_THINK_OPEN = re.compile(r"<\|channel>(?:thought\b[ \t]*\n?)?")
+_GEMMA_THINK_CLOSE = re.compile(r"<channel\|>")
+# gpt-oss "harmony" style: <|channel|>analysis<|message|> ... <|end|><|start|>assistant<|channel|>final<|message|> ...
+_HARMONY_THINK_OPEN = re.compile(r"(?:<\|start\|>assistant)?<\|channel\|>analysis<\|message\|>")
+_HARMONY_THINK_CLOSE = re.compile(
+    r"<\|end\|>\s*(?:<\|start\|>assistant)?<\|channel\|>final<\|message\|>"
+)
+_HARMONY_LEFTOVERS = re.compile(
+    r"(?:<\|start\|>assistant)?<\|channel\|>final<\|message\|>|<\|return\|>|<\|end\|>"
+)
+
+
+def normalize_thinking_tags(text):
+    """Convert model-specific reasoning markers to ``<think>`` blocks.
+
+    Some models (Gemma, gpt-oss, ...) served through endpoints that do not
+    parse their chat template emit raw channel tokens in the content stream.
+    """
+    if not isinstance(text, str) or ("<|" not in text and "|>" not in text):
+        return text
+    if "<|channel>" in text or "<channel|>" in text:
+        text = _GEMMA_THINK_OPEN.sub("<think>", text)
+        text = _GEMMA_THINK_CLOSE.sub("</think>", text)
+    if "<|channel|>" in text:
+        text = _HARMONY_THINK_OPEN.sub("<think>", text)
+        if "<think>" in text:
+            text = _HARMONY_THINK_CLOSE.sub("</think>", text)
+        text = _HARMONY_LEFTOVERS.sub("", text)
+    return text
+
+
 def remove_thinking_blocks(text):
-  """
-  Removes <think>...</think> blocks from a given text using regular expressions.
+    """Remove complete and currently-streaming ``<think>`` blocks.
 
-  Args:
-    text: The input text string.
-
-  Returns:
-    The text string with all <think>...</think> blocks removed.
-  """
-  pattern = r"<think>.*?</think>"  # Non-greedy match
-  cleaned_text = re.sub(pattern, "", text, flags=re.DOTALL) # flags=re.DOTALL allows . to match newline characters
-  return cleaned_text
+    LLM streaming callbacks often receive an opening tag before its closing tag.
+    Treat that unfinished trailing block as private reasoning as well so it is not
+    rendered in live status text or sent to text-to-speech.
+    """
+    complete_block = r"<think\b[^>]*>.*?</think\s*>"
+    text = re.sub(
+        complete_block,
+        "",
+        text,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+    unfinished_block = r"<think\b[^>]*>.*\Z"
+    return re.sub(
+        unfinished_block,
+        "",
+        text,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
 
 def get_edited_messages(history: list, old_history: list) -> list | None:
     """Get the edited messages from the history
