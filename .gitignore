@@ -1,3 +1,5 @@
 .flatpak-builder/*
 flatpak-pip-generator
 nyarchassistant.flatpak
+__pycache__/
+*.pyc

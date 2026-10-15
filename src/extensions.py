@@ -502,6 +502,8 @@ class ExtensionLoader:
         "websearch": "get_websearch_handlers",
         "interface": "get_interface_handlers",
         "image_generator": "get_image_generator_handlers",
+        "avatar": "get_avatar_handlers",
+        "translator": "get_translators_handlers",
     }
 
     def _get_contributing_extensions(
@@ -688,7 +690,7 @@ class ExtensionLoader:
         for tool in extension.get_tools():
             tool_registry.remove_tool(tool.name)
 
-    def add_handlers(self, AVAILABLE_LLMS, AVAILABLE_TTS, AVAILABLE_STT, AVAILABLE_MEMORIES, AVAILABLE_EMBEDDINGS, AVAILABLE_RAGS, AVAILABLE_WEBSEARCH, AVAILABLE_AVATARS, AVAILABLE_TRANSLATORS, AVAILABLE_INTERFACES=None, AVAILABLE_IMAGE_GENERATORS=None):
+    def add_handlers(self, AVAILABLE_LLMS, AVAILABLE_TTS, AVAILABLE_STT, AVAILABLE_MEMORIES, AVAILABLE_EMBEDDINGS, AVAILABLE_RAGS, AVAILABLE_WEBSEARCH, AVAILABLE_AVATARS=None, AVAILABLE_TRANSLATORS=None, AVAILABLE_INTERFACES=None, AVAILABLE_IMAGE_GENERATORS=None):
         """Add the handlers of each extension to the available handlers
 
         Args:
@@ -697,10 +699,19 @@ class ExtensionLoader:
             AVAILABLE_STT (): list of available stt
             AVAILABLE_MEMORIES (): list of available memories
             AVAILABLE_EMBEDDINGS (): list of available embeddings
-            AVAILABLE_RAG (): list of available rags
+            AVAILABLE_RAGS (): list of available rags
             AVAILABLE_WEBSEARCH (): list of available websearch
+            AVAILABLE_AVATARS (): list of available avatars
+            AVAILABLE_TRANSLATORS (): list of available translators
             AVAILABLE_INTERFACES (): list of available interfaces
+            AVAILABLE_IMAGE_GENERATORS (): list of available image generators
         """
+        if AVAILABLE_AVATARS is None:
+            from .constants import AVAILABLE_AVATARS as default_avatars
+            AVAILABLE_AVATARS = default_avatars
+        if AVAILABLE_TRANSLATORS is None:
+            from .constants import AVAILABLE_TRANSLATORS as default_translators
+            AVAILABLE_TRANSLATORS = default_translators
         for extension in self.extensions:
             if extension in self.disabled_extensions:
                 continue
@@ -721,7 +732,7 @@ class ExtensionLoader:
                 AVAILABLE_EMBEDDINGS[handler["key"]] = handler
             handlers = extension.get_rag_handlers()
             for handler in handlers:
-                AVAILABLE_RAG[handler["key"]] = handler
+                AVAILABLE_RAGS[handler["key"]] = handler
             handlers = extension.get_websearch_handlers()
             for handler in handlers:
                 AVAILABLE_WEBSEARCH[handler["key"]] = handler
@@ -733,12 +744,14 @@ class ExtensionLoader:
                 handlers = extension.get_image_generator_handlers()
                 for handler in handlers:
                     AVAILABLE_IMAGE_GENERATORS[handler["key"]] = handler
-            handler = extension.get_translators_handlers()
-            for h in handler:
-                AVAILABLE_TRANSLATORS[h["key"]] = h
-            handler = extension.get_avatar_handlers()
-            for h in handler:
-                AVAILABLE_AVATARS[h["key"]] = h
+            if AVAILABLE_TRANSLATORS is not None:
+                handler = extension.get_translators_handlers()
+                for h in handler:
+                    AVAILABLE_TRANSLATORS[h["key"]] = h
+            if AVAILABLE_AVATARS is not None:
+                handler = extension.get_avatar_handlers()
+                for h in handler:
+                    AVAILABLE_AVATARS[h["key"]] = h
 
 
     def add_prompts(self, PROMPTS, AVAILABLE_PROMPTS):
@@ -797,19 +810,19 @@ class ExtensionLoader:
             AVAILABLE_EMBEDDINGS.pop(handler["key"])
         handlers = extension.get_rag_handlers()
         for handler in handlers:
-            AVAILABLE_RAG.pop(handler["key"])
+            AVAILABLE_RAG.pop(handler["key"], None)
         handlers = extension.get_websearch_handlers()
         for handler in handlers:
-            AVAILABLE_WEBSEARCH.pop(handler["key"])
+            AVAILABLE_WEBSEARCH.pop(handler["key"], None)
         handler = extension.get_translators_handlers()
         for h in handler:
-            AVAILABLE_TRANSLATORS.pop(h["key"])
-        handler = extension.get_interface_handlers()
-        for h in handlers:
-            AVAILABLE_INTERFACES.pop(h["hey"])
+            AVAILABLE_TRANSLATORS.pop(h["key"], None)
+        interface_handlers = extension.get_interface_handlers()
+        for h in interface_handlers:
+            AVAILABLE_INTERFACES.pop(h["key"], None)
         handler = extension.get_avatar_handlers()
         for h in handler:
-            AVAILABLE_AVATARS.pop(h["key"])
+            AVAILABLE_AVATARS.pop(h["key"], None)
 
     def remove_prompts(self, extension, PROMPTS, AVAILABLE_PROMPTS):
         """Remove prompts of an extension

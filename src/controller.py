@@ -1621,6 +1621,8 @@ class NewelleController(WorkspaceController):
                 AVAILABLE_EMBEDDINGS,
                 AVAILABLE_RAGS,
                 AVAILABLE_WEBSEARCH,
+                AVAILABLE_AVATARS,
+                AVAILABLE_TRANSLATORS,
                 AVAILABLE_IMAGE_GENERATORS=AVAILABLE_IMAGE_GENERATORS,
                 AVAILABLE_INTERFACES=AVAILABLE_INTERFACES,
             )
@@ -4253,6 +4255,8 @@ class HandlersManager:
             "rag": {newelle_settings.rag_model},
             "websearch": {newelle_settings.websearch_model},
             "image_generator": {newelle_settings.image_generator},
+            "avatar": {newelle_settings.avatar},
+            "translator": {newelle_settings.translator},
         }
         active_changed = any(
             affected[category] & keys for category, keys in selected.items()
@@ -4461,11 +4465,11 @@ class HandlersManager:
             self.handlers[(key, self.convert_constants(AVAILABLE_INTERFACES), False)] = self.get_object(AVAILABLE_INTERFACES, key)
         for key in AVAILABLE_IMAGE_GENERATORS:
             self.handlers[(key, self.convert_constants(AVAILABLE_IMAGE_GENERATORS), False)] = self.get_object(AVAILABLE_IMAGE_GENERATORS, key)
-        # Nyarch Hanlders
+        # Nyarch Handlers
         for key in AVAILABLE_AVATARS:
-            self.handlers[(key, self.convert_constants(AVAILABLE_AVATARS))] = self.get_object(AVAILABLE_AVATARS, key)
+            self.handlers[(key, self.convert_constants(AVAILABLE_AVATARS), False)] = self.get_object(AVAILABLE_AVATARS, key)
         for key in AVAILABLE_TRANSLATORS:
-            self.handlers[(key, self.convert_constants(AVAILABLE_TRANSLATORS))] = self.get_object(AVAILABLE_TRANSLATORS, key)
+            self.handlers[(key, self.convert_constants(AVAILABLE_TRANSLATORS), False)] = self.get_object(AVAILABLE_TRANSLATORS, key)
         self.handlers_cached.release()
     
     def convert_constants(self, constants: str | dict[str, Any]) -> (str | dict):
