@@ -375,7 +375,7 @@ class MainWindow(WorkspaceWindow, Adw.ApplicationWindow):
         self.avatar_widget = None
 
         self.boxw = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, css_classes=["background"])
-        self.web_panel_header = Adw.HeaderBar(css_classes=["flat", "view"], show_start_title_buttons=False)
+        self.web_panel_header = Adw.HeaderBar(css_classes=["flat", "view"], show_start_title_buttons=False, show_end_title_buttons=False)
         self.web_panel_header.set_title_widget(Gtk.Box())
         self.boxw.append(self.web_panel_header)
         self.boxw.set_size_request(400, 0)
@@ -481,7 +481,7 @@ class MainWindow(WorkspaceWindow, Adw.ApplicationWindow):
 
     def build_canvas(self):
 
-        self.canvas_header = Adw.HeaderBar(css_classes=["flat"], show_start_title_buttons=False)
+        self.canvas_header = Adw.HeaderBar(css_classes=["flat"], show_start_title_buttons=False, show_end_title_buttons=False)
         self.canvas_header.set_title_widget(Gtk.Label())
         self.canvas_headerbox = Gtk.Box(halign=Gtk.Align.CENTER)
         self.canvas_header.pack_start(self.canvas_headerbox)
@@ -558,20 +558,24 @@ class MainWindow(WorkspaceWindow, Adw.ApplicationWindow):
             (_("Image Generator"), "insert-image-symbolic", self.add_image_generator_tab),
         ]
         memory = self.controller.handlers.memory
-        if self.controller.newelle_settings.memory_on and memory is not None and memory.has_mini_app():
-            # Construct the widget only after the user selects the menu item.
-            def add_memory_tab(*_args):
-                mini_app = memory.get_mini_app()
-                if mini_app is None:
-                    return None
-                tab = self.canvas_tabs.append(mini_app)
-                tab.set_title(_(memory.get_mini_app_title()))
-                tab.set_icon(Gio.ThemedIcon(name=memory.get_mini_app_icon()))
-                self.canvas_tabs.set_selected_page(tab)
-                self.show_sidebar()
-                return tab
+        if self.controller.newelle_settings.memory_on and memory is not None:
+            if memory.has_mini_app():
+                # Construct the widget only after the user selects the menu item.
+                def add_memory_tab(*_args):
+                    mini_app = memory.get_mini_app()
+                    if mini_app is None:
+                        return None
+                    tab = self.canvas_tabs.append(mini_app)
+                    tab.set_title(_(memory.get_mini_app_title()))
+                    tab.set_icon(Gio.ThemedIcon(name=memory.get_mini_app_icon()))
+                    self.canvas_tabs.set_selected_page(tab)
+                    self.show_sidebar()
+                    return tab
 
-            menu_entries.append((_(memory.get_mini_app_title()), memory.get_mini_app_icon(), add_memory_tab))
+                menu_entries.append((_(memory.get_mini_app_title()), memory.get_mini_app_icon(), add_memory_tab))
+            # Additional self-contained mini apps contributed by the active
+            # memory handler (e.g. CharacterMemory's browser and knowledge graph).
+            menu_entries += memory.add_tab_menu_entries()
         menu_entries += self.controller.integrationsloader.get_add_tab_buttons()
         menu_entries += self.extensionloader.get_add_tab_buttons()
         
@@ -2516,14 +2520,20 @@ class MainWindow(WorkspaceWindow, Adw.ApplicationWindow):
                 self.avatar_flap.set_reveal_flap(False)
             self.chat_panel_header.set_show_end_title_buttons(False)
             self.chat_header.set_show_end_title_buttons(False)
+            self.canvas_header.set_show_end_title_buttons(False)
+            self.web_panel_header.set_show_end_title_buttons(True)
             header_widget = self.web_panel_header
         elif self.main_program_block.get_show_sidebar():
             self.chat_panel_header.set_show_end_title_buttons(False)
             self.chat_header.set_show_end_title_buttons(False)
+            self.web_panel_header.set_show_end_title_buttons(False)
+            self.canvas_header.set_show_end_title_buttons(True)
             header_widget = self.canvas_headerbox
         else:
             self.chat_panel_header.set_show_end_title_buttons(not self.main.get_show_sidebar() and self.avatar_flap.get_folded())
             self.chat_header.set_show_end_title_buttons(True)
+            self.canvas_header.set_show_end_title_buttons(False)
+            self.web_panel_header.set_show_end_title_buttons(False)
             header_widget = self.chat_header
         # Unparent the headerbox
         self.headerbox.unparent()

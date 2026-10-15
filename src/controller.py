@@ -1613,6 +1613,23 @@ class NewelleController(WorkspaceController):
             # Rebuilding these descriptor dictionaries is cheap; actual handler
             # instances are invalidated selectively below.
             restore_handlers()
+            # restore_handlers() resets the registries to the built-in handlers,
+            # so integration-contributed handlers must be merged again. They are
+            # added before extension handlers to keep the startup precedence,
+            # where extensions can override an integration's key.
+            self.integrationsloader.add_handlers(
+                AVAILABLE_LLMS,
+                AVAILABLE_TTS,
+                AVAILABLE_STT,
+                AVAILABLE_MEMORIES,
+                AVAILABLE_EMBEDDINGS,
+                AVAILABLE_RAGS,
+                AVAILABLE_WEBSEARCH,
+                AVAILABLE_AVATARS,
+                AVAILABLE_TRANSLATORS,
+                AVAILABLE_IMAGE_GENERATORS=AVAILABLE_IMAGE_GENERATORS,
+                AVAILABLE_INTERFACES=AVAILABLE_INTERFACES,
+            )
             new_loader.add_handlers(
                 AVAILABLE_LLMS,
                 AVAILABLE_TTS,
@@ -1832,6 +1849,9 @@ class NewelleController(WorkspaceController):
         """Load integrations"""
         self.integrationsloader = ExtensionLoader(self.extension_path, pip_path=self.pip_path, settings=self.settings, extension_cache=self.extensions_cache)
         self.integrationsloader.load_integrations(AVAILABLE_INTEGRATIONS)
+        # Integrations can contribute handlers (e.g. memory handlers) just like
+        # user extensions; without this they never reach the handler registries.
+        self.integrationsloader.add_handlers(AVAILABLE_LLMS, AVAILABLE_TTS, AVAILABLE_STT, AVAILABLE_MEMORIES, AVAILABLE_EMBEDDINGS, AVAILABLE_RAGS, AVAILABLE_WEBSEARCH,AVAILABLE_AVATARS, AVAILABLE_TRANSLATORS, AVAILABLE_INTERFACES=AVAILABLE_INTERFACES, AVAILABLE_IMAGE_GENERATORS=AVAILABLE_IMAGE_GENERATORS)
         skills_integration = self.integrationsloader.extensionsmap.get("skills")
         if skills_integration is not None and hasattr(self, "skill_manager"):
             skills_integration.set_skill_manager(self.skill_manager)

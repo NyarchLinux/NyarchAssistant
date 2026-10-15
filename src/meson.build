@@ -60,6 +60,7 @@ integrations_sources = [
   'integrations/file_editing.py',
   'integrations/todo_list.py',
   'integrations/arch.py',
+  'integrations/CharacterMemory.py',
 ]
 
 ui_sources = [

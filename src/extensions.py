@@ -620,8 +620,14 @@ class ExtensionLoader:
     def load_integrations(self, AVAILABLE_INTEGRATIONS):
         for integration in AVAILABLE_INTEGRATIONS:
             integration_class = integration(self.pip, self.extension_cache, self.settings)
-            self.extensions_settings[integration_class.id] = {}
-            self.save_settings()
+            # Keep saved integration settings (e.g. CharacterMemory's character):
+            # only create the entry when missing, exactly like load_extensions.
+            if integration_class.id not in self.extensions_settings:
+                self.extensions_settings[integration_class.id] = {}
+                self.save_settings()
+            # A persisted disable must hold at runtime as well.
+            if self.extensions_settings[integration_class.id].get("disabled"):
+                self.disabled_extensions.append(integration_class)
             for lang in integration_class.get_replace_codeblocks_langs():
                 if lang not in self.codeblocks:
                     self.codeblocks[lang] = integration_class

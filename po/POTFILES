@@ -26,6 +26,7 @@ src/integrations/default_tools.py
 src/handlers/avatar/livepng_handler.py
 src/utility/message_chunk.py
 src/integrations/website_reader.py
+src/integrations/CharacterMemory.py
 src/utility/command_permissions.py
 src/handlers/avatar/live2d_handler.py
 src/handlers/interfaces/api_handler.py

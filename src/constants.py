@@ -31,10 +31,14 @@ from .handlers.llm import NyarchApiHandler
 from .handlers.avatar import Live2DHandler, LivePNGHandler, VRMHandler
 from .handlers.translator import CustomTranslatorHandler, GoogleTranslatorHandler, LibreTranslateHandler, LigvaTranslateHandler
 
+from .integrations.CharacterMemory import CharacterMemoryExtension
+
 
 AVAILABLE_INTEGRATIONS = [WebsiteReader, WebsearchIntegration, MermaidIntegration, MCPIntegration, SkillsIntegration, SkillEditorIntegration, DefaultToolsIntegration, AgentToolsIntegration, FileEditingIntegration, TodoListIntegration]
 
 AVAILABLE_INTEGRATIONS += [ArchLinuxExtension]
+
+AVAILABLE_INTEGRATIONS += [CharacterMemoryExtension]
 
 DIR_NAME = "NyarchAssistant"
 SCHEMA_ID = 'moe.nyarchlinux.assistant'
