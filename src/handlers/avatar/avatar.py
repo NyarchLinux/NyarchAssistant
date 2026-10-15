@@ -249,8 +249,14 @@ class AvatarHandler(Handler):
         # --- playback: bytes → ffmpeg (decode/resample) → ffplay ---
         def playback():
             tts.stop()
-            tts._play_lock.acquire()
-            tts.on_start()
+            has_lock = False
+            if hasattr(tts, "_play_lock"):
+                tts._play_lock.acquire()
+                has_lock = True
+            if hasattr(tts, "on_start"):
+                tts.on_start()
+            elif hasattr(tts, "_emit"):
+                tts._emit("start")
             ffmpeg_play = None
             ffplay = None
             try:
@@ -309,8 +315,15 @@ class AvatarHandler(Handler):
                             pass
                 playback_ready.set()  # ensure animate is unblocked on failure
                 tts.play_process = None
-                tts.on_stop()
-                tts._play_lock.release()
+                if hasattr(tts, "on_stop"):
+                    tts.on_stop()
+                elif hasattr(tts, "_emit"):
+                    tts._emit("stop")
+                if has_lock:
+                    try:
+                        tts._play_lock.release()
+                    except RuntimeError:
+                        pass
 
         # --- decoder: ffmpeg raw PCM → per-frame RMS amplitudes ---
         def decoder():
