@@ -1126,6 +1126,7 @@ class SetupWindow(IndependentWindow):
         footer.append(self.done)
         outer.append(footer)
         self.set_content(outer)
+        self.local_in_carousel = True
         self.update_mode()
         self.navigate(0, animate=False)
 
@@ -1272,10 +1273,14 @@ class SetupWindow(IndependentWindow):
         return self.mode.get_selected() == 0
 
     def next_index(self):
-        return 1 if self.step == 0 and self.managed() else self.step + 1
+        if self.step == 0:
+            return 1 if self.managed() else 2
+        return self.step + 1
 
     def prev_index(self):
-        return 0 if self.step == 2 and not self.managed() else self.step - 1
+        if self.step == 2 and not self.managed():
+            return 0
+        return self.step - 1
 
     def navigate(self, step, animate=True):
         self.step = step
@@ -1332,6 +1337,14 @@ class SetupWindow(IndependentWindow):
         self.api_key.set_visible(custom)
         self.test_row.set_visible(custom)
         self.local_hint.set_visible(not custom)
+        # External server: drop the local-server step from the carousel
+        # entirely, so neither the dots nor the page transition reveal it.
+        if custom and self.local_in_carousel:
+            self.carousel.remove(self.pages[1])
+            self.local_in_carousel = False
+        elif not custom and not self.local_in_carousel:
+            self.carousel.insert(self.pages[1], 1)
+            self.local_in_carousel = True
         mode = "custom" if custom else "managed"
         if self.extension.option("instance_mode", "managed") != mode:
             self.extension.set_setting("instance_mode", mode)
@@ -1674,12 +1687,13 @@ class CharacterWizard(IndependentWindow):
         dialogues = self.page(_("Upload example conversations or write your own to shape the character’s voice. This step is optional."))
         self.field(dialogues, "dialogues", _("Dialogue examples"))
         memories = self.page(_("Choose which memories the character should maintain. The knowledge graph is enabled by default and may take longer to build; leave the rest on Default to keep the server’s setting."))
-        names = (("character_info", _("Character information")), ("dialogue_style", _("Dialogue style")),
+        names = (("character_info", _("Character information")), ("character_self", _("Character self")),
+                 ("prospective", _("Intentions")), ("dialogue_style", _("Dialogue style")),
                  ("user_facts", _("User facts")), ("user_directives", _("User directives")),
                  ("episodic", _("Episodes")), ("conversation_events", _("Conversation events")),
                  ("emotion", _("Emotion")), ("world", _("World")), ("calendar", _("Calendar")),
                  ("heartbeat", _("Heartbeat")), ("user_summary", _("User summary")),
-                 ("knowledge_graph", _("Knowledge graph")))
+                 ("groups", _("Groups")), ("knowledge_graph", _("Knowledge graph")))
         self.memory_titles = dict(names)
         memory_group = Adw.PreferencesGroup()
         memories.append(memory_group)
