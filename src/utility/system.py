@@ -26,7 +26,7 @@ def is_flatpak() -> bool:
 
 
 FLATPAK_X11_OVERRIDE_COMMAND = (
-    "flatpak override --user --socket=x11 io.github.qwersyk.Newelle"
+    "flatpak override --user --socket=x11 moe.nyarchlinux.assistant"
 )
 _FLATPAK_INFO_PATH = "/.flatpak-info"
 
