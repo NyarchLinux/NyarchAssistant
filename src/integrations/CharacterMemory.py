@@ -124,12 +124,39 @@ def open_memory_app(extension, graph):
                    lambda config: _memory_app_tab(extension, config, graph))
 
 
+def _rgba_hex(color):
+    return "#{:02x}{:02x}{:02x}".format(
+        max(0, min(255, round(color.red * 255))),
+        max(0, min(255, round(color.green * 255))),
+        max(0, min(255, round(color.blue * 255))))
+
+
+def _graph_embed_params(widget):
+    """Embed parameters restyling the live graph to Newelle's GTK theme.
+
+    Neutral elements (background, ink, labels, muted nodes and edges) follow
+    the GTK theme; semantic node and edge colors keep the server palette so
+    the graph stays readable.
+    """
+    params = {"theme": "dark" if Adw.StyleManager.get_default().get_dark() else "light"}
+    context = widget.get_style_context()
+    for param, named in (("color_bg", "theme_bg_color"),
+                         ("color_label", "theme_fg_color"),
+                         ("color_label_shadow", "theme_bg_color"),
+                         ("color_ink", "theme_fg_color"),
+                         ("color_muted", "insensitive_fg_color"),
+                         ("color_muted_edge", "borders")):
+        found, color = context.lookup_color(named)
+        if found:
+            params[param] = _rgba_hex(color)[1:]
+    return params
+
+
 def _memory_app_tab(extension, config, graph):
     from gi.repository import WebKit
 
     from ..ui.widgets.browser import BrowserWidget
     path = "/gui/embed/knowledge-graph" if graph else "/gui"
-    url = config["url"] + path + "?" + urlencode({"character": config["character"], "user": config["user"]})
     # Start blank so the document-start script is installed before navigation.
     browser = BrowserWidget(starting_url="about:blank")
     script = (f"if(location.origin === new URL({json.dumps(config['url'])}).origin)"
@@ -137,11 +164,17 @@ def _memory_app_tab(extension, config, graph):
     browser.user_content_manager.add_script(WebKit.UserScript.new(
         script, WebKit.UserContentInjectedFrames.TOP_FRAME,
         WebKit.UserScriptInjectionTime.START, None, None))
+    params = {"character": config["character"], "user": config["user"]}
+    if graph:
+        params.update(_graph_embed_params(browser))
+    url = config["url"] + path + "?" + urlencode(params)
     browser.starting_url = url
     browser.navigate_to(url)
     tab = extension.ui_controller.add_tab(browser)
     tab.set_title(_("Live Knowledge Graph") if graph else _("CharacterMemory"))
     tab.set_icon(Gio.ThemedIcon.new("network-server-symbolic"))
+    if graph:
+        extension.track_graph_tab(browser, config)
     return False
 
 
@@ -525,6 +558,8 @@ class CharacterMemoryExtension(NewelleExtension):
         self.closed = False
         self._watch = None
         self._shutdown_signal = None
+        self._graph_tabs = []
+        self._theme_watch = None
         atexit.register(self.runtime.stop)
 
     def option(self, key, default):
@@ -959,10 +994,40 @@ class CharacterMemoryExtension(NewelleExtension):
             self.queue(key).submit(clear).result()
         self.work(reset, lambda result: self.report(_("Memory conversation reset. Learned memories were kept.")))
 
+    def track_graph_tab(self, browser, config):
+        """Restyle a live-graph tab when the app theme changes."""
+        self._graph_tabs.append((browser, config))
+        if self._theme_watch is None:
+            def changed(*_args):
+                self.refresh_graph_tabs()
+            manager = Adw.StyleManager.get_default()
+            settings = Gtk.Settings.get_default()
+            self._theme_watch = [(manager, manager.connect("notify::dark", changed)),
+                                 (settings, settings.connect("notify::gtk-theme-name", changed))]
+
+    def refresh_graph_tabs(self):
+        """Re-navigate open graph tabs with the current GTK theme parameters."""
+        live = []
+        for browser, config in self._graph_tabs:
+            if browser.get_parent() is None:  # tab closed
+                continue
+            params = {"character": config["character"], "user": config["user"]}
+            params.update(_graph_embed_params(browser))
+            url = (config["url"] + "/gui/embed/knowledge-graph?"
+                   + urlencode(params))
+            browser.navigate_to(url)
+            live.append((browser, config))
+        self._graph_tabs[:] = live
+
     def close(self):
         if self.closed:
             return
         self.closed = True
+        if self._theme_watch is not None:
+            for source, signal in self._theme_watch:
+                source.disconnect(signal)
+            self._theme_watch = None
+        self._graph_tabs.clear()
         executors = list(self.queues.values())
         self.queues.clear()
         for name, original, wrapper in reversed(self.adapters):
