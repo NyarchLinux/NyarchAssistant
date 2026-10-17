@@ -829,22 +829,22 @@ class CharacterMemoryExtension(NewelleExtension):
         if old and old["message"] == message["Message"] and old["local_id"] == str(local_id):
             # Drain previously queued saves before deciding whether this is a regeneration.
             self.queue(old["key"]).submit(lambda: None).result()
-            if self.store.read("turns", old_token).get("status") != "saved":
+            if self.store.read("turns", old_token).get("status") not in ("saved", "save_failed"):
                 return old
         config = self.connection(wait=False)
         key = _digest([config["instance"], config["character"], config["user"], self.chat_identity(local_id)])
         with self.store.conversation_lock(key):
             current = self.turns.get(message.get(_MARKER))
             if (current and current["key"] == key and current["message"] == message["Message"]
-                    and self.store.read("turns", current["token"]).get("status") != "saved"):
+                    and self.store.read("turns", current["token"]).get("status") not in ("saved", "save_failed")):
                 return current
             previous = self.store.read("turns", old_token)
-            if old is None and previous and previous.get("status") not in ("saved", "reset", "deferred"):
+            if old is None and previous and previous.get("status") not in ("saved", "reset", "deferred", "save_failed"):
                 self.report(_("This turn was interrupted before memory saving completed. Reset the memory conversation before regenerating it."))
                 return {"failed": True}
             # The same user message after a completed or still-buffered save is a
             # regeneration; either way the server conversation restarts from it.
-            if old_token and previous.get("status") in ("saved", "deferred"):
+            if old_token and previous.get("status") in ("saved", "deferred", "save_failed"):
                 if previous.get("status") == "deferred":
                     self.store.write("turns", old_token, {**previous, "status": "reset"})
                 self.store.reset(key)
@@ -863,7 +863,7 @@ class CharacterMemoryExtension(NewelleExtension):
         with self.store.conversation_lock(key):
             if "retrieval_message" in turn:
                 chat = self.store.read("chats", key)
-                if not chat.get("chat_id") or chat.get("uncertain"):
+                if not chat.get("chat_id"):
                     return []
                 try:
                     result = _request(config, "POST", "/context", {
@@ -882,7 +882,7 @@ class CharacterMemoryExtension(NewelleExtension):
             if record:
                 return self.cache.get(token, [])
             chat = self.store.read("chats", key)
-            if chat.get("uncertain"):
+            if chat.get("uncertain") and not chat.get("chat_id"):
                 self.report(_("The previous memory request has an unknown outcome. Reset this memory conversation to continue."))
                 return []
             self.store.write("turns", token, {"status": "context_pending", "key": key})
@@ -934,7 +934,7 @@ class CharacterMemoryExtension(NewelleExtension):
             if record.get("status") not in ("recalled", "deferred"):
                 return
             chat = self.store.read("chats", key)
-            if chat.get("uncertain"):
+            if chat.get("uncertain") and not chat.get("chat_id"):
                 return
             # The server schedules extraction itself, so every answer is saved
             # at once; older buffered answers are sent first to keep turn order.
@@ -953,20 +953,18 @@ class CharacterMemoryExtension(NewelleExtension):
         for token in list(pending):
             record = self.store.read("turns", token)
             if record.get("status") != "deferred":
+                if record.get("status") == "save_failed":
+                    self.store.write("turns", token, {**record, "status": "saved"})
                 pending.remove(token)
                 self.store.write("chats", key, {**self.store.read("chats", key), "pending": pending})
                 continue
             self.store.write("turns", token, {**record, "status": "save_pending"})
-            self.store.write("chats", key, {**self.store.read("chats", key),
-                "chat_id": record["chat_id"], "uncertain": True})
             try:
                 _request(turn["config"], "POST", "/save",
                          {"chat_id": record["chat_id"], "answer": record["answer"],
                           "occurred_at": record.get("occurred_at")}, timeout=300)
-            except Exception as error:  # noqa: BLE001 - report failures at the extension boundary
-                self.store.write("turns", token, {**record, "status": "save_failed"})
-                self.report(str(error))
-                return
+            except Exception as error:  # noqa: BLE001 - ignore /save failures so memory keeps working
+                print(f"CharacterMemory /save failed: {error}")
             self.store.write("turns", token, {**record, "status": "saved"})
             pending.remove(token)
             current = self.store.read("chats", key)
