@@ -35,7 +35,7 @@ class VRMHandler(AvatarHandler):
         for root, _, files in os.walk(self.models_dir):
             for file in files:
                 if file.endswith('.vrm'):
-                    file_name = file.rstrip('.vrm')
+                    file_name = file.removesuffix('.vrm')
                     relative_path = os.path.relpath(os.path.join(root, file), self.models_dir)
                     file_list.append((file_name, relative_path))
         return file_list

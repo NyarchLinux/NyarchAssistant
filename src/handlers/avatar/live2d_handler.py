@@ -34,7 +34,8 @@ class Live2DHandler(AvatarHandler):
         for root, _, files in os.walk(self.models_dir):
             for file in files:
                 if file.endswith('.model3.json') or file.endswith('.model.json'):
-                    file_name = file.rstrip('.model3.json').rstrip('.model.json')
+                    suffix = '.model3.json' if file.endswith('.model3.json') else '.model.json'
+                    file_name = file.removesuffix(suffix)
                     relative_path = os.path.relpath(os.path.join(root, file), self.models_dir)
                     file_list.append((file_name, relative_path))
         return file_list
