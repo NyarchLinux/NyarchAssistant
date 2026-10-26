@@ -30,6 +30,7 @@ from gi.repository import Adw, Gio, GLib, Gtk
 from ..extensions import NewelleExtension
 from ..handlers import ErrorSeverity, ExtraSettings, TabButtonDescription
 from ..handlers.memory import MemoryHandler
+from ..utility.message_chunk import get_message_chunks
 from ..utility.strings import clean_prompt, remove_thinking_blocks
 from ..utility.system import get_spawn_command
 
@@ -780,6 +781,14 @@ class CharacterMemoryExtension(NewelleExtension):
         def update(bot_response, chat=None):
             if not self.active():
                 return original_update(bot_response, chat=chat)
+            # A message with tool calls is an intermediate step of the agentic loop;
+            # saving it would mark the turn as saved and drop the real final answer.
+            try:
+                if any(chunk.type == "tool_call" or chunk.lang == "console"
+                       for chunk in get_message_chunks(str(bot_response))):
+                    return
+            except Exception as error:  # noqa: BLE001 - fall back to saving if parsing fails
+                print(f"CharacterMemory could not inspect the response: {error}")
             messages = list(chat if chat is not None else controller.chat)
             # Resolve the token synchronously, before launching a save worker.
             token = next((m.get(_MARKER) for m in reversed(messages)
