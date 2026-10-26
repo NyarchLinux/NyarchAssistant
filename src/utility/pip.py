@@ -3,8 +3,10 @@ import importlib
 import os
 import re
 import shlex
+import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 from dataclasses import dataclass, field
 
@@ -224,10 +226,16 @@ def install_module(module, path, update=True, cache_dir=None, task=None):
     handle.start(_("Preparing pip"))
 
     result = None
+    temp_dir = None
     try:
         environment = os.environ.copy()
-        environment["TMPDIR"] = cache_dir or os.path.join(os.getcwd(), "tmp")
-        os.makedirs(environment["TMPDIR"], exist_ok=True)
+        if cache_dir:
+            os.makedirs(cache_dir, exist_ok=True)
+            environment["TMPDIR"] = cache_dir
+        else:
+            # Never use the CWD (usually $HOME): wget drops lock files in TMPDIR.
+            environment["TMPDIR"] = tempfile.mkdtemp(prefix="nyarch-pip-")
+            temp_dir = environment["TMPDIR"]
 
         if find_module("pip") is None and not PIP_INSTALLED:
             handle.update(phase=_("Downloading pip"), reset_progress=True)
@@ -275,6 +283,8 @@ def install_module(module, path, update=True, cache_dir=None, task=None):
         print("Error installing " + module + " " + str(error))
         return None
     finally:
+        if temp_dir:
+            shutil.rmtree(temp_dir, ignore_errors=True)
         path_lock.release()
         with _INFLIGHT_LOCK:
             flight.result = result
