@@ -3,7 +3,7 @@ import json
 import gettext
 import hashlib
 import re
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 _ = gettext.gettext
 
@@ -27,6 +27,21 @@ class OpenAIHandler(LLMHandler):
             threading.Thread(target=self.get_models, args=(False, True)).start()
         else:
             self.models = json.loads(self.get_setting("models", False))
+        try:
+            self.context_lengths = json.loads(self.get_setting("context_lengths", False) or "{}")
+        except Exception:
+            self.context_lengths = {}
+
+    def get_context_length(self) -> Optional[int]:
+        """Context length of the currently selected model, as reported by the
+        provider's /models endpoint (e.g. Fireworks). None if unknown."""
+        return self.get_model_context_length(self.get_setting("model"))
+
+    def get_model_context_length(self, model) -> Optional[int]:
+        """Context length of a model from the provider's /models endpoint.
+        None if unknown."""
+        value = getattr(self, "context_lengths", {}).get(model)
+        return int(value) if value else None
 
     def get_models_list(self):
         return self.models
@@ -52,12 +67,23 @@ class OpenAIHandler(LLMHandler):
                 client = openai.Client(api_key=api, base_url=self.get_setting("endpoint"), default_headers=self.get_extra_headers())
                 models = client.models.list()
                 result = tuple()
+                context_lengths = {}
                 for model in models:
                     result += ((model.id, model.id,), )
+                    # OpenAI-compatible providers (e.g. Fireworks) may expose a
+                    # context_length field on model objects
+                    context_length = getattr(model, "context_length", None)
+                    if context_length is None and hasattr(model, "model_dump"):
+                        try:
+                            context_length = model.model_dump().get("context_length")
+                        except Exception:
+                            context_length = None
+                    if isinstance(context_length, int) and context_length > 0:
+                        context_lengths[model.id] = context_length
                 self.models = result
-                print(result)
+                self.context_lengths = context_lengths
                 self.set_setting("models", json.dumps(result))
-                print("ok")
+                self.set_setting("context_lengths", json.dumps(context_lengths))
                 self.settings_update()
             except Exception as e:
                 raise e
@@ -955,6 +981,23 @@ class OpenAIHandler(LLMHandler):
             self.set_setting("thinking", True)
             self.set_setting("thinking_effort", value)
 
+    @staticmethod
+    def _content_text(content) -> str:
+        """Flatten Chat Completions content into text.
+
+        Mistral returns content as a list of typed chunks instead of a string;
+        keep text chunks and drop the rest (thinking, references...).
+        """
+        if not isinstance(content, list):
+            return content or ""
+        parts = []
+        for chunk in content:
+            if isinstance(chunk, str):
+                parts.append(chunk)
+            elif isinstance(chunk, dict) and chunk.get("type") == "text":
+                parts.append(chunk.get("text") or "")
+        return "".join(parts)
+
     def generate_text(self, prompt: str, history: list[dict[str, str]] = [], system_prompt: list[str] = []) -> str:
         from openai import OpenAI
 
@@ -1037,7 +1080,7 @@ class OpenAIHandler(LLMHandler):
                 if not hasattr(response, "choices") or response.choices is None or len(response.choices) == 0:
                     raise Exception(str(response))
 
-                content = response.choices[0].message.content or ""
+                content = self._content_text(response.choices[0].message.content)
                 if hasattr(response.choices[0].message, "tool_calls") and response.choices[0].message.tool_calls is not None:
                     for tool_call in response.choices[0].message.tool_calls:
                         tool = tool_call.function
@@ -1152,7 +1195,7 @@ class OpenAIHandler(LLMHandler):
                     if is_reasoning:
                         full_message += "</think>\n"
                         is_reasoning = False
-                    full_message += delta.content
+                    full_message += self._content_text(delta.content)
                     args = (full_message.strip(), ) + tuple(extra_args)
                     if len(full_message) - len(prev_message) > 1:
                         on_update(*args)
