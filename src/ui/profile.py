@@ -16,7 +16,7 @@ class ProfileDialog(Adw.PreferencesDialog):
         
         editing = False
         if profile_name is None:
-            self.profile_name = "Assistant " + str(len(self.profile_settings) + 1)
+            self.profile_name = f"{ROOT_PROFILE} " + str(len(self.profile_settings) + 1)
         else:
             editing = True
             self.original_name = profile_name
@@ -281,7 +281,7 @@ class ProfileDialog(Adw.PreferencesDialog):
             self.avatar.set_text(profile_name)
         else:
             self.avatar.set_text(
-                "Assistant " + str(len(self.profile_settings) + 1)
+                f"{ROOT_PROFILE} " + str(len(self.profile_settings) + 1)
             )
 
     def on_avatar_clicked(self, gesture, n_press, x, y):

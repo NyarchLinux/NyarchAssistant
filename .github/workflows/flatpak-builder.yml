@@ -16,6 +16,6 @@ jobs:
       - name: Flatpak build
         uses: flatpak/flatpak-github-actions/flatpak-builder@v6
         with:
-          bundle: newelle.flatpak
-          manifest-path: io.github.qwersyk.Newelle.json
+          bundle: nyarchlinux.flatpak
+          manifest-path: moe.nyarchlinux.assistant.json
           cache-key: flatpak-builder-${{ github.sha }}

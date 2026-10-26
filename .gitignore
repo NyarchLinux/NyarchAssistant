@@ -1,5 +1,5 @@
-__pycache__/
-.pytest_cache/
-.ruff_cache/
-.flatpak-builder
+.flatpak-builder/*
 flatpak-pip-generator
+nyarchassistant.flatpak
+__pycache__/
+*.pyc

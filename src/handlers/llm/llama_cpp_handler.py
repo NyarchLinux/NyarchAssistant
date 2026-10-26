@@ -686,7 +686,7 @@ class LlamaCPPHandler(OpenAIHandler):
             warning_box.append(warning_text)
 
             command_entry = Gtk.Entry()
-            command_entry.set_text("flatpak --user override --talk-name=org.freedesktop.Flatpak --filesystem=home io.github.qwersyk.Newelle")
+            command_entry.set_text("flatpak --user override --talk-name=org.freedesktop.Flatpak --filesystem=home moe.nyarchlinux.assistant")
             command_entry.set_editable(False)
             command_entry.set_halign(Gtk.Align.CENTER)
             command_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
@@ -696,7 +696,7 @@ class LlamaCPPHandler(OpenAIHandler):
 
             copy_btn = Gtk.Button(label="Copy Command")
             copy_btn.set_halign(Gtk.Align.CENTER)
-            copy_btn.connect("clicked", lambda btn: self.copy_to_clipboard("flatpak --user override --talk-name=org.freedesktop.Flatpak --filesystem=home io.github.qwersyk.Newelle"))
+            copy_btn.connect("clicked", lambda btn: self.copy_to_clipboard("flatpak --user override --talk-name=org.freedesktop.Flatpak --filesystem=home moe.nyarchlinux.assistant"))
             warning_box.append(copy_btn)
 
             main_container.append(warning_box)

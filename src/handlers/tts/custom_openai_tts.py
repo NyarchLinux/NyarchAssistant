@@ -48,6 +48,7 @@ class CustomOpenAITTSHandler(TTSHandler):
     def streaming_enabled(self) -> bool:
         return self.get_setting("streaming")
 
+
     def get_stream_format_args(self) -> list:
         fmt = self.get_setting("response_format") or "mp3"
         return ["-f", fmt]

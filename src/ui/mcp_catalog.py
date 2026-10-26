@@ -43,7 +43,7 @@ from .extensions_catalog import (
 _ = gettext.gettext
 
 CATALOG_SCHEMA_VERSION = 1
-CATALOG_RESOURCE = "/io/github/qwersyk/Newelle/mcp_servers.json"
+CATALOG_RESOURCE = "/moe/nyarchlinux/assistant/mcp_servers.json"
 DEFAULT_CATALOG_URL = (
     "https://raw.githubusercontent.com/qwersyk/Newelle/master/data/mcp_servers.json"
 )

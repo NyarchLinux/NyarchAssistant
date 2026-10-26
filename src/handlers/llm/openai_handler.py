@@ -86,6 +86,7 @@ class OpenAIHandler(LLMHandler):
                 self.set_setting("context_lengths", json.dumps(context_lengths))
                 self.settings_update()
             except Exception as e:
+                raise e
                 if manual:
                     self.throw("Error getting " + self.key + " models: " + str(e), ErrorSeverity.WARNING)
                 print("Error getting " + self.key + " models: " + str(e))

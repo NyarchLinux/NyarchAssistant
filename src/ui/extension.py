@@ -297,7 +297,7 @@ class ExtensionPage(Adw.PreferencesPage):
         dialog.set_default_response("close")
         dialog.set_extra_child(
             CopyBox(
-                "flatpak --user override --talk-name=org.freedesktop.Flatpak --filesystem=home io.github.qwersyk.Newelle",
+                "flatpak --user override --talk-name=org.freedesktop.Flatpak --filesystem=home moe.nyarchlinux.assistant",
                 "bash",
             )
         )

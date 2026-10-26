@@ -89,3 +89,12 @@ class MemoryHandler(Handler):
     def get_mini_app_icon(self) -> str:
         """Return the themed icon name used for the optional memory tab."""
         return "view-list-symbolic"
+
+    def add_tab_menu_entries(self) -> list:
+        """Mini apps this memory handler adds to the canvas add-tab menu.
+
+        Entries use the extension TabButtonDescription format (title, icon,
+        callback); each callback receives no meaningful arguments and opens
+        its own tab, e.g. through ui_controller.add_tab.
+        """
+        return []

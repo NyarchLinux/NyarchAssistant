@@ -2522,7 +2522,7 @@ class StableDiffusionCPPHandler(ImageGeneratorHandler):
 
             command_entry = Gtk.Entry()
             command_entry.set_text(
-                "flatpak --user override --talk-name=org.freedesktop.Flatpak --filesystem=home io.github.qwersyk.Newelle"
+                "flatpak --user override --talk-name=org.freedesktop.Flatpak --filesystem=home moe.nyarchlinux.assistant"
             )
             command_entry.set_editable(False)
             command_entry.set_halign(Gtk.Align.CENTER)
@@ -2536,7 +2536,7 @@ class StableDiffusionCPPHandler(ImageGeneratorHandler):
             copy_btn.connect(
                 "clicked",
                 lambda btn: self._copy_to_clipboard(
-                    "flatpak --user override --talk-name=org.freedesktop.Flatpak --filesystem=home io.github.qwersyk.Newelle"
+                    "flatpak --user override --talk-name=org.freedesktop.Flatpak --filesystem=home moe.nyarchlinux.assistant"
                 ),
             )
             warning_box.append(copy_btn)
