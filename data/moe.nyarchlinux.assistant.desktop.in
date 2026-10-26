@@ -13,9 +13,9 @@ Actions=mini-window;voice-mode;
 [Desktop Action mini-window]
 Name=Mini Window
 Exec=newelle --mini
-Icon=io.github.qwersyk.Newelle
+Icon=moe.nyarchlinux.assistant
 
 [Desktop Action voice-mode]
 Name=Voice Mode
 Exec=newelle --voice
-Icon=io.github.qwersyk.Newelle
+Icon=moe.nyarchlinux.assistant
