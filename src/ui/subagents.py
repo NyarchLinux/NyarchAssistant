@@ -1,6 +1,5 @@
 """Native settings UI for named subagents."""
 
-import gettext
 
 from gi.repository import Adw, GLib, Gtk
 
@@ -8,7 +7,6 @@ from ..constants import AVAILABLE_LLMS
 from ..modes import ENABLE, REMOVE
 from .widgets import ComboRowHelper, MultilineEntry
 
-_ = gettext.gettext
 
 _CUSTOM_MODEL = "__newelle_custom_model__"
 _SECONDARY_MODEL = "__newelle_secondary_model__"

@@ -82,7 +82,7 @@ class ThinkingWidget(Gtk.Box):
         GLib.idle_add(self._update_ui_start_thinking, initial_message)
         self.emit('thinking-started')
 
-    def stop_thinking(self, final_title="Thoughts"):
+    def stop_thinking(self, final_title=_("Thoughts")):
         """Stops the thinking process indication."""
         if not self._is_thinking:
             return # Not thinking

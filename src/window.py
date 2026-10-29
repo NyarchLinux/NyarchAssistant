@@ -16,7 +16,6 @@ import json
 import base64
 import copy
 import uuid 
-import gettext
 import datetime
 from gi.repository import Gtk, Adw, Pango, Gio, Gdk, GObject, GLib, GdkPixbuf
 
@@ -834,7 +833,7 @@ class MainWindow(WorkspaceWindow, Adw.ApplicationWindow):
     def show_error_dialog(self, title: str, message: str, parent=None):
         """Show an error dialog with the given title and message."""
         dialog = Adw.AlertDialog(title=title, body=message)
-        dialog.add_response("close", "Close")
+        dialog.add_response("close", _("Close"))
         dialog.set_response_appearance("close", Adw.ResponseAppearance.DESTRUCTIVE)
         dialog.connect("response", lambda d, r: d.close())
         dialog.present(parent if parent is not None else self)
@@ -1299,7 +1298,7 @@ class MainWindow(WorkspaceWindow, Adw.ApplicationWindow):
         self.model_page = model_page
         stack.add_titled_with_icon(
             self.model_page,
-            title="Models",
+            title=_("Models"),
             name="Models",
             icon_name="view-list-symbolic",
         )
@@ -1308,19 +1307,19 @@ class MainWindow(WorkspaceWindow, Adw.ApplicationWindow):
         llm_page = self.steal_from_settings(settings.LLM)
         stack.add_titled_with_icon(
             self.scrollable(llm_page),
-            title="LLM",
+            title=_("LLM"),
             name="LLM",
             icon_name="brain-augemnted-symbolic",
         )
         stack.add_titled_with_icon(
             self.scrollable(self.steal_from_settings(settings.prompt)),
-            title="Prompts",
+            title=_("Prompts"),
             name="Prompts",
             icon_name="question-round-outline-symbolic",
         )
         stack.add_titled_with_icon(
             self.scrollable(self.steal_from_settings(settings.tools_group)),
-            title="Tools",
+            title=_("Tools"),
             name="Tools",
             icon_name="tools-symbolic",
         )
@@ -1416,14 +1415,14 @@ class MainWindow(WorkspaceWindow, Adw.ApplicationWindow):
             # Create an ActionRow with a title and subtitle.
             # The title shows provider and display; the subtitle shows a per-model description.
             # Retrieve a model-specific subtitle (for example, using a model library if available).
-            model_subtitle = "Model: " + model
+            model_subtitle = _("Model: ") + model
             if hasattr(self.model, "model_library"):
                 for info_dict in self.model.model_library:
                     if info_dict["key"] == model:
                         model_subtitle = info_dict["description"]
                         break
             action_row = Adw.ActionRow(
-                title=f"{provider_title} - {name}", subtitle=model_subtitle
+                title=_("{} - {}").format(provider_title, name), subtitle=model_subtitle
             )
             
             # Star button
@@ -3517,7 +3516,7 @@ class MainWindow(WorkspaceWindow, Adw.ApplicationWindow):
         
         # Add the tab
         tab = self.canvas_tabs.append(box)
-        tab.set_title("Terminal")
+        tab.set_title(_("Terminal"))
         tab.set_icon(Gio.ThemedIcon(name="gnome-terminal-symbolic"))
         self.show_sidebar()
         return tab
@@ -3534,7 +3533,7 @@ class MainWindow(WorkspaceWindow, Adw.ApplicationWindow):
         
         # Add the tab
         tab = self.canvas_tabs.append(browser)
-        tab.set_title("Browser")
+        tab.set_title(_("Browser"))
         tab.set_icon(Gio.ThemedIcon(name="internet-symbolic"))
         # Update tab title when page changes
         def on_page_changed(browser, url, title, favicon):
@@ -3598,7 +3597,7 @@ class MainWindow(WorkspaceWindow, Adw.ApplicationWindow):
         editor = CodeEditorWidget(scheme=self.controller.newelle_settings.editor_color_scheme)
         editor.load_from_string(content, lang)
         tab = self.canvas_tabs.append(editor)
-        base_title = "Message " + str(id_message) + " " + str(id_codeblock)
+        base_title = _("Message {} {}").format(id_message, id_codeblock)
         tab.set_title(base_title)
         editor.connect("edit_state_changed", self._on_editor_modified, tab, base_title)
         editor.connect("content-saved", lambda editor, _: self.edit_copybox(id_message, id_codeblock, editor.get_text(), editor))

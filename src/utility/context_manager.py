@@ -2,7 +2,6 @@ import copy
 import hashlib
 import json
 from dataclasses import dataclass, field
-from gettext import gettext as _
 
 from .media import audio_text
 from .strings import count_message_tokens, count_tokens, remove_thinking_blocks

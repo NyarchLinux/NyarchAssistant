@@ -13,6 +13,7 @@ import time
 import uuid
 
 
+
 DEFAULT_COMMAND_TIMEOUT = 120
 MAX_COMMAND_TIMEOUT = 3600
 OUTPUT_HEAD_CHARS = 2500
@@ -209,12 +210,12 @@ class CommandExecutionManager:
 
     def get(self, execution_id: str, owner=None) -> CommandExecution:
         if not execution_id:
-            raise CommandExecutionError("execution_id is required")
+            raise CommandExecutionError(_("execution_id is required"))
         with self._lock:
             execution = self._executions.get(execution_id)
         if execution is None or (owner is not None and execution.owner != owner):
             raise CommandExecutionError(
-                f"Command execution '{execution_id}' was not found"
+                _("Command execution '{id}' was not found").format(id=execution_id)
             )
         return execution
 

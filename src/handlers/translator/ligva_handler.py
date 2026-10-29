@@ -19,15 +19,15 @@ class LigvaTranslateHandler(TranslatorHandler):
 
     def get_extra_settings(self) -> list:
         return [
-            { "key": "endpoint", "title": "API Endpoint",
-                "description": "URL of Ligva API endpoint",
+            { "key": "endpoint", "title": _("API Endpoint"),
+                "description": _("URL of Ligva API endpoint"),
                 "type": "entry",
                 "default": "https://lingva.dialectapp.org",
             },
             {
                 "key": "language",
-                "title": "Destination language",
-                "description": "The language you want to translate to",
+                "title": _("Destination language"),
+                "description": _("The language you want to translate to"),
                 "type": "combo",
                 "values": self.languages,
                 "default": "ja",

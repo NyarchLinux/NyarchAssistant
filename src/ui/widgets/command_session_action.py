@@ -1,4 +1,3 @@
-from gettext import gettext as _
 
 from gi.repository import Adw, GObject, Gtk, Pango
 

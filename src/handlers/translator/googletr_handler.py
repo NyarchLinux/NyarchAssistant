@@ -1,4 +1,4 @@
-import os 
+import os
 from ...utility.pip import find_module, install_module
 from .translator import TranslatorHandler
 
@@ -16,8 +16,8 @@ class GoogleTranslatorHandler(TranslatorHandler):
         return [
             {
                 "key": "language",
-                "title": "Destination language",
-                "description": "The language you want to translate to",
+                "title": _("Destination language"),
+                "description": _("The language you want to translate to"),
                 "type": "combo",
                 "values": self.get_languages(),
                 "default": "ja",

@@ -6,7 +6,6 @@ tasks through :class:`DownloadTaskHandle`; UI code consumes immutable snapshots.
 
 from __future__ import annotations
 
-import gettext
 import threading
 import time
 import uuid
@@ -15,7 +14,6 @@ from contextvars import ContextVar
 from dataclasses import dataclass, field
 from enum import Enum
 
-_ = gettext.gettext
 
 
 class DownloadKind(str, Enum):

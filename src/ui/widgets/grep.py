@@ -73,14 +73,14 @@ class GrepWidget(Gtk.Box):
 
         self.copy_button = Gtk.Button(css_classes=["flat"], valign=Gtk.Align.CENTER)
         self.copy_button.set_icon_name("edit-copy-symbolic")
-        self.copy_button.set_tooltip_text("Copy results to clipboard")
+        self.copy_button.set_tooltip_text(_("Copy results to clipboard"))
         self.copy_button.connect("clicked", self._on_copy_clicked)
         header_box.append(self.copy_button)
 
         if self.matches and self.open_in_editor_callback:
             open_button = Gtk.Button(css_classes=["flat"], valign=Gtk.Align.CENTER)
             open_button.set_icon_name("document-open-symbolic")
-            open_button.set_tooltip_text("Open first match in editor")
+            open_button.set_tooltip_text(_("Open first match in editor"))
             open_button.connect("clicked", self._on_open_clicked)
             header_box.append(open_button)
 
@@ -103,7 +103,7 @@ class GrepWidget(Gtk.Box):
         """Build the content view with grep results."""
         if not self.matches:
             no_matches_label = Gtk.Label(
-                label="No matches found",
+                label=_("No matches found"),
                 halign=Gtk.Align.CENTER,
                 hexpand=True,
                 vexpand=True,

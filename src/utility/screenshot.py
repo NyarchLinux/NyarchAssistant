@@ -4,7 +4,6 @@ import os
 import shutil
 import time
 import uuid
-from gettext import gettext as _
 
 from gi.repository import Gio, GLib
 

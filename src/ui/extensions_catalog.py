@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import ast
 import base64
-import gettext
 import hashlib
 import io
 import json
@@ -38,7 +37,6 @@ from ..utility.download_manager import (
     get_download_manager,
 )
 
-_ = gettext.gettext
 
 GITHUB_API = "https://api.github.com"
 GITHUB_TOPIC = "newelle-extension"
@@ -150,9 +148,9 @@ class ExtensionCatalogError(ValueError):
 
 def _required_string(value, label, max_length=4096):
     if not isinstance(value, str) or not value.strip():
-        raise ExtensionCatalogError(f"{label} must be a non-empty string")
+        raise ExtensionCatalogError(_("{} must be a non-empty string").format(label))
     if len(value) > max_length or "\x00" in value:
-        raise ExtensionCatalogError(f"{label} is invalid")
+        raise ExtensionCatalogError(_("{} is invalid").format(label))
     return value
 
 
@@ -165,9 +163,9 @@ def _https_url(value, label, allowed_hosts=None):
         or parsed.username
         or parsed.password
     ):
-        raise ExtensionCatalogError(f"{label} must be a valid HTTPS URL")
+        raise ExtensionCatalogError(_("{} must be a valid HTTPS URL").format(label))
     if allowed_hosts is not None and (parsed.hostname or "").lower() not in allowed_hosts:
-        raise ExtensionCatalogError(f"{label} uses an unsupported host")
+        raise ExtensionCatalogError(_("{} uses an unsupported host").format(label))
     return value
 
 
@@ -196,7 +194,7 @@ def _read_response(response, max_bytes=MAX_RESPONSE_BYTES, task=None, phase=None
             task.check_cancelled()
         size += len(chunk)
         if size > max_bytes:
-            raise ExtensionCatalogError("The GitHub response is too large")
+            raise ExtensionCatalogError(_("The GitHub response is too large"))
         chunks.append(chunk)
         if task is not None:
             task.update(
@@ -227,12 +225,12 @@ def _github_json(url, session=requests, allow_not_found=False):
             except (UnicodeDecodeError, ValueError):
                 pass
             raise ExtensionCatalogError(
-                message or f"GitHub request failed ({response.status_code})"
+                message or _("GitHub request failed ({})").format(response.status_code)
             )
         try:
             return json.loads(payload.decode("utf-8"))
         except (UnicodeDecodeError, ValueError) as exc:
-            raise ExtensionCatalogError("GitHub returned invalid JSON") from exc
+            raise ExtensionCatalogError(_("GitHub returned invalid JSON")) from exc
 
 
 def _github_bytes(url, session=requests, max_bytes=MAX_FILE_BYTES, task=None):
@@ -258,18 +256,18 @@ def _repo_identity(full_name):
         not GITHUB_SEGMENT_RE.fullmatch(part) or part in {".", ".."}
         for part in parts
     ):
-        raise ExtensionCatalogError("GitHub returned an invalid repository name")
+        raise ExtensionCatalogError(_("GitHub returned an invalid repository name"))
     return parts[0], parts[1]
 
 
 def _safe_relative_path(path):
     if not isinstance(path, str) or not path or len(path) > 500 or "\x00" in path:
-        raise ExtensionCatalogError("GitHub returned an invalid file path")
+        raise ExtensionCatalogError(_("GitHub returned an invalid file path"))
     relative = PurePosixPath(path)
     if relative.is_absolute() or not relative.parts or any(
         part in {"", ".", ".."} for part in relative.parts
     ):
-        raise ExtensionCatalogError("GitHub returned an unsafe file path")
+        raise ExtensionCatalogError(_("GitHub returned an unsafe file path"))
     return relative
 
 
@@ -453,9 +451,11 @@ def _tree_files(owner, repository, branch, session, task=None):
     payload = _github_json(tree_url, session)
     entries = payload.get("tree") if isinstance(payload, dict) else None
     if not isinstance(entries, list):
-        raise ExtensionCatalogError("GitHub returned an invalid repository tree")
+        raise ExtensionCatalogError(_("GitHub returned an invalid repository tree"))
     if len(entries) > MAX_REPOSITORY_FILES * 4:
-        raise ExtensionCatalogError("The repository contains too many files to inspect")
+        raise ExtensionCatalogError(
+            _("The repository contains too many files to inspect")
+        )
 
     file_entries = []
     for entry in entries:
@@ -468,7 +468,9 @@ def _tree_files(owner, repository, branch, session, task=None):
         (path, entry) for path, entry in file_entries if path.suffix.lower() == ".py"
     ]
     if len(python_entries) > MAX_PYTHON_FILES:
-        raise ExtensionCatalogError("The repository contains too many Python files to inspect")
+        raise ExtensionCatalogError(
+            _("The repository contains too many Python files to inspect")
+        )
 
     files = []
     for path, entry in file_entries:
@@ -510,13 +512,17 @@ def _repository_archive_files(owner, repository, branch, session, task=None):
     content = _github_bytes(archive_url, session, MAX_ARCHIVE_BYTES, task=task)
     members = _archive_members("source.zip", content)
     if not members:
-        raise ExtensionCatalogError("The repository archive contained no readable files")
+        raise ExtensionCatalogError(
+            _("The repository archive contained no readable files")
+        )
     files = [
         _file_record(path, data)
         for path, data in members[:MAX_REPOSITORY_FILES]
     ]
     if sum(1 for item in files if item["is_python"]) > MAX_PYTHON_FILES:
-        raise ExtensionCatalogError("The repository contains too many Python files to inspect")
+        raise ExtensionCatalogError(
+            _("The repository contains too many Python files to inspect")
+        )
     return files
 
 
@@ -559,12 +565,12 @@ def _readme(owner, repository, session):
 def search_extensions(query="", page=1, sort_by="stars", per_page=DEFAULT_PAGE_SIZE, session=requests):
     """Search public repositories carrying the Newelle extension topic."""
     if not isinstance(page, int) or page < 1:
-        raise ExtensionCatalogError("page is invalid")
+        raise ExtensionCatalogError(_("page is invalid"))
     if sort_by not in {"stars", "updated"}:
-        raise ExtensionCatalogError("sort order is invalid")
+        raise ExtensionCatalogError(_("sort order is invalid"))
     query = (query or "").strip()
     if len(query) > 120:
-        raise ExtensionCatalogError("search query is too long")
+        raise ExtensionCatalogError(_("search query is too long"))
     github_query = f"{query} topic:{GITHUB_TOPIC}" if query else f"topic:{GITHUB_TOPIC}"
     url = (
         f"{GITHUB_API}/search/repositories?q={quote(github_query)}"
@@ -572,7 +578,7 @@ def search_extensions(query="", page=1, sort_by="stars", per_page=DEFAULT_PAGE_S
     )
     payload = _github_json(url, session)
     if not isinstance(payload, dict) or not isinstance(payload.get("items"), list):
-        raise ExtensionCatalogError("GitHub returned an invalid repository list")
+        raise ExtensionCatalogError(_("GitHub returned an invalid repository list"))
     repositories = []
     for item in payload["items"]:
         if not isinstance(item, dict):
@@ -687,12 +693,14 @@ def install_extension_files(files, extension_dir):
     selected = [item for item in files if item.get("is_python") and item.get("is_extension")]
     total_bytes = sum(len(item.get("content") or b"") for item in selected)
     if not selected or total_bytes > MAX_INSTALL_BYTES:
-        raise ExtensionCatalogError("The selected extension files exceed the install limit")
+        raise ExtensionCatalogError(
+            _("The selected extension files exceed the install limit")
+        )
     installed = []
     for item in selected:
         content = item.get("content")
         if not isinstance(content, bytes):
-            raise ExtensionCatalogError("A selected file is no longer available")
+            raise ExtensionCatalogError(_("A selected file is no longer available"))
         filename = _output_filename(item["path"])
         destination = os.path.join(extension_dir, filename)
         stem, suffix = os.path.splitext(filename)

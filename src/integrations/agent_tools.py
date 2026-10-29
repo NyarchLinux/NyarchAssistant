@@ -526,7 +526,7 @@ class AgentToolsIntegration(NewelleExtension):
                 # and extension changes are reflected without rebuilding the
                 # whole tool registry.
                 schema=self._run_subagent_schema,
-                title="Run Subagent",
+                title=_("Run Subagent"),
                 restore_func=self._restore_subagent,
                 default_on=True,
                 icon_name="system-run-symbolic",
@@ -540,7 +540,7 @@ class AgentToolsIntegration(NewelleExtension):
                     "The task argument is the prompt to be executed by the agent. Give a long and detailed task prompt."
                 ),
                 func=self._schedule_task,
-                title="Schedule Task",
+                title=_("Schedule Task"),
                 restore_func=self._restore_schedule_task,
                 default_on=True,
                 icon_name="alarm-symbolic",
@@ -582,7 +582,7 @@ class AgentToolsIntegration(NewelleExtension):
                     },
                     "required": ["question"],
                 },
-                title="Ask User",
+                title=_("Ask User"),
                 restore_func=self._restore_ask_user,
                 default_on=True,
                 icon_name="dialog-question-symbolic",
@@ -595,7 +595,7 @@ class AgentToolsIntegration(NewelleExtension):
                     "Useful when polling or waiting for a condition to become true."
                 ),
                 func=self._sleep,
-                title="Sleep",
+                title=_("Sleep"),
                 restore_func=self._restore_sleep,
                 default_on=True,
                 icon_name="alarm-symbolic",
@@ -619,7 +619,7 @@ class AgentToolsIntegration(NewelleExtension):
                     },
                     "required": ["mode"],
                 },
-                title="Switch Mode",
+                title=_("Switch Mode"),
                 restore_func=self._restore_switch_mode,
                 default_on=True,
                 icon_name="applications-system-symbolic",

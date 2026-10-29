@@ -1,4 +1,3 @@
-from gettext import gettext as _
 from typing import Any
 import threading 
 import os 
@@ -1809,9 +1808,10 @@ class Settings(Adw.Window):
         crit_count = sum(1 for _, r, _ in BUILTIN_RISK_RULES if r == RiskLevel.CRITICAL)
 
         for level, count in [(RiskLevel.SAFE, safe_count), (RiskLevel.MODERATE, mod_count), (RiskLevel.DANGEROUS, dan_count), (RiskLevel.CRITICAL, crit_count)]:
-            l_row = Adw.ActionRow(title=level.value.capitalize())
+            level_titles = {RiskLevel.SAFE: _("Safe"), RiskLevel.MODERATE: _("Moderate"), RiskLevel.DANGEROUS: _("Dangerous"), RiskLevel.CRITICAL: _("Critical")}
+            l_row = Adw.ActionRow(title=level_titles[level])
             actions = {RiskLevel.SAFE: "allow", RiskLevel.MODERATE: "ask", RiskLevel.DANGEROUS: "ask", RiskLevel.CRITICAL: "block"}
-            l_row.set_subtitle(f"{count} patterns — auto-{actions[level]}")
+            l_row.set_subtitle(_("{} patterns — auto-{}").format(count, actions[level]))
             info_row.add_row(l_row)
 
         self.cmd_perms_group.add(info_row)
@@ -1970,7 +1970,7 @@ class Settings(Adw.Window):
 
         security_row = Adw.ActionRow(title=_("Security level"))
         security_combo = Gtk.ComboBoxText()
-        for label, value in [("YOLO", "yolo"), ("Trusted", "trusted"), ("Sandboxed", "sandboxed"), ("Restricted", "restricted")]:
+        for label, value in [(_("YOLO"), "yolo"), (_("Trusted"), "trusted"), (_("Sandboxed"), "sandboxed"), (_("Restricted"), "restricted")]:
             security_combo.append(value, label)
         security_combo.set_active_id(level if level else "sandboxed")
         security_combo.set_valign(Gtk.Align.CENTER)
@@ -2462,9 +2462,9 @@ class Settings(Adw.Window):
             type_row = Adw.ActionRow(title=_("Server Type"), subtitle=_("HTTP or local command (stdio)"))
             type_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6, valign=Gtk.Align.CENTER)
             
-            self.mcp_type_http = Gtk.ToggleButton(label="HTTP", active=True)
+            self.mcp_type_http = Gtk.ToggleButton(label=_("HTTP"), active=True)
             self.mcp_type_http.add_css_class("flat")
-            self.mcp_type_stdio = Gtk.ToggleButton(label="Stdio", group=self.mcp_type_http)
+            self.mcp_type_stdio = Gtk.ToggleButton(label=_("Stdio"), group=self.mcp_type_http)
             self.mcp_type_stdio.add_css_class("flat")
             
             type_box.append(self.mcp_type_http)
@@ -3315,7 +3315,7 @@ class Settings(Adw.Window):
 
             user_message_row = Adw.ActionRow(
                 title=_("User Message prompts"),
-                subtitle=_("Add this prompt at the start of user messages inside <context> tags"),
+                subtitle=_("Add this prompt at the start of user messages inside the `context` tag"),
                 use_markup=False,
             )
             user_message_switch = Gtk.Switch(valign=Gtk.Align.CENTER)
@@ -3497,7 +3497,7 @@ class Settings(Adw.Window):
         document_folder = Adw.ExpanderRow(title=_("Document Folder"), subtitle=_("Put the documents you want to query in your document folder. The document analyzer will find relevant information in them if this option is enabled"))
         document_folder.add_suffix(rag_enabled)
         # Document folder rows 
-        folder = Adw.ActionRow(title="Open your document folder", subtitle=_("Put all the documents you want to index in this folder"))
+        folder = Adw.ActionRow(title=_("Open your document folder"), subtitle=_("Put all the documents you want to index in this folder"))
         folder_button = Gtk.Button(icon_name="folder-symbolic", css_classes=["flat"])
         folder_button.connect("clicked", lambda _: open_folder(os.path.join(self.directory, "documents")))
         folder.add_suffix(folder_button)
@@ -4590,7 +4590,7 @@ class Settings(Adw.Window):
         """
         # Create a modal window with the warning
         dialog = Adw.MessageDialog(
-            title="Permission Error",
+            title=_("Permission Error"),
             modal=True,
             transient_for=self,
             destroy_with_parent=True

@@ -3,9 +3,7 @@ from .widgets import File
 import os
 import posixpath
 import subprocess
-import gettext
 
-_ = gettext.gettext
 
 class ExplorerPanel(Gtk.Box):
     __gsignals__ = {

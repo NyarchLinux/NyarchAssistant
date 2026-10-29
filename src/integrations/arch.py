@@ -237,29 +237,29 @@ class ArchLinuxExtension(NewelleExtension):
                 name="search_arch_wiki",
                 description="Search Arch Wiki with ranked results",
                 func=self.search_arch_wiki,
-                title="Search Arch Wiki",
-                tools_group="Arch Linux"
+                title=_("Search Arch Wiki"),
+                tools_group=_("Arch Linux")
             ),
             Tool(
                 name="search_aur",
                 description="Search AUR packages by relevance, votes, popularity, or modification date",
                 func=self.search_aur,
-                title="Search AUR Packages",
-                tools_group="Arch Linux"
+                title=_("Search AUR Packages"),
+                tools_group=_("Arch Linux")
             ),
             Tool(
                 name="get_official_package_info",
                 description="Get detailed information about an official Arch Linux package",
                 func=self.get_official_package_info,
-                title="Get Official Package Info",
-                tools_group="Arch Linux"
+                title=_("Get Official Package Info"),
+                tools_group=_("Arch Linux")
             ),
             Tool(
                 name="get_wiki_page",
                 description="Get information from an Arch Wiki page",
                 func=self.get_wiki_page,
-                title="Get Wiki Page",
-                tools_group="Arch Linux"
+                title=_("Get Wiki Page"),
+                tools_group=_("Arch Linux")
             )
         ]
 

@@ -1,5 +1,4 @@
 from typing import Any, Callable
-from gettext import gettext as _
 from gi.repository import GLib, Gio, Adw
 import os
 import base64
@@ -4633,7 +4632,7 @@ class HandlersManager:
 
         tools.register_tool(Tool(
             name="send_message",
-            title="Send Message",
+            title=_("Send Message"),
             description=(
                 "Send a message to the user through another running interface. "
                 "Use the interface-specific destination options in extra_options."
@@ -4658,7 +4657,7 @@ class HandlersManager:
                 "required": ["message", "extra_options"],
             },
             default_on=False,
-            tools_group="Interfaces",
+            tools_group=_("Interfaces"),
             icon_name="send-to-symbolic",
         ))
 

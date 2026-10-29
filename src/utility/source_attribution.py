@@ -2,6 +2,7 @@ import re
 from dataclasses import dataclass
 
 
+
 @dataclass(frozen=True)
 class CitationSource:
     number: int
@@ -56,7 +57,7 @@ def infer_provided_text_source(text: str) -> str:
     match = re.search(r"^Source:\s*(\S.*?)\s*$", text, flags=re.MULTILINE)
     if match:
         return match.group(1)
-    return "Provided text"
+    return _("Provided text")
 
 
 def _parse_source_entry(number: int, raw: str) -> CitationSource:

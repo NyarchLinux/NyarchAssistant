@@ -5,7 +5,6 @@ configurable item has three states: inherit the profile, force enable, or force
 disable. Prompt text can additionally be replaced for the lifetime of the mode.
 """
 
-import gettext
 
 from gi.repository import Gtk, Adw, Gdk
 
@@ -19,7 +18,6 @@ from ...modes import (
 )
 from .multiline import MultilineEntry
 
-_ = gettext.gettext
 
 class ModeEditorDialog(Adw.PreferencesDialog):
     """Dialog to create or edit a mode."""

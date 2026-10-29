@@ -1,6 +1,4 @@
 import json
-from gettext import gettext as _
-from gettext import ngettext
 
 from gi.repository import Adw, Gdk, GLib, Gtk, Pango
 

@@ -2,10 +2,8 @@ import os
 import json
 import base64
 import threading
-import gettext
 import requests
 
-_ = gettext.gettext
 
 from .image_generator import ImageGeneratorHandler
 from ...handlers import ExtraSettings
@@ -116,16 +114,16 @@ class OpenRouterImageHandler(ImageGeneratorHandler):
                 _("Aspect ratio of the generated image (model-dependent support)"),
                 (
                     ("default", _("Default")),
-                    ("1:1", "1:1 (Square)"),
-                    ("2:3", "2:3 (Portrait)"),
-                    ("3:2", "3:2 (Landscape)"),
-                    ("3:4", "3:4 (Portrait)"),
-                    ("4:3", "4:3 (Landscape)"),
-                    ("4:5", "4:5 (Portrait)"),
-                    ("5:4", "5:4 (Landscape)"),
-                    ("9:16", "9:16 (Vertical)"),
-                    ("16:9", "16:9 (Wide)"),
-                    ("21:9", "21:9 (Ultra-wide)"),
+                    ("1:1", _("1:1 (Square)")),
+                    ("2:3", _("2:3 (Portrait)")),
+                    ("3:2", _("3:2 (Landscape)")),
+                    ("3:4", _("3:4 (Portrait)")),
+                    ("4:3", _("4:3 (Landscape)")),
+                    ("4:5", _("4:5 (Portrait)")),
+                    ("5:4", _("5:4 (Landscape)")),
+                    ("9:16", _("9:16 (Vertical)")),
+                    ("16:9", _("16:9 (Wide)")),
+                    ("21:9", _("21:9 (Ultra-wide)")),
                 ),
                 "default",
             ),
@@ -134,10 +132,10 @@ class OpenRouterImageHandler(ImageGeneratorHandler):
                 _("Resolution of the generated image (model-dependent support)"),
                 (
                     ("default", _("Default")),
-                    ("0.5K", "0.5K (Low)"),
-                    ("1K", "1K (Standard)"),
-                    ("2K", "2K (High)"),
-                    ("4K", "4K (Highest)"),
+                    ("0.5K", _("0.5K (Low)")),
+                    ("1K", _("1K (Standard)")),
+                    ("2K", _("2K (High)")),
+                    ("4K", _("4K (Highest)")),
                 ),
                 "default",
             ),
@@ -159,7 +157,7 @@ class OpenRouterImageHandler(ImageGeneratorHandler):
         api = self.get_setting("api")
         if not api:
             raise RuntimeError(
-                "OpenRouter API key is not set. Configure it in the image generator settings."
+                _("OpenRouter API key is not set. Configure it in the image generator settings.")
             )
 
         client = openai.OpenAI(api_key=api, base_url=self.OPENROUTER_ENDPOINT)
@@ -186,13 +184,13 @@ class OpenRouterImageHandler(ImageGeneratorHandler):
         )
 
         if not response.choices:
-            raise RuntimeError("OpenRouter returned no choices in the response")
+            raise RuntimeError(_("OpenRouter returned no choices in the response"))
 
         message = response.choices[0].message
         images = getattr(message, "images", None) or []
         if not images:
             raise RuntimeError(
-                "OpenRouter returned no images. The selected model may not support image generation."
+                _("OpenRouter returned no images. The selected model may not support image generation.")
             )
 
         first = images[0]
@@ -203,7 +201,7 @@ class OpenRouterImageHandler(ImageGeneratorHandler):
             image_url = getattr(nested, "url", None) if nested is not None else None
 
         if not image_url:
-            raise RuntimeError("OpenRouter returned an image without a URL")
+            raise RuntimeError(_("OpenRouter returned an image without a URL"))
 
         if image_url.startswith("data:"):
             _, _, b64data = image_url.partition(",")

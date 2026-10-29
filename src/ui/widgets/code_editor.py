@@ -118,7 +118,7 @@ class CodeEditorWidget(Gtk.Box):
         
         # Search entry
         self._search_entry = Gtk.SearchEntry()
-        self._search_entry.set_placeholder_text("Search...")
+        self._search_entry.set_placeholder_text(_("Search..."))
         self._search_entry.set_hexpand(True)
         self._search_entry.connect('search-changed', self._on_search_changed)
         self._search_entry.connect('activate', self._on_search_next)
@@ -126,32 +126,32 @@ class CodeEditorWidget(Gtk.Box):
         
         # Search navigation buttons
         prev_button = Gtk.Button.new_from_icon_name('go-up-symbolic')
-        prev_button.set_tooltip_text("Previous match")
+        prev_button.set_tooltip_text(_("Previous match"))
         prev_button.connect('clicked', self._on_search_previous)
         search_row.append(prev_button)
         
         next_button = Gtk.Button.new_from_icon_name('go-down-symbolic')
-        next_button.set_tooltip_text("Next match")
+        next_button.set_tooltip_text(_("Next match"))
         next_button.connect('clicked', self._on_search_next)
         search_row.append(next_button)
         
         # Case sensitive toggle
         case_button = Gtk.ToggleButton()
         case_button.set_label("Aa")
-        case_button.set_tooltip_text("Match case")
+        case_button.set_tooltip_text(_("Match case"))
         case_button.connect('toggled', self._on_case_sensitive_toggled)
         search_row.append(case_button)
         
         # Whole word toggle
         word_button = Gtk.ToggleButton()
         word_button.set_label("W")
-        word_button.set_tooltip_text("Whole words only")
+        word_button.set_tooltip_text(_("Whole words only"))
         word_button.connect('toggled', self._on_whole_word_toggled)
         search_row.append(word_button)
         
         # Replace toggle button
         replace_toggle = Gtk.ToggleButton()
-        replace_toggle.set_label("Replace")
+        replace_toggle.set_label(_("Replace"))
         replace_toggle.connect('toggled', self._on_replace_toggled)
         search_row.append(replace_toggle)
         
@@ -163,7 +163,7 @@ class CodeEditorWidget(Gtk.Box):
         
         # Replace entry
         self._replace_entry = Gtk.Entry()
-        self._replace_entry.set_placeholder_text("Replace with...")
+        self._replace_entry.set_placeholder_text(_("Replace with..."))
         self._replace_entry.set_hexpand(True)
         self._replace_entry.connect('activate', self._on_replace_next)
         self._replace_row.append(self._replace_entry)

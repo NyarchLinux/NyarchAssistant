@@ -4,14 +4,12 @@ import time
 import uuid
 import os
 import subprocess
-import gettext
 from ...utility.system import open_website
 from ..widgets import TipsCarousel, SkillWidget, CompactionMarkerWidget
 from ...utility.strings import markwon_to_pango
 from ...ui.widgets import Message, MultilineEntry, ToolCallsGroupWidget
 from ...utility.message_chunk import get_message_chunks
 
-_ = gettext.gettext
 SCHEMA_ID = "moe.nyarchlinux.assistant"
 
 

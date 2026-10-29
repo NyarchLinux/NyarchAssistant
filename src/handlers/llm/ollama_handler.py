@@ -5,7 +5,6 @@ import os
 from subprocess import Popen 
 from typing import Any, Callable
 import time
-from gettext import gettext as _
 from gi.repository import GLib
 
 
@@ -100,7 +99,7 @@ class OllamaHandler(LLMHandler):
                     description = str(self.models_info[name]["description"])
                     description += "\nSize: " + "".join([t[1] for t in self.models_info[name]["tags"] if t[0] == tag])
                 return {"key": model, "title": title, "description": description}
-        return {"key": model, "title": model, "description": "User added model"}
+        return {"key": model, "title": model, "description": _("User added model")}
         
     def get_display_tags(self, key):
         parts = key.split(":")
@@ -232,7 +231,7 @@ class OllamaHandler(LLMHandler):
         for model in models:
             res += ((model.model, model.model), )
             if not self.model_in_library(model.model):
-                self.model_library += [{"key": model.model, "title": model.model, "description": "User added model"}]
+                self.model_library += [{"key": model.model, "title": model.model, "description": _("User added model")}]
         self.models = res
         self.set_setting("models", json.dumps(self.models))
         self.set_setting("model-library", self.model_library)
@@ -371,7 +370,7 @@ class OllamaHandler(LLMHandler):
             self.downloading.pop(model, None)
         self.get_models()
         if not self.model_in_library(model):
-            self.model_library = [{"key": model, "title": model, "description": "User added model"}] + self.model_library
+            self.model_library = [{"key": model, "title": model, "description": _("User added model")}] + self.model_library
         self.add_library_information()
         self.set_setting("model_library", self.model_library)
         self.set_setting("extra_model_name", "")

@@ -21,22 +21,22 @@ class LibreTranslateHandler(TranslatorHandler):
         return [
             {
                 "key": "endpoint",
-                "title": "API Endpoint",
-                "description": "URL of LibreTranslate API endpoint",
+                "title": _("API Endpoint"),
+                "description": _("URL of LibreTranslate API endpoint"),
                 "type": "entry",
                 "default": "https://translate.nyarchlinux.moe",
             },
             {
                 "key": "api_key",
-                "title": "API key",
-                "description": "Your API key (not required)",
+                "title": _("API key"),
+                "description": _("Your API key (not required)"),
                 "type": "entry",
                 "default": "",
             },
             {
                 "key": "language",
-                "title": "Destination language",
-                "description": "The language you want to translate to",
+                "title": _("Destination language"),
+                "description": _("The language you want to translate to"),
                 "type": "combo",
                 "values": self.languages,
                 "default": "ja",

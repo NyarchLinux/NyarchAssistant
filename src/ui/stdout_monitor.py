@@ -1,9 +1,7 @@
-import gettext
 from gi.repository import Gtk, Adw, Gio, Gdk, GLib
 from ..utility.stdout_capture import StdoutMonitor
 
 # Add gettext function
-_ = gettext.gettext
 
 
 class StdoutMonitorDialog:

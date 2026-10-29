@@ -20,6 +20,7 @@ import time
 import uuid
 
 
+
 DEFAULT_SESSION_WAIT_MS = 500
 DEFAULT_SESSION_OUTPUT_CHARS = 8000
 MAX_SESSION_OUTPUT_CHARS = 20000
@@ -180,7 +181,7 @@ class CommandSession:
 
         if not os.path.isdir(self.working_dir):
             raise CommandSessionError(
-                f"Working directory does not exist or is not a directory: {self.working_dir}"
+                _("Working directory does not exist or is not a directory: {dir}").format(dir=self.working_dir)
             )
 
         master_fd, slave_fd = pty.openpty()
@@ -361,7 +362,7 @@ class CommandSession:
     ) -> CommandSessionRead:
         max_chars = max(1, min(max_chars, MAX_SESSION_OUTPUT_CHARS))
         if mode not in ("incremental", "snapshot"):
-            raise CommandSessionError("read_mode must be 'incremental' or 'snapshot'")
+            raise CommandSessionError(_("read_mode must be 'incremental' or 'snapshot'"))
 
         with self._condition:
             if mode == "incremental":
@@ -403,23 +404,25 @@ class CommandSession:
 
     def write_text(self, text: str) -> int:
         if not isinstance(text, str) or not text:
-            raise CommandSessionError("input_text must be a non-empty string")
+            raise CommandSessionError(_("input_text must be a non-empty string"))
         if len(text) > 65536:
-            raise CommandSessionError("input_text cannot exceed 65536 characters")
+            raise CommandSessionError(_("input_text cannot exceed 65536 characters"))
         return self._write_bytes(text.encode("utf-8"))
 
     def send_keys(self, keys: list[str]) -> int:
         if not isinstance(keys, list) or not keys:
-            raise CommandSessionError("keys must be a non-empty array")
+            raise CommandSessionError(_("keys must be a non-empty array"))
         if len(keys) > 64:
-            raise CommandSessionError("At most 64 keys can be sent in one action")
+            raise CommandSessionError(_("At most 64 keys can be sent in one action"))
         sequences = []
         for key in keys:
             normalized = str(key).strip().upper().replace("+", "_").replace("-", "_")
             sequence = _FIXED_KEY_SEQUENCES.get(normalized)
             if sequence is None:
                 raise CommandSessionError(
-                    f"Unsupported key '{key}'. Supported keys: {', '.join(SUPPORTED_KEY_NAMES)}"
+                    _("Unsupported key '{key}'. Supported keys: {keys}").format(
+                        key=key, keys=", ".join(SUPPORTED_KEY_NAMES)
+                    )
                 )
             sequences.append(sequence)
         return self._write_bytes("".join(sequences).encode("utf-8"))
@@ -427,7 +430,7 @@ class CommandSession:
     def subscribe_terminal_output(self, listener) -> tuple[int, str]:
         """Subscribe to raw PTY output and return a replayable recent snapshot."""
         if not callable(listener):
-            raise CommandSessionError("Terminal output listener must be callable")
+            raise CommandSessionError(_("Terminal output listener must be callable"))
         with self._condition:
             listener_id = self._next_terminal_listener_id
             self._next_terminal_listener_id += 1
@@ -446,7 +449,7 @@ class CommandSession:
         with self._write_lock:
             master_fd = self._master_fd
             if master_fd is None:
-                raise CommandSessionError(f"Session '{self.session_id}' is closed")
+                raise CommandSessionError(_("Session '{id}' is closed").format(id=self.session_id))
             try:
                 self._set_window_size(master_fd, rows, columns)
             except OSError as error:
@@ -455,12 +458,12 @@ class CommandSession:
     def _write_bytes(self, payload: bytes) -> int:
         if not self.is_running:
             raise CommandSessionError(
-                f"Session '{self.session_id}' has exited with code {self.exit_code}"
+                _("Session '{id}' has exited with code {code}").format(id=self.session_id, code=self.exit_code)
             )
         with self._write_lock:
             master_fd = self._master_fd
             if master_fd is None:
-                raise CommandSessionError(f"Session '{self.session_id}' is closed")
+                raise CommandSessionError(_("Session '{id}' is closed").format(id=self.session_id))
             written = 0
             while written < len(payload):
                 try:
@@ -468,7 +471,7 @@ class CommandSession:
                 except BlockingIOError:
                     _, writable, _ = select.select([], [master_fd], [], 1)
                     if not writable:
-                        raise CommandSessionError("Timed out while writing to the session")
+                        raise CommandSessionError(_("Timed out while writing to the session"))
                     continue
                 except OSError as error:
                     raise CommandSessionError(str(error)) from error
@@ -500,7 +503,7 @@ class CommandSession:
                     pass
         self._reader_thread.join(timeout=1)
         if self.is_running:
-            raise CommandSessionError(f"Failed to terminate session '{self.session_id}'")
+            raise CommandSessionError(_("Failed to terminate session '{id}'").format(id=self.session_id))
 
 
 class CommandSessionManager:
@@ -536,7 +539,7 @@ class CommandSessionManager:
         host_prefix: list[str] | None = None,
     ) -> CommandSession:
         if not isinstance(command, str) or not command.strip():
-            raise CommandSessionError("command is required for the start action")
+            raise CommandSessionError(_("command is required for the start action"))
         with self._lock:
             self._prune_finished_locked(owner)
 
@@ -546,7 +549,7 @@ class CommandSessionManager:
             )
             if running_count >= MAX_RUNNING_SESSIONS_PER_OWNER:
                 raise CommandSessionError(
-                    f"At most {MAX_RUNNING_SESSIONS_PER_OWNER} sessions may run per chat"
+                    _("At most {count} sessions may run per chat").format(count=MAX_RUNNING_SESSIONS_PER_OWNER)
                 )
             session_id = uuid.uuid4().hex[:8]
             while session_id in self._sessions:
@@ -564,11 +567,11 @@ class CommandSessionManager:
 
     def get(self, session_id: str, owner) -> CommandSession:
         if not session_id:
-            raise CommandSessionError("session_id is required for this action")
+            raise CommandSessionError(_("session_id is required for this action"))
         with self._lock:
             session = self._sessions.get(session_id)
         if session is None or session.owner != owner:
-            raise CommandSessionError(f"Session '{session_id}' was not found in this chat")
+            raise CommandSessionError(_("Session '{id}' was not found in this chat").format(id=session_id))
         return session
 
     def remove(self, session_id: str, owner) -> CommandSession:

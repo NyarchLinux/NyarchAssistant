@@ -7,13 +7,11 @@ via :class:`ModeManager`; the edit buttons and the footer open
 :class:`ModeEditorDialog`.
 """
 
-import gettext
 
 from gi.repository import Gtk, Adw, GObject
 
 from ...modes import DEFAULT_MODE_ICON
 
-_ = gettext.gettext
 
 
 class ModeButton(Gtk.MenuButton):

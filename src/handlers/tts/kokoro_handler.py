@@ -1,7 +1,6 @@
 import os
 import re
 import urllib.request
-from gettext import gettext as _
 
 from .tts import TTSHandler
 from ...utility.pip import install_module, find_module

@@ -9,6 +9,7 @@ import threading
 import uuid
 from typing import Any, Callable
 
+
 from .constants import AVAILABLE_LLMS, PROMPTS
 from .handlers.handler import IsolatedSettings, SettingsCache
 from .tools import Tool, ToolRegistry, ToolResult
@@ -442,7 +443,7 @@ class SubagentSessionRuntime:
                     "Return the full schema for one tool assigned to this subagent."
                 ),
                 func=search_scoped_tool,
-                title="Tool Search",
+                title=_("Tool Search"),
                 default_on=True,
             ))
 
@@ -461,7 +462,7 @@ class SubagentSessionRuntime:
                 "The main agent can reply by resuming the returned session id."
             ),
             func=send_message_to_main,
-            title="Message Main Agent",
+            title=_("Message Main Agent"),
             default_on=True,
         ))
         return registry

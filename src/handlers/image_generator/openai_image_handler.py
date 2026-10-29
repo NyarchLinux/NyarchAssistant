@@ -2,9 +2,7 @@ import os
 import json
 import base64
 import threading
-import gettext
 
-_ = gettext.gettext
 
 from .image_generator import ImageGeneratorHandler
 from ...handlers import ExtraSettings
@@ -76,8 +74,8 @@ class OpenAIImageHandler(ImageGeneratorHandler):
             ExtraSettings.SpinSetting("height", _("Height"), _("Height of the generated image"), 512, 256, 2048, 0),
             ExtraSettings.SpinSetting("width", _("Width"), _("Width of the generated image"), 512, 256, 2048, 0),
             ExtraSettings.ComboSetting("quality", _("Quality"), _("Image quality (dall-e-3 only)"), (
-                ("standard", "Standard"),
-                ("hd", "HD"),
+                ("standard", _("Standard")),
+                ("hd", _("HD")),
                 ), "standard"),
             ExtraSettings.MultilineEntrySetting("positive-prompt", _("Positive Prompt Template"), _("Prompt template, [input] will be replaced with the user prompt"), "[input]"),
             ExtraSettings.EntrySetting("style", _("Style"), _("Generation style: vivid or natural (dall-e-3 only)"), "vivid"),
@@ -136,4 +134,4 @@ class OpenAIImageHandler(ImageGeneratorHandler):
             img.save(output, "PNG")
             return output
         else:
-            raise RuntimeError("No image data returned from API")
+            raise RuntimeError(_("No image data returned from API"))

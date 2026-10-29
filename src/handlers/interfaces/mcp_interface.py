@@ -19,7 +19,6 @@ import asyncio
 import json
 import threading
 import time
-from gettext import gettext as _
 from urllib.parse import parse_qs
 
 from ...tools import ToolResult
@@ -289,7 +288,7 @@ class MCPInterface(Interface):
         """Wait for the tool output from a worker thread and format it as text."""
         if not isinstance(result, ToolResult):
             if result is None:
-                return "Tool executed successfully."
+                return _("Tool executed successfully.")
             return str(result)
         if result.requires_interaction:
             # Defensive: unresolved interactions reach here only if the

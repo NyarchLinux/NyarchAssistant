@@ -55,17 +55,17 @@ def validate_subagent_id_component(value: object, label: str = "subagent id") ->
     """Validate an extension/local identifier used inside a stable ID."""
     if not isinstance(value, str) or not _ID_COMPONENT_RE.fullmatch(value):
         raise InvalidSubagentError(
-            f"{label} must contain only letters, numbers, '.', '_' or '-'"
+            _("{} must contain only letters, numbers, '.', '_' or '-'").format(label)
         )
     return value
 
 
 def _normalize_string(value: object, field: str, *, required: bool = False) -> str:
     if not isinstance(value, str):
-        raise InvalidSubagentError(f"'{field}' must be a string")
+        raise InvalidSubagentError(_("'{field}' must be a string").format(field=field))
     value = value.strip() if field == "name" else value
     if required and not value:
-        raise InvalidSubagentError(f"'{field}' cannot be empty")
+        raise InvalidSubagentError(_("'{field}' cannot be empty").format(field=field))
     return value
 
 
@@ -73,7 +73,7 @@ def _normalize_optional_string(value: object, field: str) -> str | None:
     if value is None or value == "":
         return None
     if not isinstance(value, str):
-        raise InvalidSubagentError(f"'{field}' must be a string or null")
+        raise InvalidSubagentError(_("'{field}' must be a string or null").format(field=field))
     value = value.strip()
     return value or None
 
@@ -82,13 +82,13 @@ def _normalize_name_list(value: object, field: str) -> list[str]:
     if value is None:
         return []
     if not isinstance(value, (list, tuple)):
-        raise InvalidSubagentError(f"'{field}' must be a list of names")
+        raise InvalidSubagentError(_("'{field}' must be a list of names").format(field=field))
     result = []
     seen = set()
     for item in value:
         if not isinstance(item, str) or not item.strip():
             raise InvalidSubagentError(
-                f"every entry in '{field}' must be a non-empty string"
+                _("every entry in '{field}' must be a non-empty string").format(field=field)
             )
         item = item.strip()
         if item not in seen:

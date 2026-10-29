@@ -27,6 +27,6 @@ class VisionExtension(NewelleExtension):
     
     def get_tools(self) -> list:
         return [
-                create_io_tool("analyze_image", "Analyze an image and return the information in the image", self.analyze_image, title="Analyze Image"),
+                create_io_tool("analyze_image", "Analyze an image and return the information in the image", self.analyze_image, title=_("Analyze Image")),
 
         ]

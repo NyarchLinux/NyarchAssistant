@@ -1,11 +1,9 @@
 import threading
 import json
-import gettext
 import hashlib
 import re
 from typing import Any, Callable, Optional
 
-_ = gettext.gettext
 
 from .llm import LLMHandler
 from ...utility.system import open_website

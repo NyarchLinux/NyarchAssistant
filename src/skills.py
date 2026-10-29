@@ -3,6 +3,7 @@ import re
 import json
 import copy
 
+
 from .modes import ENABLE, REMOVE
 
 
@@ -229,10 +230,12 @@ class SkillManager:
         """
         skill = self.skills.get(name)
         if skill is None:
-            return f"Skill '{name}' not found. Available skills: {', '.join(self.skills.keys())}"
+            return _("Skill '{}' not found. Available skills: {}").format(
+                name, ", ".join(self.skills.keys())
+            )
 
         if require_enabled and not self.is_skill_enabled(name):
-            return f"Skill '{name}' is disabled."
+            return _("Skill '{}' is disabled.").format(name)
 
         resources = self._list_resources(skill.base_dir)
         resource_section = ""

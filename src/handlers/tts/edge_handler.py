@@ -29,16 +29,16 @@ class EdgeTTSHandler(TTSHandler):
         return [ 
             {   
                 "key": "voice",
-                "title": "Voice",
-                "description": "Voice to use",
+                "title": _("Voice"),
+                "description": _("Voice to use"),
                 "type": "combo",
                 "values": self.voices,
                 "default": "en-US-AvaNeural",
             },
             {
                 "key": "pitch",
-                "title": "Pitch",
-                "description": "Pitch to use",
+                "title": _("Pitch"),
+                "description": _("Pitch to use"),
                 "type": "range",
                 "min": 0.0,
                 "max": 40.0,

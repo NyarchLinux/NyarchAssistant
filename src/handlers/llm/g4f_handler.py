@@ -1,6 +1,5 @@
 import os
 from subprocess import check_output
-from gettext import gettext as _
 from typing import Any, Callable
 
 from .llm import LLMHandler

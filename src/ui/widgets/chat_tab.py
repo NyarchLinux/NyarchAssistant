@@ -11,7 +11,6 @@ Each ChatTab owns its own:
 from gi.repository import Gtk, Adw, Gio, Gdk, GObject, GLib, GdkPixbuf
 import threading
 import re
-import gettext
 import subprocess
 import base64
 import os
@@ -33,7 +32,6 @@ from ...utility.system import is_flatpak
 from ...utility.media import extract_supported_files, file_matches_patterns
 from ...tools import Command
 
-_ = gettext.gettext
 
 _STREAM_REVEAL_INTERVAL_MS = 30
 _STREAM_REVEAL_TARGET_FRAMES = 4

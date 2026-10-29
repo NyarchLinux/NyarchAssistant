@@ -107,15 +107,15 @@ class ImageGeneratorHandler(Handler):
             try:
                 image_source = self.generate_image(prompt, msg_uuid, output_file=output_path)
                 if not isinstance(image_source, str) or not image_source.strip():
-                    raise RuntimeError("The image provider returned no image.")
+                    raise RuntimeError(_("The image provider returned no image."))
                 if image_source.startswith(("http://", "https://")):
                     image_source = self._download_image(image_source, output_path)
                 elif not os.path.isfile(image_source):
-                    raise FileNotFoundError("The generated image file was not created.")
+                    raise FileNotFoundError(_("The generated image file was not created."))
             except Exception as e:
                 print(f"Image generation failed: {e}")
                 image_source = None
-                error_message = str(e).strip() or "Image generation failed."
+                error_message = str(e).strip() or _("Image generation failed.")
             GLib.idle_add(
                 self._finish_generation,
                 widget,
@@ -160,7 +160,7 @@ class ImageGeneratorHandler(Handler):
 
         def on_error(message):
             failed["value"] = True
-            result.set_output(f"Image generation failed: {message}")
+            result.set_output(_("Image generation failed: {message}").format(message=message))
 
         def on_done():
             if not failed["value"]:
@@ -220,16 +220,16 @@ class ImageGeneratorHandler(Handler):
                 img.save(path, "PNG")
             return path
         except requests.Timeout as e:
-            raise RuntimeError("Timed out while downloading the generated image.") from e
+            raise RuntimeError(_("Timed out while downloading the generated image.")) from e
         except requests.RequestException as e:
             status = getattr(getattr(e, "response", None), "status_code", None)
             detail = f" (HTTP {status})" if status else ""
             raise RuntimeError(
-                f"Failed to download the generated image{detail}."
+                _("Failed to download the generated image{detail}.").format(detail=detail)
             ) from e
         except (OSError, ValueError) as e:
             raise RuntimeError(
-                "The image provider returned invalid image data."
+                _("The image provider returned invalid image data.")
             ) from e
 
     def get_mini_app(self, constants: dict, **kwargs) -> 'Gtk.Box':
@@ -274,7 +274,7 @@ class ImageGeneratorHandler(Handler):
             "generate_image",
             "Generate an image from a text prompt. Use detailed, descriptive prompts with English words separated by commas.",
             self._generate_image_tool,
-            title="Generate Image",
+            title=_("Generate Image"),
             restore_func=self._restore_image_tool,
             icon_name="insert-image-symbolic",
             default_on=False

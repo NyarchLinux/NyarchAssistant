@@ -428,7 +428,7 @@ class MCPIntegration(NewelleExtension):
                     },
                     "required": ["tool_name"],
                 },
-                tools_group="Agent",
+                tools_group=_("Agent"),
                 default_lazy_load=False,
                 icon_name="system-search-symbolic",
             )

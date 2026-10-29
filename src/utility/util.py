@@ -1,6 +1,5 @@
 import base64
 import fnmatch
-import gettext
 import hashlib
 import json
 import os
@@ -19,7 +18,6 @@ from .media import (
     video_frame_content,
 )
 
-_ = gettext.gettext
 
 
 class LLMResponse(str):

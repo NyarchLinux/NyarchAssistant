@@ -117,7 +117,7 @@ class CopyBox(Gtk.Box):
         header_box.append(terminal_icon)
         
         title_label = Gtk.Label(
-            label="Terminal Command",
+            label=_("Terminal Command"),
             halign=Gtk.Align.START,
             hexpand=True,
             css_classes=["heading"]
@@ -134,7 +134,7 @@ class CopyBox(Gtk.Box):
         header_box.append(self.terminal_button)
         
         # Skip button
-        self.skip_button = Gtk.Button(label="Skip", css_classes=["flat"], valign=Gtk.Align.CENTER)
+        self.skip_button = Gtk.Button(label=_("Skip"), css_classes=["flat"], valign=Gtk.Align.CENTER)
         self.skip_button.connect("clicked", self._on_skip_clicked)
         header_box.append(self.skip_button)
         
@@ -143,7 +143,7 @@ class CopyBox(Gtk.Box):
         run_icon = Gtk.Image.new_from_icon_name("media-playback-start-symbolic")
         run_content = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
         run_content.append(run_icon)
-        run_content.append(Gtk.Label(label="Run"))
+        run_content.append(Gtk.Label(label=_("Run")))
         self.run_button.set_child(run_content)
         self.run_button.connect("clicked", self._on_execution_run_clicked)
         header_box.append(self.run_button)
@@ -189,7 +189,7 @@ class CopyBox(Gtk.Box):
         
         # Output expander (hidden initially)
         self.output_expander = Gtk.Expander(
-            label="Output",
+            label=_("Output"),
             css_classes=["toolbar", "osd"]
         )
         self.output_expander.set_expanded(False)
@@ -310,7 +310,7 @@ class CopyBox(Gtk.Box):
         self.run_button.connect("clicked", self._on_run_button_clicked, lang)
         
         self.text_expander = Gtk.Expander(
-            label="Console",
+            label=_("Console"),
             css_classes=["toolbar", "osd"],
             margin_top=10,
             margin_start=10,
@@ -346,7 +346,7 @@ class CopyBox(Gtk.Box):
         self.terminal_button.connect("clicked", self._on_terminal_button_clicked)
         
         self.text_expander = Gtk.Expander(
-            label="Console",
+            label=_("Console"),
             css_classes=["toolbar", "osd"],
             margin_top=10,
             margin_start=10,
@@ -354,7 +354,7 @@ class CopyBox(Gtk.Box):
             margin_end=10
         )
         
-        console = "None"
+        console = _("None")
         
         self.text_expander.set_child(
             Gtk.Label(wrap=True, wrap_mode=Pango.WrapMode.WORD_CHAR, label=console, selectable=True)
@@ -545,11 +545,11 @@ class CopyBox(Gtk.Box):
         skip_icon = Gtk.Image.new_from_icon_name("action-unavailable-symbolic")
         skip_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         skip_box.append(skip_icon)
-        skip_box.append(Gtk.Label(label="Skipped"))
+        skip_box.append(Gtk.Label(label=_("Skipped")))
         self.skip_button.set_child(skip_box)
         self.skip_button.add_css_class("dim-label")
         
-        self.status_label.set_text("Command was skipped by user")
+        self.status_label.set_text(_("Command was skipped by user"))
         self.status_label.add_css_class("dim-label")
         self.status_label.set_visible(True)
         
@@ -604,7 +604,7 @@ class CopyBox(Gtk.Box):
         
         if hasattr(self, 'text_expander'):
             self.text_expander.set_child(
-                Gtk.Label(wrap=True, wrap_mode=Pango.WrapMode.WORD_CHAR, label=output or "No output", selectable=True)
+                Gtk.Label(wrap=True, wrap_mode=Pango.WrapMode.WORD_CHAR, label=output or _("No output"), selectable=True)
             )
             self.text_expander.set_visible(True)
         
@@ -726,11 +726,11 @@ class CopyBox(Gtk.Box):
                 skip_icon = Gtk.Image.new_from_icon_name("action-unavailable-symbolic")
                 skip_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
                 skip_box.append(skip_icon)
-                skip_box.append(Gtk.Label(label="Skipped"))
+                skip_box.append(Gtk.Label(label=_("Skipped")))
                 self.skip_button.set_child(skip_box)
                 self.skip_button.add_css_class("dim-label")
                 
-                self.status_label.set_text("Command was skipped")
+                self.status_label.set_text(_("Command was skipped"))
                 self.status_label.add_css_class("dim-label")
                 self.status_label.set_visible(True)
                 

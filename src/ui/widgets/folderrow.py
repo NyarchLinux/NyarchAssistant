@@ -1,8 +1,6 @@
 """Folder row widget for the chat sidebar"""
-import gettext
 from gi.repository import Gtk, Gdk, GLib, GObject, Pango
 
-_ = gettext.gettext
 
 
 class FolderRow(Gtk.ListBoxRow):

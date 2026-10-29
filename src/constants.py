@@ -75,13 +75,13 @@ AVAILABLE_LLMS = {
     "nyarch": {
         "key": "nyarch",
         "title": _("Nyarch Demo API"),
-        "description": "Nyarch demo API just to try out Nyarch Assistant, limited to ~10 requests per day (not guaranteed), demo purposes only",
+        "description": _("Nyarch demo API just to try out Nyarch Assistant, limited to ~10 requests per day (not guaranteed), demo purposes only"),
         "class": NyarchApiHandler,
     },
     "g4f": {
         "key": "g4f",
         "title": _("GPT4Free"),
-        "description": "Python library that automatically searches for available free endpoints to use",
+        "description": _("Python library that automatically searches for available free endpoints to use"),
         "website": "https://github.com/gpt4free/g4f.dev/blob/main/docs%2Fproviders-and-models.md",
         "class": G4FHandler,
         "secondary": True,
@@ -109,14 +109,14 @@ AVAILABLE_LLMS = {
     "groq": {
         "key": "groq",
         "title": _("Groq"),
-        "description": "Groq.com Free and fast API using open source models. Suggested for free use.",
+        "description": _("Groq.com Free and fast API using open source models. Suggested for free use."),
         "class": GroqHandler,
         "website": "https://console.groq.com/",
     },
     "gemini": {
         "key": "gemini",
         "title": _("Google Gemini API"),
-        "description": "Official APIs for Google Gemini, requires an API Key",
+        "description": _("Official APIs for Google Gemini, requires an API Key"),
         "class": GeminiHandler,
     },
     "openai": {

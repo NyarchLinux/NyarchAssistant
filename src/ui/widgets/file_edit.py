@@ -207,14 +207,14 @@ class FileEditWidget(Gtk.Box):
         # Expand/Collapse button
         self.expand_button = Gtk.Button(css_classes=["flat"], valign=Gtk.Align.CENTER)
         self.expand_button.set_icon_name("window-maximize-symbolic")
-        self.expand_button.set_tooltip_text("Expand view")
+        self.expand_button.set_tooltip_text(_("Expand view"))
         self.expand_button.connect("clicked", self._on_expand_clicked)
         header_box.append(self.expand_button)
 
         # Copy button
         self.copy_button = Gtk.Button(css_classes=["flat"], valign=Gtk.Align.CENTER)
         self.copy_button.set_icon_name("edit-copy-symbolic")
-        self.copy_button.set_tooltip_text("Copy diff to clipboard")
+        self.copy_button.set_tooltip_text(_("Copy diff to clipboard"))
         self.copy_button.connect("clicked", self._on_copy_clicked)
         header_box.append(self.copy_button)
 
@@ -222,7 +222,7 @@ class FileEditWidget(Gtk.Box):
         if self.open_in_editor_callback is not None and not (self.preview and self.edit_type == "write"):
             edit_button = Gtk.Button(css_classes=["flat"], valign=Gtk.Align.CENTER)
             edit_button.set_icon_name("document-edit-symbolic")
-            edit_button.set_tooltip_text("Open in internal editor")
+            edit_button.set_tooltip_text(_("Open in internal editor"))
             edit_button.connect("clicked", self._on_open_in_editor_clicked)
             header_box.append(edit_button)
 
@@ -230,7 +230,7 @@ class FileEditWidget(Gtk.Box):
         if not (self.preview and self.edit_type == "write"):
             open_button = Gtk.Button(css_classes=["flat"], valign=Gtk.Align.CENTER)
             open_button.set_icon_name("document-open-symbolic")
-            open_button.set_tooltip_text("Open in external editor")
+            open_button.set_tooltip_text(_("Open in external editor"))
             open_button.connect("clicked", self._on_open_externally_clicked)
             header_box.append(open_button)
 
@@ -239,7 +239,7 @@ class FileEditWidget(Gtk.Box):
         if self.undo_callback is not None:
             self.undo_button = Gtk.Button(css_classes=["flat"], valign=Gtk.Align.CENTER)
             self.undo_button.set_icon_name("edit-undo-symbolic")
-            self.undo_button.set_tooltip_text("Undo changes")
+            self.undo_button.set_tooltip_text(_("Undo changes"))
             self.undo_button.connect("clicked", self._on_undo_clicked)
             header_box.append(self.undo_button)
 
@@ -395,13 +395,13 @@ class FileEditWidget(Gtk.Box):
             self.scroll.set_max_content_height(-1)
             self.scroll.set_size_request(-1, content_height)
             button.set_icon_name("window-restore-symbolic")
-            button.set_tooltip_text("Collapse view")
+            button.set_tooltip_text(_("Collapse view"))
         else:
             # Collapse: restore max_content_height and clear size_request
             self.scroll.set_max_content_height(300)
             self.scroll.set_size_request(-1, -1)
             button.set_icon_name("window-maximize-symbolic")
-            button.set_tooltip_text("Expand view")
+            button.set_tooltip_text(_("Expand view"))
 
     def _on_copy_clicked(self, button):
         """Copy diff content to clipboard."""
@@ -451,12 +451,12 @@ class FileEditWidget(Gtk.Box):
 
         if self.is_undone:
             self.undo_button.set_icon_name("edit-redo-symbolic")
-            self.undo_button.set_tooltip_text("Redo changes")
+            self.undo_button.set_tooltip_text(_("Redo changes"))
             self.undo_button.disconnect_by_func(self._on_undo_clicked)
             self.undo_button.connect("clicked", self._on_redo_clicked)
         else:
             self.undo_button.set_icon_name("edit-undo-symbolic")
-            self.undo_button.set_tooltip_text("Undo changes")
+            self.undo_button.set_tooltip_text(_("Undo changes"))
             self.undo_button.disconnect_by_func(self._on_redo_clicked)
             self.undo_button.connect("clicked", self._on_undo_clicked)
 

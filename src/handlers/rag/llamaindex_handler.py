@@ -693,9 +693,9 @@ class LlamaIndexHanlder(RAGHandler):
                 name="rag_search_files",
                 description="Perform semantic search over specified files or documents. Use this tool when you need to search through specific documents, files, or URLs for relevant information based on meaning rather than keywords. Supports: file paths (file:path/to/file), direct text content (text:content), and URLs (url:https://example.com). Examples: 'find information about API setup in readme.md', 'search for pricing in documentation.pdf', 'find all mentions of configuration in project files'.",
                 func=self._tool_search_files,
-                title="RAG Search Files",
+                title=_("RAG Search Files"),
                 default_on=True,
-                tools_group="RAG"
+                tools_group=_("RAG")
             ),
         ]
         if self.settings.get_boolean("rag-on"):
@@ -704,9 +704,9 @@ class LlamaIndexHanlder(RAGHandler):
                     name="rag_search_index",
                     description="Perform semantic search over the pre-built document index. Use this tool when you need to find information across the user's indexed documents (documents folder and custom folders) without specifying specific files. Returns relevant passages based on semantic similarity to your query. Examples: 'find documentation about authentication', 'search for code examples', 'find information about database setup'. Only use if an index has been created.",
                     func=self._tool_search_index,
-                    title="RAG Search Index",
+                    title=_("RAG Search Index"),
                     default_on=True,
-                    tools_group="RAG"
+                    tools_group=_("RAG")
                 ),
             ]
         return r

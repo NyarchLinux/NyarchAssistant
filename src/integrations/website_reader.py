@@ -47,7 +47,7 @@ class WebsiteReader(NewelleExtension):
         return result 
 
     def get_tools(self) -> list:
-        return [Tool("website", "Read a website content. The advanced mode will return extra information about the page, including links. Only use it if normal mode has not produced good results.", self.read_website, title="Read Websites", restore_func=self.restore_read_website, icon_name="internet-symbolic")]           
+        return [Tool("website", "Read a website content. The advanced mode will return extra information about the page, including links. Only use it if normal mode has not produced good results.", self.read_website, title=_("Read Websites"), restore_func=self.restore_read_website, icon_name="internet-symbolic")]
     def get_replace_codeblocks_langs(self) -> list:
         return ["website"]
    

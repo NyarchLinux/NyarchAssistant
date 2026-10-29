@@ -13,6 +13,7 @@ import wave
 from collections import deque
 from enum import Enum
 
+
 import gi
 import pyaudio
 

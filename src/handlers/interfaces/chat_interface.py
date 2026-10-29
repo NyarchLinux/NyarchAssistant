@@ -12,7 +12,6 @@ import json
 import os
 import threading
 import uuid
-from gettext import gettext as _
 
 from ...utility.strings import remove_thinking_blocks, remove_thinking_for_display
 from .interface import Interface
@@ -300,19 +299,19 @@ class ChatInterface(Interface):
                         return handler(self, user_id, args)
                 return handler(self, user_id, args)
             except Exception as e:
-                return f"❌ Error in /{name}: {e}"
+                return _("❌ Error in /{name}: {e}").format(name=name, e=e)
         # Fall through to commands registered by extensions / integrations
         for cmd in self.controller.get_commands():
             if cmd.name == name or cmd.name == f"skill {name}":
                 try:
                     result = cmd.execute(chat_id=self.get_or_create_chat(user_id))
-                    output = str(result) if result is not None else "Done."
+                    output = str(result) if result is not None else _("Done.")
                     if hasattr(result, "get_output"):
                         output = str(result.get_output())
                     return output[:4000]
                 except Exception as e:
-                    return f"❌ Error: {e}"
-        return f"❌ Unknown command: /{name}"
+                    return _("❌ Error: {e}").format(e=e)
+        return _("❌ Unknown command: /{name}").format(name=name)
 
     def try_handle_command(self, user_id, text: str) -> str | None:
         """If *text* is a slash command, dispatch it and return the response.
@@ -336,12 +335,12 @@ class ChatInterface(Interface):
     def _cmd_start(self, user_id, args):
         chat_id = self.get_or_create_chat(user_id)
         chat_name = self.controller.chats[chat_id].get("name", "Chat")
-        return (
-            f"👋 Welcome to Newelle! Your chat: \"{chat_name}\" (ID: {chat_id})\n\n"
+        return _(
+            "👋 Welcome to Newelle! Your chat: \"{chat_name}\" (ID: {chat_id})\n\n"
             "📋 Commands:\n"
             "🆕 /new - Create a new chat\n"
             "⏹️ /stop - Stop the response being generated\n"
-            + _("/compact - Summarize the conversation to reduce context size\n") +
+            "/compact - Summarize the conversation to reduce context size\n"
             "/workspaces - List workspaces\n"
             "/workspace <name or ID> - Switch workspace globally\n"
             "/workspace new <name> - Create a workspace\n"
@@ -362,7 +361,7 @@ class ChatInterface(Interface):
             "🔄 /resume <chat_id> - Switch to a different chat\n"
             "⚡ /autoexec - Enable/disable auto command execution\n"
             "🔢 /option <n> - Choose an option when prompted\n"
-        )
+        ).format(chat_name=chat_name, chat_id=chat_id)
 
     def _cmd_new(self, user_id, args):
         folder_id = self._ensure_folder()
@@ -375,14 +374,14 @@ class ChatInterface(Interface):
         self.controller.save_chats()
         self._user_chats[(self.controller.active_workspace_id, user_id)] = chat_id
         self._save_last_chat_id(user_id, chat_id)
-        return f"🆕 New chat created: \"{name}\" (ID: {chat_id})"
+        return _("🆕 New chat created: \"{name}\" (ID: {chat_id})").format(name=name, chat_id=chat_id)
 
     def _resolve_workspace(self, value):
         if value in self.controller.workspaces:
             return value
         matches = [wid for wid, entry in self.controller.workspaces.items() if entry["name"].casefold() == value.casefold()]
         if len(matches) != 1:
-            raise ValueError("Workspace name is missing or ambiguous; use its ID from /workspaces")
+            raise ValueError(_("Workspace name is missing or ambiguous; use its ID from /workspaces"))
         return matches[0]
 
     def _cmd_workspaces(self, user_id, args):
@@ -397,29 +396,29 @@ class ChatInterface(Interface):
         if args[0] in ("rename", "profile", "path"):
             value = " ".join(args[1:])
             if not value:
-                return "Usage: /workspace rename|profile|path <value> (profile: none to unlink)"
+                return _("Usage: /workspace rename|profile|path <value> (profile: none to unlink)")
             field = {"rename": "name", "profile": "profile", "path": "path"}[args[0]]
             if field == "profile" and value.lower() == "none":
                 value = None
             self.controller.remote_workspace_action("edit", self.controller.active_workspace_id, **{field: value})
-            return "Workspace updated."
+            return _("Workspace updated.")
         if args[0] == "delete":
             wid = self._resolve_workspace(" ".join(args[1:]))
             self.controller.remote_workspace_action("delete", wid)
-            return "Workspace deleted. Chats and folders moved to Default."
+            return _("Workspace deleted. Chats and folders moved to Default.")
         if args[0] == "new":
             wid = self.controller.remote_workspace_action("create", name=" ".join(args[1:]))
         else:
             wid = self._resolve_workspace(" ".join(args))
         self.controller.remote_workspace_action("switch", wid)
-        return f"Workspace: {self.controller.workspaces[wid]['name']} (shared by all clients)"
+        return _("Workspace: {name} (shared by all clients)").format(name=self.controller.workspaces[wid]['name'])
 
     def _cmd_move_workspace(self, user_id, args):
         if len(args) < 2:
-            return "Usage: /move_workspace <chat_id> <workspace name or ID>"
+            return _("Usage: /move_workspace <chat_id> <workspace name or ID>")
         wid = self._resolve_workspace(" ".join(args[1:]))
         self.controller.remote_workspace_action("move", wid, chat_id=int(args[0]))
-        return f"Chat moved to {self.controller.workspaces[wid]['name']}"
+        return _("Chat moved to {name}").format(name=self.controller.workspaces[wid]['name'])
 
     def _cmd_models(self, user_id, args):
         from ...constants import AVAILABLE_LLMS
@@ -445,13 +444,13 @@ class ChatInterface(Interface):
                         tick = "✅ " if (is_current and model_id == current_model) else "   "
                         lines.append(f"  └ {tick}{model_name}")
                     if len(models) > 40:
-                        lines.append(f"  └ _... and {len(models) - 40} more_")
+                        lines.append(_("  └ _... and {count} more_").format(count=len(models) - 40))
                 else:
-                    lines.append("  └ _No models available_")
+                    lines.append(_("  └ _No models available_"))
             except Exception:
-                lines.append("  └ _Error loading models_")
-        text = "🤖 *Available Models:*\n\n" + "\n".join(lines)
-        text += "\n\n💡 Use /model [provider:]<model> to switch"
+                lines.append(_("  └ _Error loading models_"))
+        text = _("🤖 *Available Models:*\n\n") + "\n".join(lines)
+        text += _("\n\n💡 Use /model [provider:]<model> to switch")
         return text[:4000]
 
     def _cmd_model(self, user_id, args):
@@ -463,65 +462,69 @@ class ChatInterface(Interface):
             model = (
                 llm.get_selected_model() if hasattr(llm, "get_selected_model") else "default"
             )
-            return f"🤖 Current: {provider}:{model}"
+            return _("🤖 Current: {provider}:{model}").format(provider=provider, model=model)
         arg = " ".join(args)
         if ":" in arg:
             provider_name, model = arg.split(":", 1)
             if provider_name not in AVAILABLE_LLMS:
-                return (
-                    f"❓ Unknown provider '{provider_name}'. "
-                    f"Available: {', '.join(AVAILABLE_LLMS.keys())}"
+                return _("❓ Unknown provider '{provider}'. Available: {available}").format(
+                    provider=provider_name, available=", ".join(AVAILABLE_LLMS.keys())
                 )
             self.controller.settings.set_string("language-model", provider_name)
             llm_settings = json.loads(self.controller.settings.get_string("llm-settings"))
             llm_settings.setdefault(provider_name, {})["model"] = model
             self.controller.settings.set_string("llm-settings", json.dumps(llm_settings))
             self.controller.update_settings()
-            return f"✅ Switched to {provider_name}:{model}"
+            return _("✅ Switched to {provider}:{model}").format(provider=provider_name, model=model)
         provider_name = self.controller.newelle_settings.language_model
         llm_settings = json.loads(self.controller.settings.get_string("llm-settings"))
         llm_settings.setdefault(provider_name, {})["model"] = arg
         self.controller.settings.set_string("llm-settings", json.dumps(llm_settings))
         self.controller.update_settings()
-        return f"✅ Switched model to {provider_name}:{arg}"
+        return _("✅ Switched model to {provider}:{model}").format(provider=provider_name, model=arg)
 
     def _cmd_profile(self, user_id, args):
         profiles = self.controller.newelle_settings.profile_settings
         if not args:
             current = self.controller.newelle_settings.current_profile
             names = ", ".join(profiles.keys())
-            return f"👤 Current profile: {current}\nAvailable: {names}"
+            return _("👤 Current profile: {current}\nAvailable: {names}").format(current=current, names=names)
         name = " ".join(args)
         if name not in profiles:
-            return f"❌ Profile '{name}' not found. Available: {', '.join(profiles.keys())}"
+            return _("❌ Profile '{name}' not found. Available: {available}").format(
+                name=name, available=", ".join(profiles.keys())
+            )
         self.controller.switch_profile(name)
-        return f"✅ Switched to profile: {name}"
+        return _("✅ Switched to profile: {name}").format(name=name)
 
     def _cmd_mode(self, user_id, args):
         mm = getattr(self.controller, "mode_manager", None)
         if mm is None:
-            return "ℹ️ Modes are not available."
+            return _("ℹ️ Modes are not available.")
         if not args:
             active = mm.get_active_mode_name()
-            lines = [f"🎨 *Modes* (active: *{active}*):\n"]
+            lines = [_("🎨 *Modes* (active: *{active}*):\n").format(active=active)]
             for name, mode in mm.get_modes().items():
                 marker = "▶" if name == active else " "
                 desc = mode.get("description", "") or ""
-                lines.append(f"{marker} *{name}*" + (f" — {desc}" if desc else ""))
-            lines.append("\n💡 Use /mode <name> to switch the active mode")
+                lines.append(
+                    _(" {marker} *{name}* — {desc}").format(marker=marker, name=name, desc=desc)
+                    if desc else _(" {marker} *{name}*").format(marker=marker, name=name)
+                )
+            lines.append(_("\n💡 Use /mode <name> to switch the active mode"))
             return "\n".join(lines)[:4000]
         name = " ".join(args)
         try:
             mm.set_active_mode(name)
         except ValueError:
             available = ", ".join(mm.get_modes().keys())
-            return f"❌ Mode '{name}' not found. Available: {available}"
+            return _("❌ Mode '{name}' not found. Available: {available}").format(name=name, available=available)
         # Mirror ModeButton._on_mode_activated: propagate skill overrides to the
         # skill manager and rebuild prompts/tools so the next run uses the mode.
         active = mm.get_active_mode()
         self.controller.skill_manager.set_mode_overrides(active.get("skills", {}))
         self.controller.update_settings()
-        return f"✅ Switched to mode: {name}"
+        return _("✅ Switched to mode: {name}").format(name=name)
 
     def _cmd_prompts(self, user_id, args):
         from ...constants import PROMPTS, AVAILABLE_PROMPTS
@@ -541,14 +544,14 @@ class ChatInterface(Interface):
             else:
                 raw = PROMPTS.get(key, "")
                 text = raw if isinstance(raw, str) else ""
-            status = "ON" if is_active else "OFF"
+            status = _("ON") if is_active else _("OFF")
             short = text[:80].replace("\n", " ") + ("..." if len(text) > 80 else "")
             lines.append(
-                f"[{status}] {key}"
-                + (" (editable)" if prompt.get("editable", False) else "")
+                _("[{status}] {key}").format(status=status, key=key)
+                + (_(" (editable)") if prompt.get("editable", False) else "")
             )
             lines.append(f"    {short}")
-        return ("\n".join(lines) if lines else "📝 No prompts available.")[:4000]
+        return ("\n".join(lines) if lines else _("📝 No prompts available."))[:4000]
 
     def _cmd_tools(self, user_id, args):
         all_tools = self.controller.tools.get_all_tools()
@@ -560,10 +563,10 @@ class ChatInterface(Interface):
         if args and args[0] == "toggle":
             tool_name = " ".join(args[1:]) if len(args) > 1 else None
             if not tool_name:
-                return "📋 Usage: /tools toggle <tool_name>"
+                return _("📋 Usage: /tools toggle <tool_name>")
             target = next((t for t in all_tools if t.name.lower() == tool_name.lower()), None)
             if target is None:
-                return f"❓ Tool '{tool_name}' not found."
+                return _("❓ Tool '{tool_name}' not found.").format(tool_name=tool_name)
             is_enabled = target.default_on
             if target.name in tools_settings and "enabled" in tools_settings[target.name]:
                 is_enabled = tools_settings[target.name]["enabled"]
@@ -571,34 +574,40 @@ class ChatInterface(Interface):
             ts.setdefault(target.name, {})["enabled"] = not is_enabled
             self.controller.newelle_settings.tools_settings_dict = ts
             self.controller.settings.set_string("tools-settings", json.dumps(ts))
-            return f"🔧 Tool '{target.name}' {'enabled' if not is_enabled else 'disabled'}."
+            return _("🔧 Tool '{name}' {state}.").format(
+                name=target.name, state=_("enabled") if not is_enabled else _("disabled")
+            )
         lines = []
         for tool in all_tools:
             is_enabled = tool.default_on
             if tool.name in tools_settings and "enabled" in tools_settings[tool.name]:
                 is_enabled = tools_settings[tool.name]["enabled"]
             lines.append(
-                f"[{'ON' if is_enabled else 'OFF'}] {tool.name} - {tool.description[:60]}"
+                _("[{status}] {name} - {description}").format(
+                    status=_("ON") if is_enabled else _("OFF"),
+                    name=tool.name, description=tool.description[:60],
+                )
             )
         if not lines:
-            return "🔧 No tools available."
-        return ("\n".join(lines) + "\n\n💡 Use /tools toggle <name> to toggle a tool.")[:4000]
+            return _("🔧 No tools available.")
+        return ("\n".join(lines) + _("\n\n💡 Use /tools toggle <name> to toggle a tool."))[:4000]
 
     def _cmd_scheduled(self, user_id, args):
         tasks = self.controller.get_scheduled_tasks()
         if not tasks:
-            return "⏰ No scheduled tasks."
+            return _("⏰ No scheduled tasks.")
         lines = []
         for task in tasks:
             status = (
-                "RUNNING" if task.get("running")
-                else ("ENABLED" if task.get("enabled") else "DISABLED")
+                _("RUNNING") if task.get("running")
+                else (_("ENABLED") if task.get("enabled") else _("DISABLED"))
             )
-            schedule = task.get("cron") or task.get("run_at") or "manual"
+            schedule = task.get("cron") or task.get("run_at") or _("manual")
             lines.append(
-                f"[{status}] {task['task'][:60]}\n"
-                f"    ID: {task['id'][:8]}... | Schedule: {schedule}\n"
-                f"    Next: {task.get('next_run_at', 'N/A')}"
+                _("[{status}] {task}\n    ID: {id}... | Schedule: {schedule}\n    Next: {next_run}").format(
+                    status=status, task=task['task'][:60], id=task['id'][:8],
+                    schedule=schedule, next_run=task.get('next_run_at', 'N/A'),
+                )
             )
         return "\n".join(lines)[:4000]
 
@@ -607,20 +616,20 @@ class ChatInterface(Interface):
             commands = self.controller.get_commands()
             skill_commands = [c for c in commands if c.name.startswith("skill")]
             if not skill_commands:
-                return "⚡ No skills available."
+                return _("⚡ No skills available.")
             return "\n".join(f"/skill {c.name} - {c.description}" for c in skill_commands)
         skill_name = args[0]
         for cmd in self.controller.get_commands():
             if cmd.name == f"skill {skill_name}" or cmd.name == skill_name:
                 try:
                     result = cmd.execute(chat_id=self.get_or_create_chat(user_id))
-                    output = str(result) if result is not None else "Done."
+                    output = str(result) if result is not None else _("Done.")
                     if hasattr(result, "get_output"):
                         output = str(result.get_output())
                     return output[:4000]
                 except Exception as e:
-                    return f"❌ Error: {e}"
-        return f"❌ Command/skill '{skill_name}' not found."
+                    return _("❌ Error: {e}").format(e=e)
+        return _("❌ Command/skill '{name}' not found.").format(name=skill_name)
 
     def _cmd_cd(self, user_id, args):
         return self.controller.cd_command(path=" ".join(args)).get_output()
@@ -636,71 +645,80 @@ class ChatInterface(Interface):
             if chat.get("call"):
                 continue
             marker = "▶" if cid == current_chat_id else " "
-            name = chat.get("name", f"Chat {cid}")
+            name = chat.get("name", _("Chat {cid}").format(cid=cid))
             msg_count = len(chat.get("chat", []))
-            lines.append(f"{marker} {cid}. {name} ({msg_count} messages)"[:80])
+            lines.append(
+                _("{marker} {cid}. {name} ({count} messages)").format(
+                    marker=marker, cid=cid, name=name, count=msg_count
+                )[:80]
+            )
         if not lines:
-            return "📭 No chats available."
-        return ("*Chats*:\n\n" + "\n".join(lines))[:4000]
+            return _("📭 No chats available.")
+        return (_("*Chats*:\n\n") + "\n".join(lines))[:4000]
 
     def _cmd_peek(self, user_id, args):
         if not args:
-            return "📋 Usage: /peek <chat_id>"
+            return _("📋 Usage: /peek <chat_id>")
         try:
             target_id = int(args[0])
         except ValueError:
-            return "❌ Chat ID must be a number."
+            return _("❌ Chat ID must be a number.")
         if target_id not in self.controller.workspace_chats():
-            return f"❌ Chat {target_id} not found."
+            return _("❌ Chat {id} not found.").format(id=target_id)
         chat = self.controller.chats[target_id]
-        name = chat.get("name", f"Chat {target_id}")
+        name = chat.get("name", _("Chat {id}").format(id=target_id))
         messages = chat.get("chat", [])
         if not messages:
-            return f"📭 Chat \"{name}\" (ID: {target_id}) is empty."
-        lines = [f"👀 *Peek at \"{name}\"* (ID: {target_id}, {len(messages)} messages):\n"]
+            return _("📭 Chat \"{name}\" (ID: {id}) is empty.").format(name=name, id=target_id)
+        lines = [_("👀 *Peek at \"{name}\"* (ID: {id}, {count} messages):\n").format(
+            name=name, id=target_id, count=len(messages)
+        )]
         for msg in messages[-5:]:
             full_content = remove_thinking_blocks(msg.get("Message", "")).strip()
             content = full_content[:100]
             if len(full_content) > 100:
                 content += "..."
-            lines.append(f"*{msg.get('User', 'Unknown')}*: {content.replace(chr(10), ' ')}")
+            lines.append(_("{user}: {content}").format(
+                user=msg.get('User', _('Unknown')), content=content.replace(chr(10), ' ')
+            ))
         return "\n".join(lines)[:4000]
 
     def _cmd_resume(self, user_id, args):
         if not args:
             current_chat_id = self.controller.newelle_settings.chat_id
-            current_name = self.controller.chats.get(current_chat_id, {}).get("name", "unknown")
-            return (
-                f"📌 Current chat: \"{current_name}\" (ID: {current_chat_id})\n"
-                "Usage: /resume <chat_id>"
+            current_name = self.controller.chats.get(current_chat_id, {}).get("name", _("unknown"))
+            return _("📌 Current chat: \"{name}\" (ID: {id})\nUsage: /resume <chat_id>").format(
+                name=current_name, id=current_chat_id
             )
         try:
             target_id = int(args[0])
         except ValueError:
-            return "❌ Chat ID must be a number."
+            return _("❌ Chat ID must be a number.")
         if target_id not in self.controller.workspace_chats():
-            return f"❌ Chat {target_id} not found."
+            return _("❌ Chat {id} not found.").format(id=target_id)
         chat = self.controller.chats[target_id]
         if chat.get("call"):
-            return f"❌ Chat {target_id} is a hidden call chat."
+            return _("❌ Chat {id} is a hidden call chat.").format(id=target_id)
         self.controller.newelle_settings.chat_id = target_id
         self.controller.settings.set_int("chat", target_id)
         self._user_chats[(self.controller.active_workspace_id, user_id)] = target_id
         self._save_last_chat_id(user_id, target_id)
-        name = chat.get("name", f"Chat {target_id}")
-        return f"✅ Resumed chat: \"{name}\" (ID: {target_id})"
+        name = chat.get("name", _("Chat {id}").format(id=target_id))
+        return _("✅ Resumed chat: \"{name}\" (ID: {id})").format(name=name, id=target_id)
 
     def _cmd_autoexec(self, user_id, args):
         current = self.controller.settings.get_boolean("auto-run")
         new_value = not current
         self.controller.settings.set_boolean("auto-run", new_value)
         self.controller.auto_run = new_value
-        return f"⚡ Auto command execution {'enabled' if new_value else 'disabled'}"
+        return _("⚡ Auto command execution {state}").format(
+            state=_("enabled") if new_value else _("disabled")
+        )
 
     def _cmd_stop(self, user_id, args):
         if self.stop_generation(user_id):
-            return "⏹️ Generation stopped."
-        return "ℹ️ Nothing is being generated in this chat."
+            return _("⏹️ Generation stopped.")
+        return _("ℹ️ Nothing is being generated in this chat.")
 
     def _cmd_option(self, user_id, args):
         user_pending = [
@@ -710,23 +728,23 @@ class ChatInterface(Interface):
         ]
         if not args:
             if not user_pending:
-                return "ℹ️ No pending interactions."
+                return _("ℹ️ No pending interactions.")
             iid, entry = user_pending[-1]
             opts = entry.get("options", [])
-            lines = [f"🔢 Pending interaction for tool '{entry.get('tool_name', '?')}':"]
+            lines = [_("🔢 Pending interaction for tool '{tool}':").format(tool=entry.get('tool_name', '?'))]
             lines += [f"  {i + 1}) {opt.title}" for i, opt in enumerate(opts)]
-            lines.append("Use /option <n> to choose.")
+            lines.append(_("Use /option <n> to choose."))
             return "\n".join(lines)
         try:
             idx = int(args[0]) - 1  # user provides 1-based index
         except ValueError:
-            return "❌ Usage: /option <number>"
+            return _("❌ Usage: /option <number>")
         if not user_pending:
-            return "ℹ️ No pending interactions."
+            return _("ℹ️ No pending interactions.")
         iid, _ = user_pending[-1]
         if self.resolve_pending_interaction(iid, idx):
-            return f"✅ Option {idx + 1} selected."
-        return f"❌ Invalid option index {idx + 1}."
+            return _("✅ Option {n} selected.").format(n=idx + 1)
+        return _("❌ Invalid option index {n}.").format(n=idx + 1)
 
     # map command name -> unbound method (populated after class body is complete)
     _BUILTIN_COMMANDS: dict = {

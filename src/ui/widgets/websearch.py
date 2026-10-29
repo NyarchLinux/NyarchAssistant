@@ -26,7 +26,7 @@ class WebSearchWidget(Gtk.Box):
 
         # 1. Initial Status Label - Remains visible
         self._status_label = Gtk.Label(
-            label=f"Searching for \"{self._search_term}\"...",
+            label=_('Searching for "{}"...').format(self._search_term),
             halign=Gtk.Align.START,
             wrap=True
         )
@@ -54,7 +54,7 @@ class WebSearchWidget(Gtk.Box):
             margin_start=6,
             margin_end=6,
         )
-        self._expander = Gtk.Expander(label="Search Result")
+        self._expander = Gtk.Expander(label=_("Search Result"))
         self._expander.set_child(self._result_label)
         self._expander.set_expanded(False)
         self._expander.set_visible(False)
@@ -71,7 +71,7 @@ class WebSearchWidget(Gtk.Box):
         label = Gtk.Label(label=title, halign=Gtk.Align.START, tooltip_text=link, hexpand=True, ellipsize=Pango.EllipsizeMode.END)
         row_box.append(label)
         spinner_revealer = Gtk.Revealer(transition_type=Gtk.RevealerTransitionType.SLIDE_LEFT, transition_duration=250, reveal_child=False)
-        spinner = Gtk.Spinner(tooltip_text="Fetching...")
+        spinner = Gtk.Spinner(tooltip_text=_("Fetching..."))
         spinner_revealer.set_child(spinner)
         row_box.append(spinner_revealer)
         button.set_child(row_box)

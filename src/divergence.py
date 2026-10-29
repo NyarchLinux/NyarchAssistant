@@ -85,14 +85,14 @@ class DivergenceExtension(NewelleExtension):
                 "get_divergence",
                 "Get the current worldline divergence number from the Divergence Meter.",
                 self.fetch_divergence,
-                title="Get Divergence",
-                tools_group="Divergence Meter",
+                title=_("Get Divergence"),
+                tools_group=_("Divergence Meter"),
             ),
             create_io_tool(
                 "get_divergence_news",
                 "Get news articles from the Divergence Meter. Supports pagination and filtering by impact value. Generally, important news have >0.1 impact",
                 self.fetch_divergence_news,
-                title="Get Divergence News",
-                tools_group="Divergence Meter",
+                title=_("Get Divergence News"),
+                tools_group=_("Divergence Meter"),
             ),
         ]

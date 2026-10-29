@@ -4,12 +4,12 @@ import time
 import os
 import wave
 import pyaudio
-import gettext
 import tempfile
 from collections import deque
 
 from ...utility.strings import clean_bot_response, clean_message_tts
 from ...utility.vad import VoiceActivityDetector
+
 
 
 AVATAR_CALL_CSS = """

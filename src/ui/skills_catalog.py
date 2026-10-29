@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import gettext
 import json
 import os
 import re
@@ -23,7 +22,6 @@ from ..utility.download_manager import (
     get_download_manager,
 )
 
-_ = gettext.gettext
 
 SKILLSMP_API_URL = "https://skillsmp.com/api/v1/skills/search"
 SEARCH_PAGE_SIZE = 20
@@ -50,9 +48,9 @@ class SkillsCatalogError(ValueError):
 
 def _required_string(value, label, max_length=4096):
     if not isinstance(value, str) or not value.strip():
-        raise SkillsCatalogError(f"{label} must be a non-empty string")
+        raise SkillsCatalogError(_("{} must be a non-empty string").format(label))
     if len(value) > max_length or "\x00" in value:
-        raise SkillsCatalogError(f"{label} is invalid")
+        raise SkillsCatalogError(_("{} is invalid").format(label))
     return value
 
 
@@ -65,10 +63,10 @@ def _https_url(value, label, allowed_hosts=None):
         or parsed.username
         or parsed.password
     ):
-        raise SkillsCatalogError(f"{label} must be a valid HTTPS URL")
+        raise SkillsCatalogError(_("{} must be a valid HTTPS URL").format(label))
     hostname = (parsed.hostname or "").lower()
     if allowed_hosts is not None and hostname not in allowed_hosts:
-        raise SkillsCatalogError(f"{label} uses an unsupported host")
+        raise SkillsCatalogError(_("{} uses an unsupported host").format(label))
     return value
 
 
@@ -77,38 +75,40 @@ def validate_search_response(payload):
     if not isinstance(payload, dict) or payload.get("success") is not True:
         error = payload.get("error", {}) if isinstance(payload, dict) else {}
         message = error.get("message") if isinstance(error, dict) else None
-        raise SkillsCatalogError(message or "SkillsMP returned an invalid response")
+        raise SkillsCatalogError(message or _("SkillsMP returned an invalid response"))
 
     data = payload.get("data")
     if not isinstance(data, dict):
-        raise SkillsCatalogError("SkillsMP response is missing data")
+        raise SkillsCatalogError(_("SkillsMP response is missing data"))
     raw_skills = data.get("skills")
     pagination = data.get("pagination")
     if not isinstance(raw_skills, list) or len(raw_skills) > 50:
-        raise SkillsCatalogError("SkillsMP returned an invalid skills list")
+        raise SkillsCatalogError(_("SkillsMP returned an invalid skills list"))
     if not isinstance(pagination, dict):
-        raise SkillsCatalogError("SkillsMP response is missing pagination")
+        raise SkillsCatalogError(_("SkillsMP response is missing pagination"))
 
     skills = []
     seen_ids = set()
     for index, item in enumerate(raw_skills):
         if not isinstance(item, dict):
-            raise SkillsCatalogError(f"skills[{index}] must be an object")
+            raise SkillsCatalogError(_("skills[{}] must be an object").format(index))
         skill_id = _required_string(item.get("id"), f"skills[{index}].id", 300)
         if skill_id in seen_ids:
-            raise SkillsCatalogError("SkillsMP returned duplicate skills")
+            raise SkillsCatalogError(_("SkillsMP returned duplicate skills"))
         seen_ids.add(skill_id)
         stars = item.get("stars")
         updated_at = item.get("updatedAt")
         if not isinstance(stars, int) or stars < 0:
-            raise SkillsCatalogError(f"skills[{index}].stars is invalid")
+            raise SkillsCatalogError(_("skills[{}].stars is invalid").format(index))
         if not isinstance(updated_at, int) or updated_at < 0:
-            raise SkillsCatalogError(f"skills[{index}].updatedAt is invalid")
+            raise SkillsCatalogError(_("skills[{}].updatedAt is invalid").format(index))
         language = item.get("contentLanguage")
         if language is not None and (
             not isinstance(language, str) or len(language) > 12
         ):
-            raise SkillsCatalogError(f"skills[{index}].contentLanguage is invalid")
+            raise SkillsCatalogError(
+                _("skills[{}].contentLanguage is invalid").format(index)
+            )
 
         skills.append(
             {
@@ -142,9 +142,9 @@ def validate_search_response(payload):
     has_next = pagination.get("hasNext")
     total = pagination.get("total")
     if not isinstance(page, int) or page < 1 or not isinstance(has_next, bool):
-        raise SkillsCatalogError("SkillsMP pagination is invalid")
+        raise SkillsCatalogError(_("SkillsMP pagination is invalid"))
     if not isinstance(total, int) or total < 0:
-        raise SkillsCatalogError("SkillsMP result total is invalid")
+        raise SkillsCatalogError(_("SkillsMP result total is invalid"))
 
     return {
         "skills": skills,
@@ -163,12 +163,12 @@ def _read_json_response(response, max_bytes=MAX_RESPONSE_BYTES):
             continue
         size += len(chunk)
         if size > max_bytes:
-            raise SkillsCatalogError("The server response is too large")
+            raise SkillsCatalogError(_("The server response is too large"))
         chunks.append(chunk)
     try:
         return json.loads(b"".join(chunks).decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise SkillsCatalogError("The server returned invalid JSON") from exc
+        raise SkillsCatalogError(_("The server returned invalid JSON")) from exc
 
 
 def search_skills(
@@ -182,11 +182,11 @@ def search_skills(
     """Fetch one SkillsMP page. This is called only after explicit user input."""
     query = _required_string(query.strip(), "query", 200)
     if not isinstance(page, int) or page < 1:
-        raise SkillsCatalogError("page is invalid")
+        raise SkillsCatalogError(_("page is invalid"))
     if not isinstance(limit, int) or not 1 <= limit <= 50:
-        raise SkillsCatalogError("page size is invalid")
+        raise SkillsCatalogError(_("page size is invalid"))
     if sort_by not in {"stars", "recent"}:
-        raise SkillsCatalogError("sort order is invalid")
+        raise SkillsCatalogError(_("sort order is invalid"))
 
     headers = dict(REQUEST_HEADERS)
     if api_key:
@@ -212,10 +212,12 @@ def search_skills(
             message = error.get("message") if isinstance(error, dict) else None
             if response.status_code == 429:
                 raise SkillsCatalogError(
-                    message or "SkillsMP search quota reached. Try again later."
+                    message or _("SkillsMP search quota reached. Try again later.")
                 )
             raise SkillsCatalogError(
-                message or f"SkillsMP request failed ({response.status_code})"
+                message or _("SkillsMP request failed ({})").format(
+                    response.status_code
+                )
             )
         result = validate_search_response(payload)
         remaining = response.headers.get("X-RateLimit-Daily-Remaining")
@@ -230,12 +232,12 @@ def parse_github_tree_url(url):
     _https_url(url, "GitHub URL", {"github.com", "www.github.com"})
     parts = [unquote(part) for part in urlparse(url).path.split("/") if part]
     if len(parts) < 5 or parts[2] != "tree":
-        raise SkillsCatalogError("The skill source must be a GitHub directory URL")
+        raise SkillsCatalogError(_("The skill source must be a GitHub directory URL"))
     owner, repository, _tree, ref, *directory = parts
     repository = repository.removesuffix(".git")
     for segment in (owner, repository, ref, *directory):
         if not GITHUB_SEGMENT_RE.fullmatch(segment) or segment in {".", ".."}:
-            raise SkillsCatalogError("The GitHub skill path is invalid")
+            raise SkillsCatalogError(_("The GitHub skill path is invalid"))
     return owner, repository, ref, "/".join(directory)
 
 
@@ -250,7 +252,7 @@ def _github_api_json(url, session):
         if response.status_code >= 400:
             message = payload.get("message") if isinstance(payload, dict) else None
             raise SkillsCatalogError(
-                message or f"GitHub request failed ({response.status_code})"
+                message or _("GitHub request failed ({})").format(response.status_code)
             )
         return payload
 
@@ -269,7 +271,7 @@ def download_github_skill(github_url, target_dir, session=requests, task=None):
             task.check_cancelled()
         current_path, depth = pending.pop()
         if depth > MAX_SKILL_DEPTH:
-            raise SkillsCatalogError("The skill directory is nested too deeply")
+            raise SkillsCatalogError(_("The skill directory is nested too deeply"))
         encoded_path = quote(current_path, safe="/")
         api_url = (
             f"https://api.github.com/repos/{quote(owner)}/{quote(repository)}"
@@ -277,46 +279,48 @@ def download_github_skill(github_url, target_dir, session=requests, task=None):
         )
         entries = _github_api_json(api_url, session)
         if not isinstance(entries, list):
-            raise SkillsCatalogError("The GitHub source is not a directory")
+            raise SkillsCatalogError(_("The GitHub source is not a directory"))
 
         for entry in entries:
             if not isinstance(entry, dict):
-                raise SkillsCatalogError("GitHub returned an invalid directory entry")
+                raise SkillsCatalogError(
+                    _("GitHub returned an invalid directory entry")
+                )
             entry_type = entry.get("type")
             entry_path = entry.get("path")
             if not isinstance(entry_path, str):
-                raise SkillsCatalogError("GitHub returned an invalid file path")
+                raise SkillsCatalogError(_("GitHub returned an invalid file path"))
             try:
                 relative = PurePosixPath(entry_path).relative_to(
                     PurePosixPath(root_path)
                 )
             except ValueError as exc:
                 raise SkillsCatalogError(
-                    "GitHub returned a file outside the skill directory"
+                    _("GitHub returned a file outside the skill directory")
                 ) from exc
             if not relative.parts or any(
                 part in {"", ".", ".."} for part in relative.parts
             ):
-                raise SkillsCatalogError("GitHub returned an unsafe file path")
+                raise SkillsCatalogError(_("GitHub returned an unsafe file path"))
 
             if entry_type == "dir":
                 pending.append((entry_path, depth + 1))
                 continue
             if entry_type != "file":
                 raise SkillsCatalogError(
-                    "Skills containing links or submodules are not supported"
+                    _("Skills containing links or submodules are not supported")
                 )
 
             declared_size = entry.get("size")
             if not isinstance(declared_size, int) or declared_size < 0:
-                raise SkillsCatalogError("GitHub returned an invalid file size")
+                raise SkillsCatalogError(_("GitHub returned an invalid file size"))
             if declared_size > MAX_SKILL_FILE_BYTES:
-                raise SkillsCatalogError("A skill file exceeds the 2 MB limit")
+                raise SkillsCatalogError(_("A skill file exceeds the 2 MB limit"))
             file_count += 1
             total_bytes += declared_size
             if file_count > MAX_SKILL_FILES or total_bytes > MAX_SKILL_TOTAL_BYTES:
                 raise SkillsCatalogError(
-                    "The skill exceeds the installation size limits"
+                    _("The skill exceeds the installation size limits")
                 )
 
             download_url = _https_url(
@@ -350,7 +354,7 @@ def download_github_skill(github_url, target_dir, session=requests, task=None):
                         actual_size += len(chunk)
                         if actual_size > MAX_SKILL_FILE_BYTES:
                             raise SkillsCatalogError(
-                                "A skill file exceeds the 2 MB limit"
+                                _("A skill file exceeds the 2 MB limit")
                             )
                         output.write(chunk)
                         if task is not None:
@@ -361,10 +365,12 @@ def download_github_skill(github_url, target_dir, session=requests, task=None):
                             )
             total_bytes += actual_size - declared_size
             if total_bytes > MAX_SKILL_TOTAL_BYTES:
-                raise SkillsCatalogError("The skill exceeds the 10 MB limit")
+                raise SkillsCatalogError(_("The skill exceeds the 10 MB limit"))
 
     if not os.path.isfile(os.path.join(target_dir, "SKILL.md")):
-        raise SkillsCatalogError("The selected GitHub directory has no SKILL.md")
+        raise SkillsCatalogError(
+            _("The selected GitHub directory has no SKILL.md")
+        )
 
 
 def _format_stars(stars):
@@ -908,7 +914,9 @@ class SkillsCatalogView(Gtk.Box):
                             source_dir
                         )
                         if installed is None:
-                            raise SkillsCatalogError("The downloaded SKILL.md is invalid")
+                            raise SkillsCatalogError(
+                                _("The downloaded SKILL.md is invalid")
+                            )
             except DownloadCancelled:
                 error = _("Installation cancelled")
             except (SkillsCatalogError, requests.RequestException, OSError) as exc:

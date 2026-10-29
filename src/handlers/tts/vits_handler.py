@@ -1,7 +1,7 @@
 import threading
 import requests
-import random 
-import string 
+import random
+import string
 
 from requests_toolbelt.multipart.encoder import MultipartEncoder
 from .tts import TTSHandler
@@ -23,15 +23,15 @@ class VitsHandler(TTSHandler):
         return [
             {
                 "key": "endpoint",
-                "title": "API Endpoint",
-                "description": "URL of VITS API endpoint",
+                "title": _("API Endpoint"),
+                "description": _("URL of VITS API endpoint"),
                 "type": "entry",
                 "default": "https://artrajz-vits-simple-api.hf.space/",
             },
             {   
                 "key": "voice",
-                "title": "Voice",
-                "description": "Voice to use",
+                "title": _("Voice"),
+                "description": _("Voice to use"),
                 "type": "combo",
                 "values": self.voices,
                 "default": "0",
@@ -47,7 +47,7 @@ class VitsHandler(TTSHandler):
             js = r.json()
             result = tuple()
             for speaker in js["VITS"]:
-                result += ((str(speaker["id"]) + "| " + speaker["name"] + " " + (str(speaker["lang"]) if len(speaker["lang"]) < 5 else "[Multi]"), str(speaker["id"])), )
+                result += ((str(speaker["id"]) + "| " + speaker["name"] + " " + (str(speaker["lang"]) if len(speaker["lang"]) < 5 else _("[Multi]")), str(speaker["id"])), )
             self.voices = result
             self.set_setting("voices", self.voices)
             return result 

@@ -1,7 +1,6 @@
 import os
 import json
 import copy
-import gettext
 import threading
 from gi.repository import GLib
 from ..utility.pip import find_module, install_module
@@ -9,7 +8,6 @@ from ..utility.download_manager import DownloadKind, get_download_manager
 from typing import Any
 from enum import Enum
 
-_ = gettext.gettext
 
 
 class IsolatedSettings:

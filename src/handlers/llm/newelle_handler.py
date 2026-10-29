@@ -1,12 +1,12 @@
 import json
 
-from typing import Any 
+from typing import Any
 from typing import Callable
 from .openai_handler import OpenAIHandler
 
 class NewelleAPIHandler(OpenAIHandler):
     key = "newelle"
-    error_message = """Error calling Newelle API. Please note that Newelle API is **just for demo purposes.**\n\nTo know how to use a more reliable LLM [read our guide to llms](https://github.com/qwersyk/newelle/wiki/User-guide-to-the-available-LLMs). \n\nError: """
+    error_message = _("""Error calling Newelle API. Please note that Newelle API is **just for demo purposes.**\n\nTo know how to use a more reliable LLM [read our guide to llms](https://github.com/qwersyk/newelle/wiki/User-guide-to-the-available-LLMs). \n\nError: """)
 
     def __init__(self, settings, path):
         super().__init__(settings, path)
@@ -15,7 +15,7 @@ class NewelleAPIHandler(OpenAIHandler):
         self.set_setting("api", "newelle")
 
     def get_models_list(self):
-        return [("Medium", "Medium"), ("Smart", "Smart"), ("Small", "Small")]
+        return [("Medium", _("Medium")), ("Smart", _("Smart")), ("Small", _("Small"))]
 
     def get_models(self, *args, **kwargs):
         pass

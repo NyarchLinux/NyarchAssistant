@@ -1,5 +1,4 @@
 import math
-from gettext import gettext as _
 from typing import Callable
 
 from gi.repository import Adw, GLib, Gtk, Pango, PangoCairo

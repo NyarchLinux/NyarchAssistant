@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-import gettext
 import os
 
 from gi.repository import Adw, GLib, Gtk
 
 from ..skill_creator import SkillCreatorView
 
-_ = gettext.gettext
 CONTEXT_DEBOUNCE_MS = 100
 
 

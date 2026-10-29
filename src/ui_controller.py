@@ -27,7 +27,7 @@ class UIController:
         # running; each request is tied to its own chat.  Other mutations
         # still require the UI to be idle.
         if action != "switch" and (window.workspace_ui_busy() or controller.workspace_requests):
-            raise RuntimeError("Finish or stop active work before changing workspaces")
+            raise RuntimeError(_("Finish or stop active work before changing workspaces"))
         if workspace_id is not None and workspace_id not in controller.workspaces:
             raise KeyError("Workspace not found")
         if action == "path":
@@ -45,22 +45,22 @@ class UIController:
                 explorer.update_folder()
         elif action == "switch":
             if not window.switch_workspace(workspace_id):
-                raise RuntimeError("Workspace switch blocked by active work")
+                raise RuntimeError(_("Workspace switch blocked by active work"))
         elif action == "move":
             if data["chat_id"] not in controller.workspace_chats():
                 raise KeyError("Chat not found in active workspace")
             if not window.move_chat_to_workspace(data["chat_id"], workspace_id):
-                raise RuntimeError("Chat transfer blocked by active work")
+                raise RuntimeError(_("Chat transfer blocked by active work"))
         else:
             if action == "delete" and workspace_id == controller.active_workspace_id:
                 if workspace_id == "default":
-                    raise ValueError("The Default workspace cannot be deleted")
+                    raise ValueError(_("The Default workspace cannot be deleted"))
                 if not window.switch_workspace("default"):
-                    raise RuntimeError("Workspace switch blocked by active work")
+                    raise RuntimeError(_("Workspace switch blocked by active work"))
             workspace_id = controller._remote_workspace_action(action, workspace_id, **data)
             if action == "edit" and workspace_id == controller.active_workspace_id:
                 if not window.switch_workspace(workspace_id, force=True):
-                    raise RuntimeError("Workspace settings saved; activation blocked by active work")
+                    raise RuntimeError(_("Workspace settings saved; activation blocked by active work"))
             if action == "delete":
                 cached = window._workspace_views.pop(workspace_id, None)
                 if cached is not None:

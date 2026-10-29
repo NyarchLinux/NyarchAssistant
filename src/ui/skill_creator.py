@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import gettext
 import json
 import os
 import re
@@ -18,7 +17,6 @@ from ..skills import parse_frontmatter
 from ..utility.strings import markwon_to_pango
 from ..utility.system import open_folder, open_website
 
-_ = gettext.gettext
 
 
 SKILL_NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")

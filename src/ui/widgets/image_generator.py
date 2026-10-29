@@ -43,7 +43,7 @@ class ImageGeneratorWidget(Gtk.Box):
         self.loading_pulse.set_size_request(60, 60)
         self.loading_pulse.add_css_class("loading-pulse")
 
-        self.loading_text = Gtk.Label(label="Loading image...")
+        self.loading_text = Gtk.Label(label=_("Loading image..."))
         self.loading_text.add_css_class("loading-text")
 
         self.loading_container.append(self.loading_pulse)
@@ -77,12 +77,12 @@ class ImageGeneratorWidget(Gtk.Box):
         # Create the image overlay
         self.overlay_buttons = Gtk.Box(valign=Gtk.Align.START, halign=Gtk.Align.END)
         self.copy_button = Gtk.Button(icon_name="edit-copy-symbolic", css_classes=["success", "flat"])
-        self.copy_button.set_tooltip_text("Copy prompt to clipboard")
+        self.copy_button.set_tooltip_text(_("Copy prompt to clipboard"))
         self.copy_button.connect("clicked", self.on_copy_clicked)
         self.overlay_buttons.append(self.copy_button)
 
         self.save_button = Gtk.Button(icon_name="document-save-symbolic", css_classes=["accent", "flat"])
-        self.save_button.set_tooltip_text("Save image to file")
+        self.save_button.set_tooltip_text(_("Save image to file"))
         self.save_button.connect("clicked", self.on_save_clicked)
         self.overlay_buttons.append(self.save_button)
 
@@ -219,7 +219,7 @@ class ImageGeneratorWidget(Gtk.Box):
         self.current_url = None
         self.image.clear()
         self.overlay_buttons.set_visible(False)
-        self.error_label.set_label(message or "Image generation failed.")
+        self.error_label.set_label(message or _("Image generation failed."))
         self.error_container.set_visible(True)
 
     def set_image_from_url(self, url, callback=None):
@@ -237,7 +237,7 @@ class ImageGeneratorWidget(Gtk.Box):
                 callback(True)
 
         def load_error_callback():
-            self.show_error("The generated image could not be loaded.")
+            self.show_error(_("The generated image could not be loaded."))
             if callback:
                 callback(False)
 
@@ -291,7 +291,7 @@ class ImageGeneratorWidget(Gtk.Box):
                 print(f"Error loading image from path: {e}")
 
                 def show_error():
-                    self.show_error("The generated image could not be loaded.")
+                    self.show_error(_("The generated image could not be loaded."))
                     if callback:
                         callback(False)
                     return False
@@ -380,19 +380,19 @@ class ImageGeneratorWidget(Gtk.Box):
         if not self.current_pixbuf:
             # Show error dialog if no image is loaded
             dialog = Gtk.AlertDialog()
-            dialog.set_message("No image to save")
-            dialog.set_detail("Please wait for the image to load before saving.")
+            dialog.set_message(_("No image to save"))
+            dialog.set_detail(_("Please wait for the image to load before saving."))
             dialog.show(self.get_root())
             return
 
         # Create file chooser dialog
         dialog = Gtk.FileDialog()
-        dialog.set_title("Save Image as PNG")
-        dialog.set_accept_label("Save")
+        dialog.set_title(_("Save Image as PNG"))
+        dialog.set_accept_label(_("Save"))
 
         # Create PNG filter
         png_filter = Gtk.FileFilter()
-        png_filter.set_name("PNG Images (*.png)")
+        png_filter.set_name(_("PNG Images (*.png)"))
         png_filter.add_pattern("*.png")
         dialog.set_default_filter(png_filter)
 
@@ -418,8 +418,8 @@ class ImageGeneratorWidget(Gtk.Box):
                     except Exception as e:
                         # Show error dialog
                         error_dialog = Gtk.AlertDialog()
-                        error_dialog.set_message("Failed to save image")
-                        error_dialog.set_detail(f"Error: {str(e)}")
+                        error_dialog.set_message(_("Failed to save image"))
+                        error_dialog.set_detail(_("Error: {}").format(str(e)))
                         error_dialog.show(self.get_root())
 
             except Exception as e:
@@ -438,8 +438,8 @@ class ImageGeneratorWidget(Gtk.Box):
         if not self.prompt:
             # Show info dialog if no prompt available
             dialog = Gtk.AlertDialog()
-            dialog.set_message("No prompt to copy")
-            dialog.set_detail("The original prompt is not available.")
+            dialog.set_message(_("No prompt to copy"))
+            dialog.set_detail(_("The original prompt is not available."))
             dialog.show(self.get_root())
             return
 

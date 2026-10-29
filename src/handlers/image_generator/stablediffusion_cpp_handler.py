@@ -19,7 +19,6 @@ from ...ui.model_library import (
 )
 from ...utility.model_icons import get_model_icon
 from ...ui.build_dependency_warning import BuildDependencyWarning
-from gettext import gettext as _
 import subprocess
 import os
 import platform
@@ -40,7 +39,7 @@ SD_MODELS = [
         "id": "sd-v1-5",
         "family": "sd",
         "display": "Stable Diffusion 1.5",
-        "description": "Classic SD 1.5 from RunwayML. ~4 GB, single file. Great for LoRAs and fast iteration.",
+        "description": _("Classic SD 1.5 from RunwayML. ~4 GB, single file. Great for LoRAs and fast iteration."),
         "tags": ["sd", "text2image", "safetensors", "4GB"],
         "files": [
             {"role": "diffusion", "url": "https://huggingface.co/runwayml/stable-diffusion-v1-5/resolve/main/v1-5-pruned-emaonly.safetensors", "filename": "v1-5-pruned-emaonly.safetensors", "shared": False},
@@ -51,7 +50,7 @@ SD_MODELS = [
         "id": "sdxl-base-1.0",
         "family": "sdxl",
         "display": "SDXL Base 1.0",
-        "description": "Stable Diffusion XL base 1.0 with fixed VAE. ~6.5 GB, native 1024x1024 generation.",
+        "description": _("Stable Diffusion XL base 1.0 with fixed VAE. ~6.5 GB, native 1024x1024 generation."),
         "tags": ["sdxl", "text2image", "safetensors", "6GB"],
         "files": [
             {"role": "diffusion", "url": "https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/resolve/main/sd_xl_base_1.0.safetensors", "filename": "sd_xl_base_1.0.safetensors", "shared": False},
@@ -63,7 +62,7 @@ SD_MODELS = [
         "id": "sd3-medium",
         "family": "sd3",
         "display": "Stable Diffusion 3 Medium",
-        "description": "SD3 Medium with bundled CLIPs and T5XXL. ~5 GB, single file.",
+        "description": _("SD3 Medium with bundled CLIPs and T5XXL. ~5 GB, single file."),
         "tags": ["sd3", "text2image", "safetensors", "5GB"],
         "files": [
             {"role": "diffusion", "url": "https://code.ixdev.cn/hf-mirrors/stable-diffusion-3-medium/-/raw/main/sd3_medium_incl_clips_t5xxlfp16.safetensors", "filename": "sd3_medium_incl_clips_t5xxlfp16.safetensors", "shared": False},
@@ -74,7 +73,7 @@ SD_MODELS = [
         "id": "sd3.5-large",
         "family": "sd3",
         "display": "Stable Diffusion 3.5 Large",
-        "description": "SD3.5 Large with separate CLIP-L, CLIP-G and T5XXL text encoders. ~13 GB total.",
+        "description": _("SD3.5 Large with separate CLIP-L, CLIP-G and T5XXL text encoders. ~13 GB total."),
         "tags": ["sd3", "text2image", "safetensors", "13GB"],
         "files": [
             {"role": "diffusion", "url": "https://code.ixdev.cn/hf-mirrors/stable-diffusion-3.5-large/-/raw/main/sd3.5_large.safetensors", "filename": "sd3.5_large.safetensors", "shared": False},
@@ -87,7 +86,7 @@ SD_MODELS = [
         "id": "flux1-dev-q8_0",
         "family": "flux",
         "display": "FLUX.1-dev Q8_0",
-        "description": "FLUX.1-dev 12B Q8_0 (high quality). ~12 GB diffusion, ~12 GB T5XXL. Best on 16+ GB VRAM.",
+        "description": _("FLUX.1-dev 12B Q8_0 (high quality). ~12 GB diffusion, ~12 GB T5XXL. Best on 16+ GB VRAM."),
         "tags": ["flux", "text2image", "gguf", "q8_0", "12GB"],
         "files": [
             {"role": "diffusion", "url": "https://huggingface.co/leejet/FLUX.1-dev-gguf/resolve/main/flux1-dev-q8_0.gguf", "filename": "flux1-dev-q8_0.gguf", "shared": False},
@@ -101,7 +100,7 @@ SD_MODELS = [
         "id": "flux1-dev-q4_0",
         "family": "flux",
         "display": "FLUX.1-dev Q4_0",
-        "description": "FLUX.1-dev 12B Q4_0 (smaller). ~6.5 GB diffusion. Fits on 8 GB VRAM with offload.",
+        "description": _("FLUX.1-dev 12B Q4_0 (smaller). ~6.5 GB diffusion. Fits on 8 GB VRAM with offload."),
         "tags": ["flux", "text2image", "gguf", "q4_0", "6GB"],
         "files": [
             {"role": "diffusion", "url": "https://huggingface.co/leejet/FLUX.1-dev-gguf/resolve/main/flux1-dev-q4_0.gguf", "filename": "flux1-dev-q4_0.gguf", "shared": False},
@@ -115,7 +114,7 @@ SD_MODELS = [
         "id": "flux1-schnell-q8_0",
         "family": "flux",
         "display": "FLUX.1-schnell Q8_0",
-        "description": "FLUX.1-schnell 12B Q8_0, distilled for 4-step generation. Apache 2.0 licensed.",
+        "description": _("FLUX.1-schnell 12B Q8_0, distilled for 4-step generation. Apache 2.0 licensed."),
         "tags": ["flux", "text2image", "gguf", "q8_0", "schnell", "12GB"],
         "files": [
             {"role": "diffusion", "url": "https://huggingface.co/leejet/FLUX.1-schnell-gguf/resolve/main/flux1-schnell-q8_0.gguf", "filename": "flux1-schnell-q8_0.gguf", "shared": False},
@@ -129,7 +128,7 @@ SD_MODELS = [
         "id": "flux2-dev-q4_k_s",
         "family": "flux2",
         "display": "FLUX.2-dev Q4_K_S",
-        "description": "FLUX.2-dev with Mistral-Small-3.2 24B LLM text encoder. ~19 GB diffusion, ~14 GB LLM.",
+        "description": _("FLUX.2-dev with Mistral-Small-3.2 24B LLM text encoder. ~19 GB diffusion, ~14 GB LLM."),
         "tags": ["flux2", "text2image", "gguf", "q4_k_s", "32GB"],
         "files": [
             {"role": "diffusion", "url": "https://huggingface.co/city96/FLUX.2-dev-gguf/resolve/main/flux2-dev-Q4_K_S.gguf", "filename": "flux2-dev-Q4_K_S.gguf", "shared": False},
@@ -142,7 +141,7 @@ SD_MODELS = [
         "id": "flux2-klein-4b",
         "family": "flux2",
         "display": "FLUX.2-klein-4B Q4_0",
-        "description": "FLUX.2-klein-4B with Qwen3-4B text encoder. ~2.5 GB diffusion, ~2.5 GB LLM. Fits on 8 GB VRAM.",
+        "description": _("FLUX.2-klein-4B with Qwen3-4B text encoder. ~2.5 GB diffusion, ~2.5 GB LLM. Fits on 8 GB VRAM."),
         "tags": ["flux2", "text2image", "gguf", "q4_0", "klein", "5GB"],
         "files": [
             {"role": "diffusion", "url": "https://huggingface.co/leejet/FLUX.2-klein-4B-GGUF/resolve/main/flux-2-klein-4b-Q4_0.gguf", "filename": "flux-2-klein-4b-Q4_0.gguf", "shared": False},
@@ -155,7 +154,7 @@ SD_MODELS = [
         "id": "flux2-klein-9b",
         "family": "flux2",
         "display": "FLUX.2-klein-9B Q4_0",
-        "description": "FLUX.2-klein-9B with Qwen3-8B text encoder. ~5.5 GB diffusion, ~5 GB LLM. Fits on 12 GB VRAM.",
+        "description": _("FLUX.2-klein-9B with Qwen3-8B text encoder. ~5.5 GB diffusion, ~5 GB LLM. Fits on 12 GB VRAM."),
         "tags": ["flux2", "text2image", "gguf", "q4_0", "klein", "10GB"],
         "files": [
             {"role": "diffusion", "url": "https://huggingface.co/leejet/FLUX.2-klein-9B-GGUF/resolve/main/flux-2-klein-9b-Q4_0.gguf", "filename": "flux-2-klein-9b-Q4_0.gguf", "shared": False},
@@ -168,7 +167,7 @@ SD_MODELS = [
         "id": "flux1-kontext-dev-q4_k_m",
         "family": "kontext",
         "display": "FLUX.1-Kontext-dev Q4_K_M",
-        "description": "FLUX.1-Kontext-dev image edit model. Requires a reference image. ~6.9 GB diffusion Q4_K_M.",
+        "description": _("FLUX.1-Kontext-dev image edit model. Requires a reference image. ~6.9 GB diffusion Q4_K_M."),
         "tags": ["flux", "kontext", "image-edit", "gguf", "q4_k_m", "12GB"],
         "files": [
             {"role": "diffusion", "url": "https://huggingface.co/QuantStack/FLUX.1-Kontext-dev-GGUF/resolve/main/flux1-kontext-dev-Q4_K_M.gguf", "filename": "flux1-kontext-dev-Q4_K_M.gguf", "shared": False},
@@ -182,7 +181,7 @@ SD_MODELS = [
         "id": "chroma-v40-q8_0",
         "family": "chroma",
         "display": "Chroma v40 Q8_0",
-        "description": "Chroma unlocked v40 8.9B Q8_0. ~8.9 GB diffusion, ~9.5 GB T5XXL. Apache 2.0.",
+        "description": _("Chroma unlocked v40 8.9B Q8_0. ~8.9 GB diffusion, ~9.5 GB T5XXL. Apache 2.0."),
         "tags": ["chroma", "text2image", "gguf", "q8_0", "18GB"],
         "files": [
             {"role": "diffusion", "url": "https://huggingface.co/silveroxides/Chroma-GGUF/resolve/main/chroma-unlocked-v40/chroma-unlocked-v40-Q8_0.gguf", "filename": "chroma-unlocked-v40-Q8_0.gguf", "shared": False},
@@ -195,7 +194,7 @@ SD_MODELS = [
         "id": "qwen-image-q4_k_m",
         "family": "qwen_image",
         "display": "Qwen Image Q4_K_M",
-        "description": "Qwen Image with Qwen2.5-VL-7B text encoder. ~13 GB diffusion, ~4.5 GB LLM. Strong text rendering.",
+        "description": _("Qwen Image with Qwen2.5-VL-7B text encoder. ~13 GB diffusion, ~4.5 GB LLM. Strong text rendering."),
         "tags": ["qwen", "text2image", "gguf", "q4_k_m", "18GB"],
         "files": [
             {"role": "diffusion", "url": "https://huggingface.co/QuantStack/Qwen-Image-GGUF/resolve/main/Qwen_Image-Q4_K_M.gguf", "filename": "Qwen_Image-Q4_K_M.gguf", "shared": False},
@@ -208,7 +207,7 @@ SD_MODELS = [
         "id": "qwen-image-edit-q8_0",
         "family": "qwen_image_edit",
         "display": "Qwen Image Edit Q8_0",
-        "description": "Qwen Image Edit. Takes a reference image plus an instruction prompt. Shares the Qwen Image VAE and LLM. Requires --diffusion-model and -r flags at runtime.",
+        "description": _("Qwen Image Edit. Takes a reference image plus an instruction prompt. Shares the Qwen Image VAE and LLM. Requires --diffusion-model and -r flags at runtime."),
         "tags": ["qwen", "image-edit", "gguf", "q8_0", "18GB"],
         "files": [
             {"role": "diffusion", "url": "https://huggingface.co/QuantStack/Qwen-Image-Edit-GGUF/resolve/main/Qwen_Image_Edit-Q8_0.gguf", "filename": "Qwen_Image_Edit-Q8_0.gguf", "shared": False},
@@ -221,7 +220,7 @@ SD_MODELS = [
         "id": "qwen-image-edit-2509-q4_k_s",
         "family": "qwen_image_edit",
         "display": "Qwen Image Edit 2509 Q4_K_S",
-        "description": "Qwen Image Edit 2509. Adds --llm_vision (vision projector) for stronger instruction following. Needs an additional ~1 GB mmproj file.",
+        "description": _("Qwen Image Edit 2509. Adds --llm_vision (vision projector) for stronger instruction following. Needs an additional ~1 GB mmproj file."),
         "tags": ["qwen", "image-edit", "gguf", "q4_k_s", "2509", "18GB"],
         "files": [
             {"role": "diffusion", "url": "https://huggingface.co/QuantStack/Qwen-Image-Edit-2509-GGUF/resolve/main/Qwen-Image-Edit-2509-Q4_K_S.gguf", "filename": "Qwen-Image-Edit-2509-Q4_K_S.gguf", "shared": False},
@@ -235,7 +234,7 @@ SD_MODELS = [
         "id": "qwen-image-edit-2511-q4_k_m",
         "family": "qwen_image_edit",
         "display": "Qwen Image Edit 2511 Q4_K_M",
-        "description": "Qwen Image Edit 2511. Uses a safetensors LLM and requires --qwen-image-zero-cond-t (set automatically).",
+        "description": _("Qwen Image Edit 2511. Uses a safetensors LLM and requires --qwen-image-zero-cond-t (set automatically)."),
         "tags": ["qwen", "image-edit", "gguf", "q4_k_m", "2511", "20GB"],
         "files": [
             {"role": "diffusion", "url": "https://huggingface.co/unsloth/Qwen-Image-Edit-2511-GGUF/resolve/main/qwen-image-edit-2511-Q4_K_M.gguf", "filename": "qwen-image-edit-2511-Q4_K_M.gguf", "shared": False},
@@ -248,7 +247,7 @@ SD_MODELS = [
         "id": "z-image-turbo-q4_k",
         "family": "z_image",
         "display": "Z-Image Turbo Q4_K",
-        "description": "Z-Image Turbo distilled 8-step model. ~3.9 GB diffusion, ~2.5 GB Qwen3-4B. Fits on 8 GB VRAM.",
+        "description": _("Z-Image Turbo distilled 8-step model. ~3.9 GB diffusion, ~2.5 GB Qwen3-4B. Fits on 8 GB VRAM."),
         "tags": ["z-image", "turbo", "text2image", "gguf", "q4_k", "6GB"],
         "files": [
             {"role": "diffusion", "url": "https://huggingface.co/leejet/Z-Image-Turbo-GGUF/resolve/main/z_image_turbo-Q4_K.gguf", "filename": "z_image_turbo-Q4_K.gguf", "shared": False},
@@ -261,7 +260,7 @@ SD_MODELS = [
         "id": "ltx-2.3-22b-dev-ud-q4_k_m",
         "family": "ltx2",
         "display": "LTX-2.3 22B dev Q4_K_M (video)",
-        "description": "LTX-2.3 video model with gemma-3-12b text encoder. ~10 GB diffusion, ~7 GB LLM, ~5 GB VAE.",
+        "description": _("LTX-2.3 video model with gemma-3-12b text encoder. ~10 GB diffusion, ~7 GB LLM, ~5 GB VAE."),
         "tags": ["ltx2", "video", "t2v", "i2v", "gguf", "q4_k_m", "25GB"],
         "files": [
             {"role": "diffusion", "url": "https://huggingface.co/unsloth/LTX-2.3-GGUF/resolve/main/ltx-2.3-22b-dev-UD-Q4_K_M.gguf", "filename": "ltx-2.3-22b-dev-UD-Q4_K_M.gguf", "shared": False},
@@ -276,7 +275,7 @@ SD_MODELS = [
         "id": "ovis-image-q4_0",
         "family": "ovis_image",
         "display": "Ovis-Image 7B Q4_0",
-        "description": "Ovis-Image 7B text-to-image with Ovis 2.5 text encoder. ~4.2 GB diffusion, ~5 GB LLM.",
+        "description": _("Ovis-Image 7B text-to-image with Ovis 2.5 text encoder. ~4.2 GB diffusion, ~5 GB LLM."),
         "tags": ["ovis", "text2image", "gguf", "q4_0", "9GB"],
         "files": [
             {"role": "diffusion", "url": "https://huggingface.co/leejet/Ovis-Image-7B-GGUF/resolve/main/ovis_image-Q4_0.gguf", "filename": "ovis_image-Q4_0.gguf", "shared": False},
@@ -289,7 +288,7 @@ SD_MODELS = [
         "id": "anima-preview-q4_k_m",
         "family": "anima",
         "display": "Anima preview Q4_K_M",
-        "description": "Anima preview 3B Q4_K_M. ~1.4 GB diffusion, ~0.5 GB Qwen3-0.6B. Very lightweight.",
+        "description": _("Anima preview 3B Q4_K_M. ~1.4 GB diffusion, ~0.5 GB Qwen3-0.6B. Very lightweight."),
         "tags": ["anima", "text2image", "gguf", "q4_k_m", "2GB"],
         "files": [
             {"role": "diffusion", "url": "https://huggingface.co/Bedovyy/Anima-GGUF/resolve/main/anima-preview-Q4_K_M.gguf", "filename": "anima-preview-Q4_K_M.gguf", "shared": False},
@@ -302,7 +301,7 @@ SD_MODELS = [
         "id": "qwen-image-2.1-q4_k",
         "family": "qwen_image_2.1",
         "display": "Qwen Image 2.1 Q4_K",
-        "description": "Qwen Image 2.1 with Qwen3-VL-8B. ~4.2 GB diffusion, ~5 GB LLM, dedicated 2.1 VAE (not interchangeable with Qwen Image 1.x).",
+        "description": _("Qwen Image 2.1 with Qwen3-VL-8B. ~4.2 GB diffusion, ~5 GB LLM, dedicated 2.1 VAE (not interchangeable with Qwen Image 1.x)."),
         "tags": ["qwen", "qwen-image-2.1", "text2image", "gguf", "q4_k", "10GB"],
         "files": [
             {"role": "diffusion", "url": "https://huggingface.co/leejet/Qwen-Image-2.1-GGUF/resolve/main/qwen_image_2.1-Q4_K.gguf", "filename": "qwen_image_2.1-Q4_K.gguf", "shared": False},
@@ -315,7 +314,7 @@ SD_MODELS = [
         "id": "qwen-image-2.1-edit-q4_k",
         "family": "qwen_image_2.1_edit",
         "display": "Qwen Image 2.1 Edit Q4_K",
-        "description": "Qwen Image 2.1 instruction editing. Same diffusion and VAE as 2.1 t2i, plus a Qwen3-VL-8B vision projector (--llm_vision).",
+        "description": _("Qwen Image 2.1 instruction editing. Same diffusion and VAE as 2.1 t2i, plus a Qwen3-VL-8B vision projector (--llm_vision)."),
         "tags": ["qwen", "qwen-image-2.1", "image-edit", "gguf", "q4_k", "11GB"],
         "files": [
             {"role": "diffusion", "url": "https://huggingface.co/leejet/Qwen-Image-2.1-GGUF/resolve/main/qwen_image_2.1-Q4_K.gguf", "filename": "qwen_image_2.1-Q4_K.gguf", "shared": False},
@@ -329,7 +328,7 @@ SD_MODELS = [
         "id": "z-image-q4_k_m",
         "family": "z_image",
         "display": "Z-Image Base Q4_K_M",
-        "description": "Full (non-turbo) Z-Image with Qwen3-4B. ~5.1 GB diffusion, ~2.5 GB LLM. Use CFG ~5; Turbo remains the faster 8-step option.",
+        "description": _("Full (non-turbo) Z-Image with Qwen3-4B. ~5.1 GB diffusion, ~2.5 GB LLM. Use CFG ~5; Turbo remains the faster 8-step option."),
         "tags": ["z-image", "text2image", "gguf", "q4_k_m", "8GB"],
         "files": [
             {"role": "diffusion", "url": "https://huggingface.co/unsloth/Z-Image-GGUF/resolve/main/z-image-Q4_K_M.gguf", "filename": "z-image-Q4_K_M.gguf", "shared": False},
@@ -342,7 +341,7 @@ SD_MODELS = [
         "id": "chroma1-radiance-v04-q8_0",
         "family": "chroma_radiance",
         "display": "Chroma1-Radiance v0.4 Q8_0",
-        "description": "Pixel-space Chroma1-Radiance v0.4. ~10.4 GB diffusion plus T5XXL. No separate VAE.",
+        "description": _("Pixel-space Chroma1-Radiance v0.4. ~10.4 GB diffusion plus T5XXL. No separate VAE."),
         "tags": ["chroma", "radiance", "text2image", "gguf", "q8_0", "20GB"],
         "files": [
             {"role": "diffusion", "url": "https://huggingface.co/silveroxides/Chroma1-Radiance-GGUF/resolve/main/Chroma1-Radiance-v0.4/Chroma1-Radiance-v0.4-Q8_0.gguf", "filename": "Chroma1-Radiance-v0.4-Q8_0.gguf", "shared": False},
@@ -354,7 +353,7 @@ SD_MODELS = [
         "id": "krea2-turbo-q4_k_m",
         "family": "krea2",
         "display": "Krea2 Turbo Q4_K_M",
-        "description": "Krea2 Turbo with Wan 2.1 VAE and Qwen3-VL-4B. ~7.2 GB diffusion, ~2.5 GB LLM.",
+        "description": _("Krea2 Turbo with Wan 2.1 VAE and Qwen3-VL-4B. ~7.2 GB diffusion, ~2.5 GB LLM."),
         "tags": ["krea2", "turbo", "text2image", "gguf", "q4_k_m", "10GB"],
         "files": [
             {"role": "diffusion", "url": "https://huggingface.co/realrebelai/KREA-2_GGUFs/resolve/main/TURBO/Krea-2-Turbo-Q4_K_M.gguf", "filename": "Krea-2-Turbo-Q4_K_M.gguf", "shared": False},
@@ -367,7 +366,7 @@ SD_MODELS = [
         "id": "ernie-image-turbo-q4_k_m",
         "family": "ernie_image",
         "display": "ERNIE-Image Turbo Q4_K_M",
-        "description": "ERNIE-Image Turbo with Flux.2 VAE and Ministral-3 3B. ~5 GB diffusion, ~2.2 GB LLM. Fits on 8 GB VRAM with offload.",
+        "description": _("ERNIE-Image Turbo with Flux.2 VAE and Ministral-3 3B. ~5 GB diffusion, ~2.2 GB LLM. Fits on 8 GB VRAM with offload."),
         "tags": ["ernie", "turbo", "text2image", "gguf", "q4_k_m", "8GB"],
         "files": [
             {"role": "diffusion", "url": "https://huggingface.co/unsloth/ERNIE-Image-Turbo-GGUF/resolve/main/ernie-image-turbo-Q4_K_M.gguf", "filename": "ernie-image-turbo-Q4_K_M.gguf", "shared": False},
@@ -380,7 +379,7 @@ SD_MODELS = [
         "id": "longcat-image-q4_k_m",
         "family": "longcat",
         "display": "LongCat Image Q4_K_M",
-        "description": "LongCat-Image with Flux VAE and Qwen2.5-VL-7B. ~3.7 GB diffusion. Put target text in quotes for character-level rendering.",
+        "description": _("LongCat-Image with Flux VAE and Qwen2.5-VL-7B. ~3.7 GB diffusion. Put target text in quotes for character-level rendering."),
         "tags": ["longcat", "text2image", "gguf", "q4_k_m", "12GB"],
         "files": [
             {"role": "diffusion", "url": "https://huggingface.co/vantagewithai/LongCat-Image-GGUF/resolve/main/comfy/LongCat-Image-Q4_K_M.gguf", "filename": "LongCat-Image-Q4_K_M.gguf", "shared": False},
@@ -393,7 +392,7 @@ SD_MODELS = [
         "id": "longcat-image-edit-q4_k_m",
         "family": "longcat_edit",
         "display": "LongCat Image Edit Q4_K_M",
-        "description": "LongCat-Image-Edit. Same VAE/LLM as LongCat t2i, plus a Qwen2.5-VL vision projector.",
+        "description": _("LongCat-Image-Edit. Same VAE/LLM as LongCat t2i, plus a Qwen2.5-VL vision projector."),
         "tags": ["longcat", "image-edit", "gguf", "q4_k_m", "13GB"],
         "files": [
             {"role": "diffusion", "url": "https://huggingface.co/vantagewithai/LongCat-Image-Edit-GGUF/resolve/main/LongCat-Image-Edit-Q4_K_M.gguf", "filename": "LongCat-Image-Edit-Q4_K_M.gguf", "shared": False},
@@ -407,7 +406,7 @@ SD_MODELS = [
         "id": "minit2i-b16",
         "family": "minit2i",
         "display": "MiniT2I B-16",
-        "description": "Tiny MiniT2I transformer with Flan-T5-Large. Standalone safetensors, native 512x512. Very lightweight.",
+        "description": _("Tiny MiniT2I transformer with Flan-T5-Large. Standalone safetensors, native 512x512. Very lightweight."),
         "tags": ["minit2i", "text2image", "safetensors", "1GB"],
         "load_mode": "diffusion_model",
         "files": [
@@ -420,7 +419,7 @@ SD_MODELS = [
         "id": "hidream-o1-image-dev-fp8",
         "family": "hidream",
         "display": "HiDream-O1-Image-Dev FP8",
-        "description": "Bundled HiDream-O1-Image-Dev FP8 checkpoint (~8 GB). Load with -m; no separate VAE or text encoder.",
+        "description": _("Bundled HiDream-O1-Image-Dev FP8 checkpoint (~8 GB). Load with -m; no separate VAE or text encoder."),
         "tags": ["hidream", "text2image", "safetensors", "fp8", "8GB"],
         "load_mode": "model",
         "files": [
@@ -432,7 +431,7 @@ SD_MODELS = [
         "id": "boogu-image-turbo-fp8",
         "family": "boogu",
         "display": "Boogu Image Turbo FP8",
-        "description": "Boogu Image Turbo FP8 with Flux VAE and Qwen3-VL-8B. Standalone diffusion safetensors (~10.3 GB).",
+        "description": _("Boogu Image Turbo FP8 with Flux VAE and Qwen3-VL-8B. Standalone diffusion safetensors (~10.3 GB)."),
         "tags": ["boogu", "turbo", "text2image", "safetensors", "fp8", "16GB"],
         "load_mode": "diffusion_model",
         "files": [
@@ -446,7 +445,7 @@ SD_MODELS = [
         "id": "boogu-image-edit-fp8",
         "family": "boogu_edit",
         "display": "Boogu Image Edit FP8",
-        "description": "Boogu Image Edit FP8. Requires a reference image and the Qwen3-VL-8B vision projector.",
+        "description": _("Boogu Image Edit FP8. Requires a reference image and the Qwen3-VL-8B vision projector."),
         "tags": ["boogu", "image-edit", "safetensors", "fp8", "17GB"],
         "load_mode": "diffusion_model",
         "files": [
@@ -461,7 +460,7 @@ SD_MODELS = [
         "id": "llada-image-turbo-q8_0",
         "family": "llada_image",
         "display": "LLaDA-Image-Turbo Q8_0",
-        "description": "LLaDA-Image-Turbo 4-step model. ~7 GB diffusion, ~9.7 GB text encoder, Flux.2-style VAE, connectors and an external tokenizer.json.",
+        "description": _("LLaDA-Image-Turbo 4-step model. ~7 GB diffusion, ~9.7 GB text encoder, Flux.2-style VAE, connectors and an external tokenizer.json."),
         "tags": ["llada", "turbo", "text2image", "gguf", "q8_0", "18GB"],
         "files": [
             {"role": "diffusion", "url": "https://huggingface.co/fszontagh/LLaDA-Image-Turbo-GGUF/resolve/main/llada-image-turbo-q8_0.gguf", "filename": "llada-image-turbo-q8_0.gguf", "shared": False},
@@ -476,7 +475,7 @@ SD_MODELS = [
         "id": "llada-image-turbo-edit-q8_0",
         "family": "llada_image_edit",
         "display": "LLaDA-Image-Turbo Edit Q8_0",
-        "description": "LLaDA-Image-Turbo editing. Same transformer/LLM/VAE as Turbo t2i, but uses the SigVQ edit connectors.",
+        "description": _("LLaDA-Image-Turbo editing. Same transformer/LLM/VAE as Turbo t2i, but uses the SigVQ edit connectors."),
         "tags": ["llada", "turbo", "image-edit", "gguf", "q8_0", "20GB"],
         "files": [
             {"role": "diffusion", "url": "https://huggingface.co/fszontagh/LLaDA-Image-Turbo-GGUF/resolve/main/llada-image-turbo-q8_0.gguf", "filename": "llada-image-turbo-q8_0.gguf", "shared": False},
@@ -2022,7 +2021,7 @@ class StableDiffusionCPPHandler(ImageGeneratorHandler):
             "generate_image",
             "Generate an image from a text prompt. Use detailed, descriptive prompts with English words separated by commas.",
             self._generate_image_tool,
-            title="Generate Image",
+            title=_("Generate Image"),
             restore_func=self._restore_image_tool,
             icon_name="insert-image-symbolic",
         )]
@@ -2044,11 +2043,11 @@ class StableDiffusionCPPHandler(ImageGeneratorHandler):
                     "'Enable Image Editing' toggle in stable-diffusion.cpp settings."
                 ),
                 _edit_image_tool,
-                title="Edit Image",
+                title=_("Edit Image"),
                 restore_func=_edit_image_restore,
                 icon_name="image-edit-symbolic",
                 default_on=True,
-                tools_group="Image Generation",
+                tools_group=_("Image Generation"),
                 schema={
                     "type": "object",
                     "properties": {
@@ -2330,7 +2329,7 @@ class StableDiffusionCPPHandler(ImageGeneratorHandler):
     # ── Installation dialog ────────────────────────────────────────────
 
     def show_install_dialog(self, button):
-        win = Adw.Window(title="Install stable-diffusion.cpp")
+        win = Adw.Window(title=_("Install stable-diffusion.cpp"))
         self._build_window = win
         win.set_default_size(700, 760)
         win.set_modal(True)
@@ -2359,8 +2358,8 @@ class StableDiffusionCPPHandler(ImageGeneratorHandler):
         # ── Page 0: Choose Method ──────────────────────────────────────
 
         page0 = Adw.StatusPage(
-            title="Choose Installation Method",
-            description="How would you like to install stable-diffusion.cpp?",
+            title=_("Choose Installation Method"),
+            description=_("How would you like to install stable-diffusion.cpp?"),
             icon_name="system-software-install-symbolic",
         )
         page0_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16, hexpand=True, vexpand=True)
@@ -2391,15 +2390,15 @@ class StableDiffusionCPPHandler(ImageGeneratorHandler):
         compile_icon.set_halign(Gtk.Align.CENTER)
         compile_inner.append(compile_icon)
 
-        compile_title = Gtk.Label(label="Compile from Source")
+        compile_title = Gtk.Label(label=_("Compile from Source"))
         compile_title.add_css_class("title-4")
         compile_title.set_halign(Gtk.Align.CENTER)
         compile_inner.append(compile_title)
 
         for text in [
-            "Optimized for your specific hardware",
-            "Full customization via CMake flags",
-            "Supports CUDA, Vulkan, ROCm",
+            _("Optimized for your specific hardware"),
+            _("Full customization via CMake flags"),
+            _("Supports CUDA, Vulkan, ROCm"),
         ]:
             lbl = Gtk.Label(label="  +  " + text)
             lbl.set_halign(Gtk.Align.START)
@@ -2408,8 +2407,8 @@ class StableDiffusionCPPHandler(ImageGeneratorHandler):
             compile_inner.append(lbl)
 
         for text in [
-            "Takes 5-20 minutes to build",
-            "Requires build tools (cmake, gcc)",
+            _("Takes 5-20 minutes to build"),
+            _("Requires build tools (cmake, gcc)"),
         ]:
             lbl = Gtk.Label(label="  -  " + text)
             lbl.set_halign(Gtk.Align.START)
@@ -2417,7 +2416,7 @@ class StableDiffusionCPPHandler(ImageGeneratorHandler):
             lbl.add_css_class("dim-label")
             compile_inner.append(lbl)
 
-        btn_compile = Gtk.Button(label="Compile")
+        btn_compile = Gtk.Button(label=_("Compile"))
         btn_compile.add_css_class("suggested-action")
         btn_compile.set_halign(Gtk.Align.CENTER)
         btn_compile.set_margin_top(8)
@@ -2445,15 +2444,15 @@ class StableDiffusionCPPHandler(ImageGeneratorHandler):
         download_icon.set_halign(Gtk.Align.CENTER)
         download_inner.append(download_icon)
 
-        download_title = Gtk.Label(label="Download Pre-built")
+        download_title = Gtk.Label(label=_("Download Pre-built"))
         download_title.add_css_class("title-4")
         download_title.set_halign(Gtk.Align.CENTER)
         download_inner.append(download_title)
 
         for text in [
-            "Ready in under a minute",
-            "No build tools required",
-            "Pre-tested official binaries",
+            _("Ready in under a minute"),
+            _("No build tools required"),
+            _("Pre-tested official binaries"),
         ]:
             lbl = Gtk.Label(label="  +  " + text)
             lbl.set_halign(Gtk.Align.START)
@@ -2462,9 +2461,9 @@ class StableDiffusionCPPHandler(ImageGeneratorHandler):
             download_inner.append(lbl)
 
         for text in [
-            "Generic CPU optimizations",
-            "Limited to available releases",
-            "No CUDA prebuilt for Linux",
+            _("Generic CPU optimizations"),
+            _("Limited to available releases"),
+            _("No CUDA prebuilt for Linux"),
         ]:
             lbl = Gtk.Label(label="  -  " + text)
             lbl.set_halign(Gtk.Align.START)
@@ -2472,7 +2471,7 @@ class StableDiffusionCPPHandler(ImageGeneratorHandler):
             lbl.add_css_class("dim-label")
             download_inner.append(lbl)
 
-        btn_download = Gtk.Button(label="Download")
+        btn_download = Gtk.Button(label=_("Download"))
         btn_download.add_css_class("suggested-action")
         btn_download.set_halign(Gtk.Align.CENTER)
         btn_download.set_margin_top(8)
@@ -2482,7 +2481,7 @@ class StableDiffusionCPPHandler(ImageGeneratorHandler):
 
         page0_box.append(cards_box)
 
-        btn_cancel0 = Gtk.Button(label="Cancel")
+        btn_cancel0 = Gtk.Button(label=_("Cancel"))
         btn_cancel0.add_css_class("destructive-action")
         btn_cancel0.set_halign(Gtk.Align.CENTER)
         btn_cancel0.connect("clicked", lambda x: win.close())
@@ -2494,8 +2493,8 @@ class StableDiffusionCPPHandler(ImageGeneratorHandler):
         # ── Page 1: Hardware Selection (Compile path) ──────────────────
 
         page1 = Adw.StatusPage(
-            title="Select Hardware",
-            description="Choose your acceleration backend",
+            title=_("Select Hardware"),
+            description=_("Choose your acceleration backend"),
             icon_name="brain-augemnted-symbolic",
         )
         main_container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, hexpand=True, vexpand=True)
@@ -2506,15 +2505,15 @@ class StableDiffusionCPPHandler(ImageGeneratorHandler):
             warning_box.set_margin_bottom(16)
             warning_box.add_css_class("warning")
 
-            warning_label = Gtk.Label(label="Flatpak Sandbox Warning")
+            warning_label = Gtk.Label(label=_("Flatpak Sandbox Warning"))
             warning_label.add_css_class("heading")
             warning_label.set_halign(Gtk.Align.CENTER)
             warning_box.append(warning_label)
 
             warning_text = Gtk.Label(
-                label="To build stable-diffusion.cpp with hardware acceleration in Flatpak,\n"
+                label=_("To build stable-diffusion.cpp with hardware acceleration in Flatpak,\n"
                       "you need to grant sandbox escape permissions.\n"
-                      "Run the following command in a terminal:"
+                      "Run the following command in a terminal:")
             )
             warning_text.set_halign(Gtk.Align.CENTER)
             warning_text.set_wrap(True)
@@ -2531,7 +2530,7 @@ class StableDiffusionCPPHandler(ImageGeneratorHandler):
             command_box.append(command_entry)
             warning_box.append(command_box)
 
-            copy_btn = Gtk.Button(label="Copy Command")
+            copy_btn = Gtk.Button(label=_("Copy Command"))
             copy_btn.set_halign(Gtk.Align.CENTER)
             copy_btn.connect(
                 "clicked",
@@ -2572,7 +2571,7 @@ class StableDiffusionCPPHandler(ImageGeneratorHandler):
         dependency_warning.refresh("cpu")
 
         right_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, valign=Gtk.Align.CENTER)
-        lbl_flags = Gtk.Label(label="Custom CMake Flags (Optional)")
+        lbl_flags = Gtk.Label(label=_("Custom CMake Flags (Optional)"))
         lbl_flags.set_halign(Gtk.Align.START)
         right_box.append(lbl_flags)
 
@@ -2588,15 +2587,15 @@ class StableDiffusionCPPHandler(ImageGeneratorHandler):
         button_box.set_halign(Gtk.Align.CENTER)
         button_box.set_margin_top(12)
 
-        btn_cancel1 = Gtk.Button(label="Cancel")
+        btn_cancel1 = Gtk.Button(label=_("Cancel"))
         btn_cancel1.add_css_class("destructive-action")
         btn_cancel1.connect("clicked", lambda x: win.close())
         button_box.append(btn_cancel1)
 
-        btn_next1 = Gtk.Button(label="Next")
+        btn_next1 = Gtk.Button(label=_("Next"))
         if not can_escape_sandbox():
             btn_next1.set_sensitive(False)
-            btn_next1.set_tooltip_text("Please run the Flatpak override command first")
+            btn_next1.set_tooltip_text(_("Please run the Flatpak override command first"))
         else:
             btn_next1.connect("clicked", lambda x: content.scroll_to(content.get_nth_page(3), True))
         button_box.append(btn_next1)
@@ -2609,8 +2608,8 @@ class StableDiffusionCPPHandler(ImageGeneratorHandler):
         # ── Page 2: Pre-built Binary Selection ─────────────────────────
 
         page2 = Adw.StatusPage(
-            title="Select Pre-built Binary",
-            description="Choose the binary that matches your hardware",
+            title=_("Select Pre-built Binary"),
+            description=_("Choose the binary that matches your hardware"),
             icon_name="folder-download-symbolic",
         )
         self.prebuilt_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, hexpand=True, vexpand=True)
@@ -2638,11 +2637,11 @@ class StableDiffusionCPPHandler(ImageGeneratorHandler):
         prebuilt_buttons.set_halign(Gtk.Align.CENTER)
         prebuilt_buttons.set_margin_top(12)
 
-        btn_back_prebuilt = Gtk.Button(label="Back")
+        btn_back_prebuilt = Gtk.Button(label=_("Back"))
         btn_back_prebuilt.connect("clicked", lambda x: content.scroll_to(content.get_nth_page(0), True))
         prebuilt_buttons.append(btn_back_prebuilt)
 
-        self.btn_start_prebuilt = Gtk.Button(label="Download & Install")
+        self.btn_start_prebuilt = Gtk.Button(label=_("Download & Install"))
         self.btn_start_prebuilt.add_css_class("suggested-action")
         self.btn_start_prebuilt.set_sensitive(False)
         self.btn_start_prebuilt.connect("clicked", lambda x: self._start_prebuilt_install(content))
@@ -2655,19 +2654,19 @@ class StableDiffusionCPPHandler(ImageGeneratorHandler):
         # ── Page 3: Ready to Build ─────────────────────────────────────
 
         page3 = Adw.StatusPage(
-            title="Ready to Build",
-            description="Click start to begin compilation",
+            title=_("Ready to Build"),
+            description=_("Click start to begin compilation"),
             icon_name="tools-symbolic",
         )
         box3 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, hexpand=True, vexpand=True)
         box3.set_halign(Gtk.Align.CENTER)
 
-        btn_start = Gtk.Button(label="Start Build")
+        btn_start = Gtk.Button(label=_("Start Build"))
         btn_start.set_halign(Gtk.Align.CENTER)
         btn_start.connect("clicked", lambda x: self._start_build(content))
         box3.append(btn_start)
 
-        btn_back3 = Gtk.Button(label="Back")
+        btn_back3 = Gtk.Button(label=_("Back"))
         btn_back3.set_halign(Gtk.Align.CENTER)
         btn_back3.connect("clicked", lambda x: content.scroll_to(content.get_nth_page(1), True))
         box3.append(btn_back3)
@@ -2690,12 +2689,12 @@ class StableDiffusionCPPHandler(ImageGeneratorHandler):
         icon4.set_halign(Gtk.Align.CENTER)
         page4.append(icon4)
 
-        title4 = Gtk.Label(label="Installing")
+        title4 = Gtk.Label(label=_("Installing"))
         title4.add_css_class("title-1")
         title4.set_halign(Gtk.Align.CENTER)
         page4.append(title4)
 
-        desc4 = Gtk.Label(label="Please wait...")
+        desc4 = Gtk.Label(label=_("Please wait..."))
         desc4.set_halign(Gtk.Align.CENTER)
         page4.append(desc4)
 
@@ -2711,7 +2710,7 @@ class StableDiffusionCPPHandler(ImageGeneratorHandler):
         scroll.set_hexpand(True)
         page4.append(scroll)
 
-        self.stop_build_button = Gtk.Button(label="Stop Build")
+        self.stop_build_button = Gtk.Button(label=_("Stop Build"))
         self.stop_build_button.add_css_class("destructive-action")
         self.stop_build_button.set_halign(Gtk.Align.CENTER)
         self.stop_build_button.connect("clicked", self.stop_build)
@@ -2721,11 +2720,11 @@ class StableDiffusionCPPHandler(ImageGeneratorHandler):
         # ── Page 5: Done ───────────────────────────────────────────────
 
         page5 = Adw.StatusPage(
-            title="Completed",
-            description="Installation finished successfully",
+            title=_("Completed"),
+            description=_("Installation finished successfully"),
             icon_name="emblem-default-symbolic",
         )
-        btn_close = Gtk.Button(label="Close")
+        btn_close = Gtk.Button(label=_("Close"))
         btn_close.set_halign(Gtk.Align.CENTER)
         btn_close.connect("clicked", lambda x: self._finish_install(win))
         page5.set_child(btn_close)
@@ -2770,9 +2769,9 @@ class StableDiffusionCPPHandler(ImageGeneratorHandler):
     @staticmethod
     def _backend_display_name(backend):
         return {
-            "cpu": "CPU (Basic)",
-            "vulkan": "Any GPU (Vulkan)",
-            "rocm": "AMD ROCm",
+            "cpu": _("CPU (Basic)"),
+            "vulkan": _("Any GPU (Vulkan)"),
+            "rocm": _("AMD ROCm"),
         }.get(backend, backend)
 
     def _fetch_prebuilt_releases(self, carousel):
@@ -2815,13 +2814,13 @@ class StableDiffusionCPPHandler(ImageGeneratorHandler):
                 })
 
         except Exception as e:
-            GLib.idle_add(self._show_prebuilt_error, f"Failed to fetch releases: {e}")
+            GLib.idle_add(self._show_prebuilt_error, _("Failed to fetch releases: {}").format(e))
             return
 
         if not available:
             GLib.idle_add(
                 self._show_prebuilt_error,
-                f"No compatible pre-built binaries found for your architecture ({arch}).",
+                _("No compatible pre-built binaries found for your architecture ({}).").format(arch),
             )
             return
 
@@ -2868,7 +2867,7 @@ class StableDiffusionCPPHandler(ImageGeneratorHandler):
             row.set_title(self._backend_display_name(item["backend"]))
 
             if item["compatible"] and item["backend"] != "cpu":
-                rec = Gtk.Label(label="Recommended")
+                rec = Gtk.Label(label=_("Recommended"))
                 rec.add_css_class("success")
                 rec.add_css_class("caption")
                 rec.set_valign(Gtk.Align.CENTER)
@@ -3015,7 +3014,7 @@ class StableDiffusionCPPHandler(ImageGeneratorHandler):
                         shutil.move(src, dst)
 
             if not sd_binary_found:
-                raise Exception("sd-cli binary not found in the archive")
+                raise Exception(_("sd-cli binary not found in the archive"))
 
             shutil.rmtree(tmp_dir, ignore_errors=True)
 
@@ -3071,7 +3070,7 @@ class StableDiffusionCPPHandler(ImageGeneratorHandler):
 
     def _run_build(self, backend, carousel, custom_flags=""):
         if not can_escape_sandbox():
-            self.throw("You have to escape the sandbox to build stable-diffusion.cpp", ErrorSeverity.ERROR)
+            self.throw(_("You have to escape the sandbox to build stable-diffusion.cpp"), ErrorSeverity.ERROR)
             return
 
         try:

@@ -4,13 +4,11 @@ from .message_chunk import get_message_chunks
 import fnmatch
 import mimetypes
 import re
-import gettext
 import hashlib
 import tempfile
 from pathlib import Path
 from urllib.parse import urlparse
 
-_ = gettext.gettext
 
 
 def file_matches_patterns(path: str, patterns: list[str]) -> bool:

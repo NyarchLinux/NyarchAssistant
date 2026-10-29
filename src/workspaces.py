@@ -1,7 +1,6 @@
 """Workspace persistence and execution boundaries shared by GUI and headless clients."""
 import functools
 import base64
-import gettext
 import inspect
 import json
 import os
@@ -12,7 +11,6 @@ from contextlib import contextmanager
 
 from .modes import DEFAULT_MODE_NAME
 
-_ = gettext.gettext
 DEFAULT_WORKSPACE = "default"
 
 
@@ -168,7 +166,7 @@ class WorkspaceController:
             self.switch_workspace(workspace_id)
         elif action == "delete":
             if workspace_id == DEFAULT_WORKSPACE:
-                raise ValueError("The Default workspace cannot be deleted")
+                raise ValueError(_("The Default workspace cannot be deleted"))
             if workspace_id == self.active_workspace_id:
                 self.switch_workspace(DEFAULT_WORKSPACE)
             self.delete_workspace(workspace_id)
@@ -178,7 +176,7 @@ class WorkspaceController:
                 raise KeyError("Chat not found in active workspace")
             self.move_chat_to_workspace(chat_id, workspace_id)
         else:
-            raise ValueError("Unknown workspace action")
+            raise ValueError(_("Unknown workspace action"))
         return workspace_id
 
     def change_workspace_directory(self, path):

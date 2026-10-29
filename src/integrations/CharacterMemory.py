@@ -7,7 +7,6 @@ in a separate environment; no Newelle source patch is needed.
 import atexit
 import contextvars
 import functools
-import gettext
 import hashlib
 import hmac
 import json
@@ -34,7 +33,6 @@ from ..utility.message_chunk import get_message_chunks
 from ..utility.strings import clean_prompt, remove_thinking_blocks
 from ..utility.system import get_spawn_command
 
-_ = gettext.gettext
 _TURN = contextvars.ContextVar("character_memory_turn", default=None)
 _TOOL_RUN = contextvars.ContextVar("character_memory_tool_run", default=None)
 _MARKER = "_character_memory_turn"
@@ -1076,7 +1074,7 @@ class CharacterMemoryExtension(NewelleExtension):
             if any((s == url if isinstance(s, str) else s.get("url") == url) for s in integration.mcp_servers):
                 raise RuntimeError(_("This MCP server is already registered separately. Manage it in Newelle’s MCP settings."))
             prepared = integration.prepare_mcp_server(url=url,
-                title="CharacterMemory: " + config["character"], custom_headers={"X-API-Key": config["api_key"]})
+                title=_("CharacterMemory: ") + config["character"], custom_headers={"X-API-Key": config["api_key"]})
             if prepared is None:
                 raise RuntimeError(_("Could not discover the CharacterMemory MCP tools."))
             return integration, {"url": url, "signature": _digest(prepared[0])}, prepared

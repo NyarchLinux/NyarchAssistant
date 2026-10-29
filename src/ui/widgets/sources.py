@@ -1,4 +1,3 @@
-import gettext
 
 from gi.repository import Gtk, Pango, GdkPixbuf
 
@@ -6,7 +5,6 @@ from ...ui import load_image_with_callback
 from ...utility.source_attribution import CitationSource
 from ...utility.website_scraper import resolve_favicon_url
 
-_ = gettext.gettext
 
 _favicon_cache = {}
 _favicon_waiters = {}

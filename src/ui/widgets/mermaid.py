@@ -112,7 +112,7 @@ class MermaidWidget(Gtk.Box):
         header.append(icon)
 
         title = Gtk.Label(
-            label="Mermaid Diagram",
+            label=_("Mermaid Diagram"),
             halign=Gtk.Align.START,
             hexpand=True,
         )
@@ -122,7 +122,7 @@ class MermaidWidget(Gtk.Box):
 
         self.copy_button = Gtk.Button(css_classes=["flat"], valign=Gtk.Align.CENTER)
         self.copy_button.set_icon_name("edit-copy-symbolic")
-        self.copy_button.set_tooltip_text("Copy diagram code")
+        self.copy_button.set_tooltip_text(_("Copy diagram code"))
         self.copy_button.connect("clicked", self._on_copy_clicked)
         header.append(self.copy_button)
 

@@ -12,7 +12,6 @@ from ...utility.download_manager import (
 )
 from ...utility.huggingface_download import download_huggingface_file
 from ...ui.model_library import ModelLibraryWindow, LibraryModel, get_local_backend_label
-from gettext import gettext as _
 import os
 import platform
 import threading
@@ -180,7 +179,7 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
 
         #settings.extend(
         #    [
-        #        ExtraSettings.ButtonSetting("library", "Model Library", "Open the model library", self.open_model_library, label="Model Library")
+        #        ExtraSettings.ButtonSetting("library", _("Model Library"), _("Open the model library"), self.open_model_library, label=_("Model Library"))
         #    ]
         #)
         if not self.is_gpu_installed():
@@ -270,7 +269,9 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
             cmd,
             on_crash=lambda: GLib.idle_add(
                 self.throw,
-                "llama-server crashed unexpectedly. Check terminal output for details.",
+                _(
+                    "llama-server crashed unexpectedly. Check terminal output for details."
+                ),
                 ErrorSeverity.ERROR,
             ),
             **start_kwargs,
@@ -396,7 +397,7 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
                 url = "https://huggingface.co/" + url
             info = self.get_model_info_by_title(url)
             if not info:
-                self.library_data = [{"title": url, "description": "User added model", "tags": ["custom"], "links": [url], "capabilities": ""}] + self.library_data
+                self.library_data = [{"title": url, "description": _("User added model"), "tags": ["custom"], "links": [url], "capabilities": ""}] + self.library_data
             self.install_model(url, url)
         else:
             self.install_model(url)
@@ -450,7 +451,7 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
         win.present()
 
     def show_install_dialog(self, button):
-        win = Adw.Window(title="Install llama.cpp")
+        win = Adw.Window(title=_("Install llama.cpp"))
         self._build_window = win
         win.set_default_size(700, 760)
         win.set_modal(True)
@@ -478,8 +479,8 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
 
         # Page 0: Choose Method
         page0 = Adw.StatusPage(
-            title="Choose Installation Method",
-            description="How would you like to install llama.cpp?",
+            title=_("Choose Installation Method"),
+            description=_("How would you like to install llama.cpp?"),
             icon_name="system-software-install-symbolic",
         )
         page0_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16, hexpand=True, vexpand=True)
@@ -509,15 +510,15 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
         compile_icon.set_halign(Gtk.Align.CENTER)
         compile_inner.append(compile_icon)
 
-        compile_title = Gtk.Label(label="Compile from Source")
+        compile_title = Gtk.Label(label=_("Compile from Source"))
         compile_title.add_css_class("title-4")
         compile_title.set_halign(Gtk.Align.CENTER)
         compile_inner.append(compile_title)
 
         for text in [
-            "Optimized for your specific CPU",
-            "Full customization via CMake flags",
-            "Supports all backends",
+            _("Optimized for your specific CPU"),
+            _("Full customization via CMake flags"),
+            _("Supports all backends"),
         ]:
             lbl = Gtk.Label(label="  +  " + text)
             lbl.set_halign(Gtk.Align.START)
@@ -526,8 +527,8 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
             compile_inner.append(lbl)
 
         for text in [
-            "Takes 5-20 minutes to build",
-            "Requires build tools (cmake, gcc)",
+            _("Takes 5-20 minutes to build"),
+            _("Requires build tools (cmake, gcc)"),
         ]:
             lbl = Gtk.Label(label="  -  " + text)
             lbl.set_halign(Gtk.Align.START)
@@ -535,7 +536,7 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
             lbl.add_css_class("dim-label")
             compile_inner.append(lbl)
 
-        btn_compile = Gtk.Button(label="Compile")
+        btn_compile = Gtk.Button(label=_("Compile"))
         btn_compile.add_css_class("suggested-action")
         btn_compile.set_halign(Gtk.Align.CENTER)
         btn_compile.set_margin_top(8)
@@ -562,15 +563,15 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
         download_icon.set_halign(Gtk.Align.CENTER)
         download_inner.append(download_icon)
 
-        download_title = Gtk.Label(label="Download Pre-built")
+        download_title = Gtk.Label(label=_("Download Pre-built"))
         download_title.add_css_class("title-4")
         download_title.set_halign(Gtk.Align.CENTER)
         download_inner.append(download_title)
 
         for text in [
-            "Ready in under a minute",
-            "No build tools required",
-            "Pre-tested official binaries",
+            _("Ready in under a minute"),
+            _("No build tools required"),
+            _("Pre-tested official binaries"),
         ]:
             lbl = Gtk.Label(label="  +  " + text)
             lbl.set_halign(Gtk.Align.START)
@@ -579,8 +580,8 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
             download_inner.append(lbl)
 
         for text in [
-            "Generic CPU optimizations",
-            "Limited to available releases",
+            _("Generic CPU optimizations"),
+            _("Limited to available releases"),
         ]:
             lbl = Gtk.Label(label="  -  " + text)
             lbl.set_halign(Gtk.Align.START)
@@ -588,7 +589,7 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
             lbl.add_css_class("dim-label")
             download_inner.append(lbl)
 
-        btn_download = Gtk.Button(label="Download")
+        btn_download = Gtk.Button(label=_("Download"))
         btn_download.add_css_class("suggested-action")
         btn_download.set_halign(Gtk.Align.CENTER)
         btn_download.set_margin_top(8)
@@ -598,7 +599,7 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
 
         page0_box.append(cards_box)
 
-        btn_cancel0 = Gtk.Button(label="Cancel")
+        btn_cancel0 = Gtk.Button(label=_("Cancel"))
         btn_cancel0.add_css_class("destructive-action")
         btn_cancel0.set_halign(Gtk.Align.CENTER)
         btn_cancel0.connect("clicked", lambda x: win.close())
@@ -608,7 +609,7 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
         content.append(page0)
 
         # Page 1: Hardware Selection (Compile path)
-        page1 = Adw.StatusPage(title="Select Hardware", description="Choose your acceleration backend", icon_name="brain-augemnted-symbolic")
+        page1 = Adw.StatusPage(title=_("Select Hardware"), description=_("Choose your acceleration backend"), icon_name="brain-augemnted-symbolic")
         main_container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, hexpand=True, vexpand=True)
         main_container.set_halign(Gtk.Align.CENTER)
 
@@ -617,12 +618,12 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
             warning_box.set_margin_bottom(16)
             warning_box.add_css_class("warning")
 
-            warning_label = Gtk.Label(label="Flatpak Sandbox Warning")
+            warning_label = Gtk.Label(label=_("Flatpak Sandbox Warning"))
             warning_label.add_css_class("heading")
             warning_label.set_halign(Gtk.Align.CENTER)
             warning_box.append(warning_label)
 
-            warning_text = Gtk.Label(label="To build llama.cpp with hardware acceleration in Flatpak,\nyou need to grant sandbox escape permissions.\nRun the following command in a terminal:")
+            warning_text = Gtk.Label(label=_("To build llama.cpp with hardware acceleration in Flatpak,\nyou need to grant sandbox escape permissions.\nRun the following command in a terminal:"))
             warning_text.set_halign(Gtk.Align.CENTER)
             warning_text.set_wrap(True)
             warning_box.append(warning_text)
@@ -636,7 +637,7 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
             command_box.append(command_entry)
             warning_box.append(command_box)
 
-            copy_btn = Gtk.Button(label="Copy Command")
+            copy_btn = Gtk.Button(label=_("Copy Command"))
             copy_btn.set_halign(Gtk.Align.CENTER)
             copy_btn.connect("clicked", lambda btn: self.copy_to_clipboard("flatpak --user override --talk-name=org.freedesktop.Flatpak --filesystem=home moe.nyarchlinux.assistant"))
             warning_box.append(copy_btn)
@@ -675,7 +676,7 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
         dependency_warning.refresh("cpu")
 
         right_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, valign=Gtk.Align.CENTER)
-        lbl_flags = Gtk.Label(label="Custom CMake Flags (Optional)")
+        lbl_flags = Gtk.Label(label=_("Custom CMake Flags (Optional)"))
         lbl_flags.set_halign(Gtk.Align.START)
         right_box.append(lbl_flags)
 
@@ -691,15 +692,15 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
         button_box.set_halign(Gtk.Align.CENTER)
         button_box.set_margin_top(12)
 
-        btn_cancel1 = Gtk.Button(label="Cancel")
+        btn_cancel1 = Gtk.Button(label=_("Cancel"))
         btn_cancel1.add_css_class("destructive-action")
         btn_cancel1.connect("clicked", lambda x: win.close())
         button_box.append(btn_cancel1)
 
-        btn_next1 = Gtk.Button(label="Next")
+        btn_next1 = Gtk.Button(label=_("Next"))
         if not can_escape_sandbox():
             btn_next1.set_sensitive(False)
-            btn_next1.set_tooltip_text("Please run the Flatpak override command first")
+            btn_next1.set_tooltip_text(_("Please run the Flatpak override command first"))
         else:
             btn_next1.connect("clicked", lambda x: content.scroll_to(content.get_nth_page(3), True))
         button_box.append(btn_next1)
@@ -711,8 +712,8 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
 
         # Page 2: Pre-built Binary Selection (Download path)
         page2 = Adw.StatusPage(
-            title="Select Pre-built Binary",
-            description="Choose the binary that matches your hardware",
+            title=_("Select Pre-built Binary"),
+            description=_("Choose the binary that matches your hardware"),
             icon_name="folder-download-symbolic",
         )
         self.prebuilt_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, hexpand=True, vexpand=True)
@@ -740,11 +741,11 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
         prebuilt_buttons.set_halign(Gtk.Align.CENTER)
         prebuilt_buttons.set_margin_top(12)
 
-        btn_back_prebuilt = Gtk.Button(label="Back")
+        btn_back_prebuilt = Gtk.Button(label=_("Back"))
         btn_back_prebuilt.connect("clicked", lambda x: content.scroll_to(content.get_nth_page(0), True))
         prebuilt_buttons.append(btn_back_prebuilt)
 
-        self.btn_start_prebuilt = Gtk.Button(label="Download & Install")
+        self.btn_start_prebuilt = Gtk.Button(label=_("Download & Install"))
         self.btn_start_prebuilt.add_css_class("suggested-action")
         self.btn_start_prebuilt.set_sensitive(False)
         self.btn_start_prebuilt.connect("clicked", lambda x: self._start_prebuilt_install(content))
@@ -755,16 +756,16 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
         content.append(page2)
 
         # Page 3: Ready to Build (Compile confirm)
-        page3 = Adw.StatusPage(title="Ready to Build", description="Click start to begin compilation", icon_name="tools-symbolic")
+        page3 = Adw.StatusPage(title=_("Ready to Build"), description=_("Click start to begin compilation"), icon_name="tools-symbolic")
         box3 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, hexpand=True, vexpand=True)
         box3.set_halign(Gtk.Align.CENTER)
 
-        btn_start = Gtk.Button(label="Start Build")
+        btn_start = Gtk.Button(label=_("Start Build"))
         btn_start.set_halign(Gtk.Align.CENTER)
         btn_start.connect("clicked", lambda x: self.start_installation(content))
         box3.append(btn_start)
 
-        btn_back3 = Gtk.Button(label="Back")
+        btn_back3 = Gtk.Button(label=_("Back"))
         btn_back3.set_halign(Gtk.Align.CENTER)
         btn_back3.connect("clicked", lambda x: content.scroll_to(content.get_nth_page(1), True))
         box3.append(btn_back3)
@@ -786,12 +787,12 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
         icon4.set_halign(Gtk.Align.CENTER)
         page4.append(icon4)
 
-        title4 = Gtk.Label(label="Installing")
+        title4 = Gtk.Label(label=_("Installing"))
         title4.add_css_class("title-1")
         title4.set_halign(Gtk.Align.CENTER)
         page4.append(title4)
 
-        desc4 = Gtk.Label(label="Please wait...")
+        desc4 = Gtk.Label(label=_("Please wait..."))
         desc4.set_halign(Gtk.Align.CENTER)
         page4.append(desc4)
 
@@ -807,7 +808,7 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
         scroll.set_hexpand(True)
         page4.append(scroll)
 
-        self.stop_build_button = Gtk.Button(label="Stop Build")
+        self.stop_build_button = Gtk.Button(label=_("Stop Build"))
         self.stop_build_button.add_css_class("destructive-action")
         self.stop_build_button.set_halign(Gtk.Align.CENTER)
         self.stop_build_button.connect("clicked", self.stop_build)
@@ -815,8 +816,8 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
         content.append(page4)
 
         # Page 5: Done
-        page5 = Adw.StatusPage(title="Completed", description="Installation finished successfully", icon_name="emblem-default-symbolic")
-        btn_close = Gtk.Button(label="Close")
+        page5 = Adw.StatusPage(title=_("Completed"), description=_("Installation finished successfully"), icon_name="emblem-default-symbolic")
+        btn_close = Gtk.Button(label=_("Close"))
         btn_close.set_halign(Gtk.Align.CENTER)
         btn_close.connect("clicked", lambda x: self.finish_install(win))
         page5.set_child(btn_close)
@@ -877,13 +878,13 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
     @staticmethod
     def _backend_display_name(backend, cuda_version=None):
         name = {
-            "cpu": "CPU (Basic)",
-            "cuda": "Nvidia CUDA",
-            "rocm": "AMD ROCm",
-            "vulkan": "Any GPU (Vulkan)",
-            "openvino": "Intel OpenVINO",
-            "sycl-fp32": "Intel SYCL (FP32)",
-            "sycl-fp16": "Intel SYCL (FP16)",
+            "cpu": _("CPU (Basic)"),
+            "cuda": _("Nvidia CUDA"),
+            "rocm": _("AMD ROCm"),
+            "vulkan": _("Any GPU (Vulkan)"),
+            "openvino": _("Intel OpenVINO"),
+            "sycl-fp32": _("Intel SYCL (FP32)"),
+            "sycl-fp16": _("Intel SYCL (FP16)"),
         }.get(backend, backend)
         if backend == "cuda" and cuda_version is not None:
             name += f" {cuda_version:.1f}"
@@ -993,11 +994,11 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
             )
 
         except Exception as e:
-            GLib.idle_add(self._show_prebuilt_error, f"Failed to fetch releases: {e}")
+            GLib.idle_add(self._show_prebuilt_error, _("Failed to fetch releases: {}").format(e))
             return
 
         if not available:
-            GLib.idle_add(self._show_prebuilt_error, f"No compatible pre-built binaries found for your architecture ({arch}).")
+            GLib.idle_add(self._show_prebuilt_error, _("No compatible pre-built binaries found for your architecture ({}).").format(arch))
             return
 
         backend_checks = {}
@@ -1064,9 +1065,9 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
 
             if item["compatible"] and item["backend"] != "cpu":
                 if item.get("cuda_match"):
-                    label_text = "Best Match"
+                    label_text = _("Best Match")
                 else:
-                    label_text = "Recommended"
+                    label_text = _("Recommended")
                 rec = Gtk.Label(label=label_text)
                 rec.add_css_class("success")
                 rec.add_css_class("caption")
@@ -1077,9 +1078,9 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
             source = item.get("source", "official")
             if source != "official":
                 source_labels = {
-                    "ai-dock": "CUDA 12 (ai-dock)",
-                    "syrunekai-cuda13": "CUDA 13 (Syrunekai)",
-                    "dramaturg-cuda11": "CUDA 11 (dramaturg)",
+                    "ai-dock": _("CUDA 12 (ai-dock)"),
+                    "syrunekai-cuda13": _("CUDA 13 (Syrunekai)"),
+                    "dramaturg-cuda11": _("CUDA 11 (dramaturg)"),
                 }
                 subtitle_parts.append(source_labels.get(source, source))
             subtitle_parts.append(self._human_size(item["size"]))
@@ -1195,7 +1196,7 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
                                  if os.path.isdir(os.path.join(tmp_dir, d))]
 
             if not extracted_dirs:
-                raise Exception("Could not find extracted directory in archive")
+                raise Exception(_("Could not find extracted directory in archive"))
 
             extracted_path = os.path.join(tmp_dir, extracted_dirs[0])
 
@@ -1209,7 +1210,7 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
 
             target = os.path.join(build_bin, "llama-server")
             if not os.path.exists(target):
-                raise Exception("llama-server binary not found in the archive")
+                raise Exception(_("llama-server binary not found in the archive"))
 
             os.chmod(target, 0o755)
 
@@ -1282,7 +1283,7 @@ class LlamaCPPEmbeddingHandler(EmbeddingHandler):
 
     def run_install_process(self, backend, carousel, custom_flags=""):
         if not can_escape_sandbox():
-            self.throw("You have to escape the sandbox to install LlamaCPP", ErrorSeverity.ERROR)
+            self.throw(_("You have to escape the sandbox to install LlamaCPP"), ErrorSeverity.ERROR)
         try:
             env = os.environ.copy()
             cmake_args = []

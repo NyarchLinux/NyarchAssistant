@@ -1,7 +1,7 @@
 """Chat row widget for Adwaita-styled chat history"""
-import gettext
 import unicodedata
 from gi.repository import Adw, Gtk, Gio, Gdk, GLib, GObject, Pango
+
 
 
 class ChatRow(Gtk.ListBoxRow):

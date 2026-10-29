@@ -2,7 +2,6 @@
 
 import unicodedata
 from dataclasses import dataclass
-from gettext import gettext as _
 
 from gi.repository import Adw, Gdk, GLib, GObject, Gtk, Pango
 

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import gettext
 import json
 import threading
 import weakref
@@ -12,7 +11,6 @@ from gi.repository import Gio, GLib
 from ..extensions import NewelleExtension
 from ..handlers import TabButtonDescription
 
-_ = gettext.gettext
 
 
 class SkillEditorIntegration(NewelleExtension):

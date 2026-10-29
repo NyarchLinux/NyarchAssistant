@@ -1,5 +1,4 @@
 import gi
-from gettext import gettext as _
 from gi.repository import Gtk, Adw, GLib, Pango, Gdk
 import sys
 
@@ -127,7 +126,7 @@ else:
     class Terminal(Gtk.Box):
         def __init__(self, script:list):
             super().__init__()
-            self.append(Gtk.Label(label="Terminal not supported"))
+            self.append(Gtk.Label(label=_("Terminal not supported")))
 
         def get_output(self):
             return ""
@@ -149,7 +148,7 @@ class TerminalDialog(Adw.Window):
     def __init__(self, confirm_output=True, parent_window=None, **kwargs):
         super().__init__(**kwargs)
 
-        self.set_title("Terminal")
+        self.set_title(_("Terminal"))
         self.set_default_size(960, 640)
         self.set_resizable(True)
         self.set_modal(False)

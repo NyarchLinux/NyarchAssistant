@@ -1,4 +1,3 @@
-import gettext
 import json
 import threading
 
@@ -9,7 +8,6 @@ from ...utility import get_streaming_extra_setting
 from ...handlers import ExtraSettings
 from ..handler import ErrorSeverity
 
-_ = gettext.gettext
 
 
 class OllamaCloudHandler(OllamaHandler):
@@ -57,7 +55,7 @@ class OllamaCloudHandler(OllamaHandler):
             self.settings_update()
         except Exception as e:
             if manual:
-                self.throw("Error getting Ollama Cloud models: " + str(e), ErrorSeverity.WARNING)
+                self.throw(_("Error getting Ollama Cloud models: {error}").format(error=str(e)), ErrorSeverity.WARNING)
 
     def get_extra_settings(self) -> list:
         default = self.models[0][1] if len(self.models) > 0 else self.default_models[0][0]

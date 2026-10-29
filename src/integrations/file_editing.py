@@ -3,7 +3,6 @@ import json
 import os
 import re
 import threading
-from gettext import gettext as _
 from typing import Optional
 from gi.repository import GLib
 from ..extensions import NewelleExtension
@@ -1133,51 +1132,51 @@ class FileEditingIntegration(NewelleExtension):
                 name="read_file",
                 description="Read the contents of a text file at the given absolute path. Supports pagination with offset and limit for large files.",
                 func=self.read_file,
-                title="Read File",
+                title=_("Read File"),
                 restore_func=self.read_file_restore,
                 default_on=True,
                 icon_name="document-open-symbolic",
-                tools_group="File Operations"
+                tools_group=_("File Operations")
             ),
             Tool(
                 name="write_file",
                 description="Write content to a file at the given absolute path. Creates a new file or overwrites an existing file. Shows a diff view of the changes.",
                 func=self.write_file,
-                title="Write File",
+                title=_("Write File"),
                 restore_func=self.write_file_restore,
                 default_on=True,
                 icon_name="document-save-symbolic",
-                tools_group="File Operations"
+                tools_group=_("File Operations")
             ),
             Tool(
                 name="edit",
                 description="Edit a file by replacing old_string with new_string. The old_string must match exactly. If multiple occurrences exist, use replace_all=True to replace all. Shows a diff view of the changes.",
                 func=self.edit,
-                title="Edit File",
+                title=_("Edit File"),
                 restore_func=self.edit_restore,
                 default_on=True,
                 icon_name="document-edit-symbolic",
-                tools_group="File Operations"
+                tools_group=_("File Operations")
             ),
             Tool(
                 name="glob",
                 description="Search for files matching a glob pattern. Supports standard glob patterns like '*.py' and recursive patterns like '**/*.txt'. If path is not specified, searches in the current working directory.",
                 func=self.glob,
-                title="Glob Search",
+                title=_("Glob Search"),
                 restore_func=self.glob_restore,
                 default_on=True,
                 icon_name="folder-saved-search-symbolic",
-                tools_group="File Operations"
+                tools_group=_("File Operations")
             ),
             Tool(
                 name="list_directory",
                 description="List the contents of a directory. Use the ignore parameter to exclude files matching glob patterns (e.g., ['*.pyc', '.git', '__pycache__']).",
                 func=self.list_directory,
-                title="List Directory",
+                title=_("List Directory"),
                 restore_func=self.list_directory_restore,
                 default_on=True,
                 icon_name="folder-open-symbolic",
-                tools_group="File Operations",
+                tools_group=_("File Operations"),
                 schema={
                     "type": "object",
                     "properties": {
@@ -1198,11 +1197,11 @@ class FileEditingIntegration(NewelleExtension):
                 name="grep_search",
                 description="Search for a regular expression pattern in file contents. Supports path (file or directory), glob filter (e.g., '*.py', '.{ts,tsx}'), and optional limit on number of matches.",
                 func=self.grep_search,
-                title="Grep Search",
+                title=_("Grep Search"),
                 restore_func=self.grep_search_restore,
                 default_on=True,
                 icon_name="edit-find-symbolic",
-                tools_group="File Operations",
+                tools_group=_("File Operations"),
                 schema={
                     "type": "object",
                     "properties": {

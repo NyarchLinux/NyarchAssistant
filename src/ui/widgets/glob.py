@@ -77,7 +77,7 @@ class GlobWidget(Gtk.Box):
         # Copy button
         self.copy_button = Gtk.Button(css_classes=["flat"], valign=Gtk.Align.CENTER)
         self.copy_button.set_icon_name("edit-copy-symbolic")
-        self.copy_button.set_tooltip_text("Copy matches to clipboard")
+        self.copy_button.set_tooltip_text(_("Copy matches to clipboard"))
         self.copy_button.connect("clicked", self._on_copy_clicked)
         header_box.append(self.copy_button)
 
@@ -101,7 +101,7 @@ class GlobWidget(Gtk.Box):
         if not self.matches:
             # No matches case
             no_matches_label = Gtk.Label(
-                label="No files match the pattern",
+                label=_("No files match the pattern"),
                 halign=Gtk.Align.CENTER,
                 hexpand=True,
                 vexpand=True,
@@ -182,14 +182,14 @@ class GlobWidget(Gtk.Box):
         if not is_dir and self.open_in_editor_callback:
             open_button = Gtk.Button(css_classes=["flat"], valign=Gtk.Align.CENTER)
             open_button.set_icon_name("document-open-symbolic")
-            open_button.set_tooltip_text("Open in editor")
+            open_button.set_tooltip_text(_("Open in editor"))
             open_button.connect("clicked", lambda btn, path=file_path: self._on_open_clicked(path))
             row_box.append(open_button)
 
         # Open externally button
         external_button = Gtk.Button(css_classes=["flat"], valign=Gtk.Align.CENTER)
         external_button.set_icon_name("window-new-symbolic")
-        external_button.set_tooltip_text("Open externally")
+        external_button.set_tooltip_text(_("Open externally"))
         external_button.connect("clicked", lambda btn, path=file_path: self._on_open_externally_clicked(path))
         row_box.append(external_button)
 

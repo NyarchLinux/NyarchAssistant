@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import gettext
 import ipaddress
 import json
 import os
@@ -40,7 +39,6 @@ from .extensions_catalog import (
     install_extension_files,
 )
 
-_ = gettext.gettext
 
 CATALOG_SCHEMA_VERSION = 1
 CATALOG_RESOURCE = "/moe/nyarchlinux/assistant/mcp_servers.json"
@@ -78,9 +76,11 @@ class CatalogValidationError(ValueError):
 
 def _required_string(value, label, max_length=4096):
     if not isinstance(value, str) or not value.strip():
-        raise CatalogValidationError(f"{label} must be a non-empty string")
+        raise CatalogValidationError(_("{} must be a non-empty string").format(label))
     if len(value) > max_length or "\x00" in value:
-        raise CatalogValidationError(f"{label} is too long or contains invalid data")
+        raise CatalogValidationError(
+            _("{} is too long or contains invalid data").format(label)
+        )
     return value
 
 
@@ -88,7 +88,7 @@ def _optional_string(value, label, max_length=4096):
     if value is None:
         return None
     if not isinstance(value, str) or len(value) > max_length or "\x00" in value:
-        raise CatalogValidationError(f"{label} must be a valid string")
+        raise CatalogValidationError(_("{} must be a valid string").format(label))
     return value
 
 
@@ -96,7 +96,7 @@ def _validate_https_url(value, label):
     value = _required_string(value, label)
     parsed = urlparse(value)
     if parsed.scheme != "https" or not parsed.netloc:
-        raise CatalogValidationError(f"{label} must use HTTPS")
+        raise CatalogValidationError(_("{} must use HTTPS").format(label))
 
 
 def _get_extension_config(application):
@@ -127,7 +127,7 @@ def _is_extension_application(application):
 
 def _validate_extension_config(extension, prefix):
     if not isinstance(extension, dict):
-        raise CatalogValidationError(f"{prefix} must be an object")
+        raise CatalogValidationError(_("{} must be an object").format(prefix))
     _validate_https_url(extension.get("url"), f"{prefix}.url")
     filename = extension.get("filename")
     if filename is not None and (
@@ -135,13 +135,15 @@ def _validate_extension_config(extension, prefix):
         or not EXTENSION_FILENAME_RE.fullmatch(filename)
     ):
         raise CatalogValidationError(
-            f"{prefix}.filename must be a simple Python filename"
+            _("{}.filename must be a simple Python filename").format(prefix)
         )
     extension_id = extension.get("id")
     if extension_id is not None and (
         not isinstance(extension_id, str) or not FIELD_ID_RE.fullmatch(extension_id)
     ):
-        raise CatalogValidationError(f"{prefix}.id must be a valid extension ID")
+        raise CatalogValidationError(
+            _("{}.id must be a valid extension ID").format(prefix)
+        )
     _optional_string(extension.get("description"), f"{prefix}.description", 500)
 
 
@@ -171,13 +173,15 @@ def _download_extension(url, task=None):
             if response.is_redirect or response.is_permanent_redirect:
                 location = response.headers.get("location")
                 if not location:
-                    raise ExtensionCatalogError("The extension download redirected without a target")
+                    raise ExtensionCatalogError(
+                        _("The extension download redirected without a target")
+                    )
                 current_url = urljoin(current_url, location)
                 continue
             response.raise_for_status()
             content_length = int(response.headers.get("content-length", 0) or 0)
             if content_length > MAX_EXTENSION_BYTES:
-                raise ExtensionCatalogError("The extension file is larger than 2 MB")
+                raise ExtensionCatalogError(_("The extension file is larger than 2 MB"))
             chunks = []
             size = 0
             for chunk in response.iter_content(64 * 1024):
@@ -187,7 +191,9 @@ def _download_extension(url, task=None):
                     task.check_cancelled()
                 size += len(chunk)
                 if size > MAX_EXTENSION_BYTES:
-                    raise ExtensionCatalogError("The extension file is larger than 2 MB")
+                    raise ExtensionCatalogError(
+                        _("The extension file is larger than 2 MB")
+                    )
                 chunks.append(chunk)
                 if task is not None:
                     task.update(
@@ -196,7 +202,7 @@ def _download_extension(url, task=None):
                         total_bytes=content_length or None,
                     )
             return b"".join(chunks)
-    raise ExtensionCatalogError("The extension download redirected too many times")
+    raise ExtensionCatalogError(_("The extension download redirected too many times"))
 
 
 def _validate_relative_setup_path(value, label):
@@ -205,7 +211,7 @@ def _validate_relative_setup_path(value, label):
     if normalized.startswith("/") or any(
         part in {"", ".", ".."} for part in normalized.split("/")
     ):
-        raise CatalogValidationError(f"{label} must be a relative path")
+        raise CatalogValidationError(_("{} must be a relative path").format(label))
     return value
 
 
@@ -220,7 +226,9 @@ def _validate_http_endpoint(value, label):
         and parsed.hostname in {"localhost", "127.0.0.1", "::1"}
     ):
         return
-    raise CatalogValidationError(f"{label} must use HTTPS or a loopback HTTP address")
+    raise CatalogValidationError(
+        _("{} must use HTTPS or a loopback HTTP address").format(label)
+    )
 
 
 def _walk_strings(value, path=()):
@@ -236,26 +244,30 @@ def _walk_strings(value, path=()):
 
 def _validate_server(server, prefix, field_ids, secret_fields):
     if not isinstance(server, dict):
-        raise CatalogValidationError(f"{prefix} must be an object")
+        raise CatalogValidationError(_("{} must be an object").format(prefix))
     server_type = server.get("type")
     if server_type not in {"http", "stdio"}:
-        raise CatalogValidationError(f"{prefix}.type is unsupported")
+        raise CatalogValidationError(_("{}.type is unsupported").format(prefix))
     _optional_string(server.get("title"), f"{prefix}.title", 120)
 
     if server_type == "http":
         _validate_http_endpoint(server.get("url"), f"{prefix}.url")
         headers = server.get("headers", {})
         if not isinstance(headers, dict) or len(headers) > 30:
-            raise CatalogValidationError(f"{prefix}.headers must be an object")
+            raise CatalogValidationError(
+                _("{}.headers must be an object").format(prefix)
+            )
         for key, value in headers.items():
             _required_string(key, f"{prefix}.headers key", 200)
             if not isinstance(value, str):
-                raise CatalogValidationError(f"{prefix}.headers.{key} must be a string")
+                raise CatalogValidationError(
+                    _("{}.headers.{} must be a string").format(prefix, key)
+                )
             _optional_string(value, f"{prefix}.headers.{key}", 4000)
 
         auth = server.get("auth", {"type": "none"})
         if not isinstance(auth, dict) or auth.get("type", "none") not in ALLOWED_AUTH_TYPES:
-            raise CatalogValidationError(f"{prefix}.auth is unsupported")
+            raise CatalogValidationError(_("{}.auth is unsupported").format(prefix))
         auth_type = auth.get("type", "none")
         if auth_type == "bearer":
             _required_string(auth.get("token"), f"{prefix}.auth.token", 4000)
@@ -266,23 +278,31 @@ def _validate_server(server, prefix, field_ids, secret_fields):
             if redirect_port is not None and (
                 not isinstance(redirect_port, int) or not 1024 <= redirect_port <= 65535
             ):
-                raise CatalogValidationError(f"{prefix}.auth.redirect_port is invalid")
+                raise CatalogValidationError(
+                    _("{}.auth.redirect_port is invalid").format(prefix)
+                )
             scopes = auth.get("scopes")
             if scopes is not None and (
                 not isinstance(scopes, list)
                 or not scopes
                 or any(not isinstance(scope, str) or not scope for scope in scopes)
             ):
-                raise CatalogValidationError(f"{prefix}.auth.scopes is invalid")
+                raise CatalogValidationError(
+                    _("{}.auth.scopes is invalid").format(prefix)
+                )
             method = auth.get("token_endpoint_auth_method")
             if method not in {None, "client_secret_basic", "client_secret_post", "none"}:
-                raise CatalogValidationError(f"{prefix}.auth.token_endpoint_auth_method is invalid")
+                raise CatalogValidationError(
+                    _("{}.auth.token_endpoint_auth_method is invalid").format(prefix)
+                )
             params = auth.get("authorization_params", {})
             if not isinstance(params, dict) or any(
                 key not in ALLOWED_AUTH_PARAMS or not isinstance(value, str)
                 for key, value in params.items()
             ):
-                raise CatalogValidationError(f"{prefix}.auth.authorization_params is invalid")
+                raise CatalogValidationError(
+                    _("{}.auth.authorization_params is invalid").format(prefix)
+                )
     else:
         _required_string(server.get("command"), f"{prefix}.command", 1000)
         args = server.get("args", [])
@@ -290,14 +310,18 @@ def _validate_server(server, prefix, field_ids, secret_fields):
         if not isinstance(args, list) or len(args) > 100 or any(
             not isinstance(arg, str) or "\x00" in arg or len(arg) > 4000 for arg in args
         ):
-            raise CatalogValidationError(f"{prefix}.args must be a string list")
+            raise CatalogValidationError(_("{}.args must be a string list").format(prefix))
         if not isinstance(env, dict) or len(env) > 100:
-            raise CatalogValidationError(f"{prefix}.env must be an object")
+            raise CatalogValidationError(_("{}.env must be an object").format(prefix))
         for key, value in env.items():
             if not isinstance(key, str) or not ENV_KEY_RE.fullmatch(key):
-                raise CatalogValidationError(f"{prefix}.env contains an invalid key")
+                raise CatalogValidationError(
+                    _("{}.env contains an invalid key").format(prefix)
+                )
             if not isinstance(value, str):
-                raise CatalogValidationError(f"{prefix}.env.{key} must be a string")
+                raise CatalogValidationError(
+                    _("{}.env.{} must be a string").format(prefix, key)
+                )
             _optional_string(value, f"{prefix}.env.{key}", 4000)
 
     used_fields = set()
@@ -311,12 +335,16 @@ def _validate_server(server, prefix, field_ids, secret_fields):
             )
             if not is_allowed_secret_sink:
                 raise CatalogValidationError(
-                    f"{prefix} uses secret field {secret_field} in an unsafe location"
+                    _("{} uses secret field {} in an unsafe location").format(
+                        prefix, secret_field
+                    )
                 )
     unknown_fields = used_fields - field_ids - RESERVED_TEMPLATE_VALUES
     if unknown_fields:
         raise CatalogValidationError(
-            f"{prefix} references undeclared fields: {', '.join(sorted(unknown_fields))}"
+            _("{} references undeclared fields: {}").format(
+                prefix, ", ".join(sorted(unknown_fields))
+            )
         )
 
 
@@ -329,31 +357,37 @@ def validate_catalog(payload):
     commands.
     """
     if not isinstance(payload, dict):
-        raise CatalogValidationError("catalog must be a JSON object")
+        raise CatalogValidationError(_("catalog must be a JSON object"))
     if payload.get("schema_version") != CATALOG_SCHEMA_VERSION:
-        raise CatalogValidationError("unsupported catalog schema version")
+        raise CatalogValidationError(_("unsupported catalog schema version"))
     catalog_revision = payload.get("catalog_revision", 0)
     if (
         isinstance(catalog_revision, bool)
         or not isinstance(catalog_revision, int)
         or not 0 <= catalog_revision <= 2**31 - 1
     ):
-        raise CatalogValidationError("catalog_revision must be a non-negative integer")
+        raise CatalogValidationError(
+            _("catalog_revision must be a non-negative integer")
+        )
     applications = payload.get("applications")
     if not isinstance(applications, list) or not applications:
-        raise CatalogValidationError("catalog applications must be a non-empty list")
+        raise CatalogValidationError(
+            _("catalog applications must be a non-empty list")
+        )
     if len(applications) > 200:
-        raise CatalogValidationError("catalog contains too many applications")
+        raise CatalogValidationError(_("catalog contains too many applications"))
 
     application_ids = set()
     for index, application in enumerate(applications):
         prefix = f"applications[{index}]"
         if not isinstance(application, dict):
-            raise CatalogValidationError(f"{prefix} must be an object")
+            raise CatalogValidationError(_("{} must be an object").format(prefix))
 
         app_id = _required_string(application.get("id"), f"{prefix}.id", 64)
         if not FIELD_ID_RE.fullmatch(app_id) or app_id in application_ids:
-            raise CatalogValidationError(f"{prefix}.id is invalid or duplicated")
+            raise CatalogValidationError(
+                _("{}.id is invalid or duplicated").format(prefix)
+            )
         application_ids.add(app_id)
         _required_string(application.get("name"), f"{prefix}.name", 120)
         _required_string(application.get("description"), f"{prefix}.description", 500)
@@ -364,20 +398,20 @@ def validate_catalog(payload):
             _validate_extension_config(extension, f"{prefix}.extension")
             if application.get("type") not in {None, "extension"}:
                 raise CatalogValidationError(
-                    f"{prefix}.type must be extension when an extension is provided"
+                    _("{}.type must be extension when an extension is provided").format(prefix)
                 )
             if application.get("server") is not None:
                 raise CatalogValidationError(
-                    f"{prefix}.server is not allowed for extension applications"
+                    _("{}.server is not allowed for extension applications").format(prefix)
                 )
             continue
 
         if application.get("type") == "extension":
-            raise CatalogValidationError(f"{prefix}.extension is required")
+            raise CatalogValidationError(_("{}.extension is required").format(prefix))
 
         setup = application.get("setup", {})
         if not isinstance(setup, dict):
-            raise CatalogValidationError(f"{prefix}.setup must be an object")
+            raise CatalogValidationError(_("{}.setup must be an object").format(prefix))
         _optional_string(setup.get("instructions"), f"{prefix}.setup.instructions", 2000)
         if setup.get("help_url") is not None:
             _validate_https_url(setup["help_url"], f"{prefix}.setup.help_url")
@@ -385,7 +419,9 @@ def validate_catalog(payload):
         additional_setup = setup.get("additional_setup")
         if additional_setup is not None:
             if not isinstance(additional_setup, dict):
-                raise CatalogValidationError(f"{prefix}.setup.additional_setup must be an object")
+                raise CatalogValidationError(
+                    _("{}.setup.additional_setup must be an object").format(prefix)
+                )
             setup_type = _required_string(
                 additional_setup.get("type"),
                 f"{prefix}.setup.additional_setup.type",
@@ -393,7 +429,7 @@ def validate_catalog(payload):
             )
             if setup_type != "git_repository":
                 raise CatalogValidationError(
-                    f"{prefix}.setup.additional_setup.type is unsupported"
+                    _("{}.setup.additional_setup.type is unsupported").format(prefix)
                 )
             _validate_https_url(
                 additional_setup.get("repository"),
@@ -410,7 +446,9 @@ def validate_catalog(payload):
                 or len(required_paths) > 100
             ):
                 raise CatalogValidationError(
-                    f"{prefix}.setup.additional_setup.required_paths must be a non-empty list"
+                    _(
+                        "{}.setup.additional_setup.required_paths must be a non-empty list"
+                    ).format(prefix)
                 )
             for path_index, required_path in enumerate(required_paths):
                 _validate_relative_setup_path(
@@ -431,17 +469,19 @@ def validate_catalog(payload):
                 additional_setup["enabled_by_default"], bool
             ):
                 raise CatalogValidationError(
-                    f"{prefix}.setup.additional_setup.enabled_by_default must be a boolean"
+                    _(
+                        "{}.setup.additional_setup.enabled_by_default must be a boolean"
+                    ).format(prefix)
                 )
             if "server" in additional_setup and not isinstance(additional_setup["server"], dict):
                 raise CatalogValidationError(
-                    f"{prefix}.setup.additional_setup.server must be an object"
+                    _("{}.setup.additional_setup.server must be an object").format(prefix)
                 )
             post_setup = additional_setup.get("post_setup")
             if post_setup is not None:
                 if not isinstance(post_setup, dict):
                     raise CatalogValidationError(
-                        f"{prefix}.setup.additional_setup.post_setup must be an object"
+                        _("{}.setup.additional_setup.post_setup must be an object").format(prefix)
                     )
                 post_setup_type = _required_string(
                     post_setup.get("type"),
@@ -450,7 +490,7 @@ def validate_catalog(payload):
                 )
                 if post_setup_type != "gimp_plugin":
                     raise CatalogValidationError(
-                        f"{prefix}.setup.additional_setup.post_setup.type is unsupported"
+                        _("{}.setup.additional_setup.post_setup.type is unsupported").format(prefix)
                     )
                 _validate_relative_setup_path(
                     post_setup.get("source"),
@@ -459,24 +499,32 @@ def validate_catalog(payload):
 
         fields = setup.get("fields", [])
         if not isinstance(fields, list) or len(fields) > 20:
-            raise CatalogValidationError(f"{prefix}.setup.fields must be a list")
+            raise CatalogValidationError(
+                _("{}.setup.fields must be a list").format(prefix)
+            )
         field_ids = set()
         secret_fields = set()
         for field_index, field in enumerate(fields):
             field_prefix = f"{prefix}.setup.fields[{field_index}]"
             if not isinstance(field, dict):
-                raise CatalogValidationError(f"{field_prefix} must be an object")
+                raise CatalogValidationError(
+                    _("{} must be an object").format(field_prefix)
+                )
             field_id = _required_string(field.get("id"), f"{field_prefix}.id", 64)
             if (
                 not FIELD_ID_RE.fullmatch(field_id)
                 or field_id in field_ids
                 or field_id in RESERVED_TEMPLATE_VALUES
             ):
-                raise CatalogValidationError(f"{field_prefix}.id is invalid or duplicated")
+                raise CatalogValidationError(
+                    _("{}.id is invalid or duplicated").format(field_prefix)
+                )
             field_ids.add(field_id)
             field_type = field.get("type", "text")
             if field_type not in ALLOWED_FIELD_TYPES:
-                raise CatalogValidationError(f"{field_prefix}.type is unsupported")
+                raise CatalogValidationError(
+                    _("{}.type is unsupported").format(field_prefix)
+                )
             if field_type == "secret":
                 secret_fields.add(field_id)
             _required_string(field.get("label"), f"{field_prefix}.label", 120)
@@ -484,7 +532,9 @@ def validate_catalog(payload):
             _optional_string(field.get("placeholder"), f"{field_prefix}.placeholder", 300)
             _optional_string(field.get("default"), f"{field_prefix}.default", 1000)
             if "required" in field and not isinstance(field["required"], bool):
-                raise CatalogValidationError(f"{field_prefix}.required must be a boolean")
+                raise CatalogValidationError(
+                    _("{}.required must be a boolean").format(field_prefix)
+                )
 
         server = application.get("server")
         _validate_server(server, f"{prefix}.server", field_ids, secret_fields)
@@ -504,7 +554,9 @@ def _render_templates(value, values):
         def replace(match):
             field_id = match.group(1)
             if field_id not in values:
-                raise CatalogValidationError(f"missing setup value: {field_id}")
+                raise CatalogValidationError(
+                    _("missing setup value: {}").format(field_id)
+                )
             return values[field_id]
 
         return PLACEHOLDER_RE.sub(replace, value)
@@ -634,7 +686,9 @@ def _setup_directory_path(config_dir, additional_setup):
     try:
         setup_path.relative_to(base_path)
     except ValueError as exc:
-        raise CatalogValidationError("automatic setup directory escapes the MCP folder") from exc
+        raise CatalogValidationError(
+            _("automatic setup directory escapes the MCP folder")
+        ) from exc
     return setup_path
 
 
@@ -811,7 +865,9 @@ def _install_gimp_plugin(additional_setup, setup_dir):
     try:
         source_path.relative_to(setup_path)
     except ValueError as exc:
-        raise CatalogValidationError("GIMP plug-in source escapes the setup directory") from exc
+        raise CatalogValidationError(
+            _("GIMP plug-in source escapes the setup directory")
+        ) from exc
     if not source_path.is_file():
         raise RuntimeError(_("The downloaded GIMP plug-in file is missing."))
 
@@ -856,7 +912,7 @@ def _load_json_bytes(raw):
         ]
         return catalog
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise CatalogValidationError("catalog is not valid UTF-8 JSON") from exc
+        raise CatalogValidationError(_("catalog is not valid UTF-8 JSON")) from exc
 
 
 def load_bundled_catalog():
@@ -884,7 +940,7 @@ def fetch_remote_catalog(url):
                 continue
             size += len(chunk)
             if size > MAX_CATALOG_BYTES:
-                raise CatalogValidationError("catalog download is too large")
+                raise CatalogValidationError(_("catalog download is too large"))
             chunks.append(chunk)
     return _load_json_bytes(b"".join(chunks))
 
@@ -929,12 +985,12 @@ def _validate_logo_target(target):
         or parsed.username is not None
         or parsed.password is not None
     ):
-        raise CatalogValidationError("logo URL must be a public HTTPS URL")
+        raise CatalogValidationError(_("logo URL must be a public HTTPS URL"))
     addresses = socket.getaddrinfo(parsed.hostname, parsed.port or 443)
     if not addresses or any(
         not ipaddress.ip_address(address[4][0]).is_global for address in addresses
     ):
-        raise CatalogValidationError("logo URL must resolve to a public address")
+        raise CatalogValidationError(_("logo URL must resolve to a public address"))
 
 
 def _download_logo(url):
@@ -1278,7 +1334,7 @@ class ConnectApplicationView(Gtk.Box):
                     return
                 if _catalog_revision(catalog) < self.minimum_catalog_revision:
                     raise CatalogValidationError(
-                        "remote catalog revision is older than the bundled catalog"
+                        _("remote catalog revision is older than the bundled catalog")
                     )
                 _save_cached_catalog(self.cache_path, catalog)
                 GLib.idle_add(self._finish_catalog_refresh, catalog, None, show_error)

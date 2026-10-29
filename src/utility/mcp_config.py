@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 import json
-import gettext
 import os
 import shlex
 
 
-_ = gettext.gettext
 
 
 class MCPConfigError(ValueError):

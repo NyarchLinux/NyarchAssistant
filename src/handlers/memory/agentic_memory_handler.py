@@ -781,32 +781,32 @@ Recent conversations:
                 "memory_search",
                 "Search memory files (MEMORY.md and daily notes) using semantic vector embeddings. Use this tool when you need to find previously stored information, facts about the user, or context from past conversations. Returns relevant snippets with file paths and line numbers. Examples: 'what are the user interests', 'find information about project goals', 'user preferences mentioned'.",
                 self.memory_search,
-                title="Memory Search",
-                tools_group="Memory",
+                title=_("Memory Search"),
+                tools_group=_("Memory"),
                 icon_name="system-search-symbolic"
             ),
             create_io_tool(
                 "memory_get",
                 "Read a specific memory file by path. Use this tool when you want to read the entire contents of a memory file rather than searching. Use 'MEMORY.md' for long-term consolidated facts or 'memory/YYYY-MM-DD.md' for specific daily notes. Optional parameters: line_offset and line_limit for reading specific ranges.",
                 self.memory_get,
-                title="Memory Read",
-                tools_group="Memory",
+                title=_("Memory Read"),
+                tools_group=_("Memory"),
                 icon_name="document-open-symbolic"
             ),
             create_io_tool(
                 "memory_write",
                 "Write content to a memory file, overwriting any existing content. Use this tool when you need to create a new memory file or completely replace an existing one. For long-term important facts, use path='MEMORY.md'. For daily notes, use path='memory/YYYY-MM-DD.md'. Use memory_append instead to add content without overwriting.",
                 self.memory_write,
-                title="Memory Write",
-                tools_group="Memory",
+                title=_("Memory Write"),
+                tools_group=_("Memory"),
                 icon_name="document-save-symbolic"
             ),
             create_io_tool(
                 "memory_append",
                 "Append content to a memory file without overwriting existing content. Use this tool when you want to add new information to a memory file. If no path specified, defaults to today's daily note (memory/YYYY-MM-DD.md). Use path='MEMORY.md' to append to long-term facts. Use memory_write instead to completely replace file contents.",
                 self.memory_append,
-                title="Memory Append",
-                tools_group="Memory",
+                title=_("Memory Append"),
+                tools_group=_("Memory"),
                 icon_name="list-add-symbolic"
             ),
         ]

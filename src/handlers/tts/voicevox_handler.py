@@ -1,4 +1,4 @@
-import threading 
+import threading
 import asyncio
 import json
 from ...utility.force_sync import force_sync
@@ -34,15 +34,15 @@ class VoiceVoxHanlder(TTSHandler):
         return [
             {
                 "key": "endpoint",
-                "title": "API Endpoint",
-                "description": "URL of VoiceVox API endpoint",
+                "title": _("API Endpoint"),
+                "description": _("URL of VoiceVox API endpoint"),
                 "type": "entry",
                 "default": "https://meowsky49887-voicevox-engine.hf.space",
             },
             {
                 "key": "voice",
-                "title": "Voice",
-                "description": "Voice to use",
+                "title": _("Voice"),
+                "description": _("Voice to use"),
                 "type": "combo",
                 "values": self.voices,
                 "refresh": lambda x : self.update_voices,

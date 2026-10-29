@@ -1,6 +1,5 @@
 """Reusable warning shown before compiling local C++ backends."""
 
-from gettext import gettext as _
 
 from gi.repository import Gdk, Gtk
 

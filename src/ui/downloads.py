@@ -1,5 +1,4 @@
 import time
-from gettext import gettext as _
 from typing import ClassVar
 
 from gi.repository import Adw, GLib, Gtk

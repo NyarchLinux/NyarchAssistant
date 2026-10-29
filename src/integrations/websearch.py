@@ -37,7 +37,7 @@ class WebsearchIntegration(NewelleExtension):
 
     def get_tools(self) -> list:
         return [Tool(
-            "search", "Perform a search query on the internet, you can specify the number of results to return and if you want to only return the links and titles.", self.search,title="Search", restore_func=self.restore_search, icon_name="system-search-symbolic"
+            "search", "Perform a search query on the internet, you can specify the number of results to return and if you want to only return the links and titles.", self.search,title=_("Search"), restore_func=self.restore_search, icon_name="system-search-symbolic"
             )]
 
     def get_commands(self) -> list:

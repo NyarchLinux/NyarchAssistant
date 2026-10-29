@@ -241,7 +241,7 @@ class TodoListIntegration(NewelleExtension):
         
         # Create widget after operation completes
         if self.todos:
-            widget = TodoListWidget(self.todos, title="Tasks")
+            widget = TodoListWidget(self.todos, title=_("Tasks"))
             result.set_widget(widget)
             result.set_display_text(self._format_todolist_for_prompt())
         
@@ -260,7 +260,7 @@ class TodoListIntegration(NewelleExtension):
         if todos:
             self.todos = todos
             self._set_chat_todos(chat_id, todos)
-            widget = TodoListWidget(todos, title="Tasks")
+            widget = TodoListWidget(todos, title=_("Tasks"))
             result.set_widget(widget)
         else:
             self._set_chat_todos(chat_id, [])
@@ -278,9 +278,9 @@ class TodoListIntegration(NewelleExtension):
                     - title: Concise description of the task.
                     - status: 'not-started', 'in-progress', or 'completed'.""",
                 func=self._tool_todo,
-                title="Todo List",
+                title=_("Todo List"),
                 restore_func=self._restore_todo,
-                tools_group="Agent"
+                tools_group=_("Agent")
             )
         ]
 

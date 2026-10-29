@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 from collections.abc import Callable
-from gettext import gettext as _
 
 import requests
 

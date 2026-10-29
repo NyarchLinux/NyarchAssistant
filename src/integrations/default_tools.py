@@ -1,7 +1,6 @@
 from ..extensions import NewelleExtension
 from ..tools import InteractionOption, Tool, ToolResult, create_io_tool 
 from ..ui.widgets import CommandSessionActionWidget, CopyBox
-from gettext import gettext as _
 import os
 import threading
 from ..utility.screenshot import capture_screenshot
@@ -720,7 +719,7 @@ class DefaultToolsIntegration(NewelleExtension):
                         },
                     },
                 },
-                title="Execute Command",
+                title=_("Execute Command"),
                 restore_func=self.execute_command_restore,
                 default_on=True,
                 icon_name="gnome-terminal-symbolic",
@@ -729,7 +728,7 @@ class DefaultToolsIntegration(NewelleExtension):
                 name="show_image",
                 description="Show an image from a given file path or URL.",
                 func=self.show_image,
-                title="Show Image",
+                title=_("Show Image"),
                 default_on=True,
                 restore_func=self.show_image,
                 tools_group=_("Media")
@@ -749,7 +748,7 @@ class DefaultToolsIntegration(NewelleExtension):
                     },
                     "required": ["path"],
                 },
-                title="Read Image",
+                title=_("Read Image"),
                 default_on=True,
                 restore_func=self.read_image,
                 tools_group=_("Media"),
@@ -780,7 +779,7 @@ class DefaultToolsIntegration(NewelleExtension):
                 name="show_video",
                 description="Show a video from a given file path.",
                 func=self.show_video,
-                title="Show Video",
+                title=_("Show Video"),
                 default_on=True,
                 restore_func=self.show_video,
                 tools_group=_("Media")

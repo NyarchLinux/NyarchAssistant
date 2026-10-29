@@ -1,4 +1,3 @@
-from gettext import gettext as _
 from ...utility.strings import quote_string
 from ...utility.system import get_spawn_command, can_escape_sandbox, is_flatpak
 from ...utility.background_process import BackgroundProcess
@@ -91,7 +90,7 @@ class WhisperCPPHandler(STTHandler):
                 "title": _("Model"),
                 "description": _("Name of the Whisper model"),
                 "type": "combo",
-                "values": installed_models if installed_models else (("No models", ""),),
+                "values": installed_models if installed_models else ((_("No models"), ""),),
                 "default": installed_models[0][1] if len(installed_models) > 0 else "",
                 "website": "https://github.com/openai/whisper/blob/main/model-card.md#model-details",
             },
@@ -233,7 +232,7 @@ class WhisperCPPHandler(STTHandler):
         out = subprocess.check_output(get_spawn_command() + ["bash", "-c", installation_script])
         exec_path = os.path.join(path, "whisper.cpp/build/bin/whisper-cli")
         if not os.path.exists(exec_path):
-            self.throw("Error installing Whisper: " + out.decode("utf-8"), ErrorSeverity.ERROR)
+            self.throw(_("Error installing Whisper: {}").format(out.decode("utf-8")), ErrorSeverity.ERROR)
         self.set_setting("installed_version", version)
         self._is_installed_cache = None
 
@@ -330,7 +329,7 @@ class WhisperCPPHandler(STTHandler):
                     raise RuntimeError(f"Server failed to start: {stderr}")
                 print("Server started successfully")
             except Exception as e:
-                self.throw("Error starting Whisper server: " + str(e), ErrorSeverity.ERROR)
+                self.throw(_("Error starting Whisper server: {}").format(str(e)), ErrorSeverity.ERROR)
                 self._server.stop()
                 self._use_server = False
         else:
@@ -402,12 +401,12 @@ class WhisperCPPHandler(STTHandler):
         except urllib.error.HTTPError as e:
             error_body = e.read().decode('utf-8') if e.read() else ""
             print(f"HTTP Error {e.code}: {error_body}")
-            self.throw(f"Server HTTP error {e.code}: {error_body}", ErrorSeverity.ERROR)
+            self.throw(_("Server HTTP error {}: {}").format(e.code, error_body), ErrorSeverity.ERROR)
             self._stop_process()
             return ""
         except Exception as e:
             print(f"Recognition error: {str(e)}")
-            self.throw("Error recognizing file with server: " + str(e), ErrorSeverity.ERROR)
+            self.throw(_("Error recognizing file with server: {}").format(str(e)), ErrorSeverity.ERROR)
             self._stop_process()
             return ""
 
@@ -450,10 +449,10 @@ class WhisperCPPHandler(STTHandler):
                 print(f"Whisper output: {text}")
                 return text
             else:
-                self.throw(f"Whisper CLI error: {result.stderr}", ErrorSeverity.ERROR)
+                self.throw(_("Whisper CLI error: {}").format(result.stderr), ErrorSeverity.ERROR)
                 return ""
         except Exception as e:
-            self.throw("Error recognizing file: " + str(e), ErrorSeverity.ERROR)
+            self.throw(_("Error recognizing file: {}").format(str(e)), ErrorSeverity.ERROR)
             return ""
 
     # Model library integration
@@ -465,7 +464,7 @@ class WhisperCPPHandler(STTHandler):
             models.append(LibraryModel(
                 id=model["model_name"],
                 name=model["display_name"],
-                description=f"Size: {model['size']}",
+                description=_("Size: {}").format(model["size"]),
                 tags=["whisper", "stt"],
                 is_pinned=False,
                 is_installed=self.is_model_installed(model["model_name"]),
@@ -485,7 +484,7 @@ class WhisperCPPHandler(STTHandler):
 
     # Installation dialog (similar to llama.cpp)
     def show_install_dialog(self, button):
-        win = Adw.Window(title="Build whisper.cpp")
+        win = Adw.Window(title=_("Build whisper.cpp"))
         self._build_window = win
         win.set_default_size(650, 650)
         win.set_modal(True)
@@ -512,7 +511,7 @@ class WhisperCPPHandler(STTHandler):
         main_box.append(content)
 
         # Page 1: Hardware
-        page1 = Adw.StatusPage(title="Select Hardware", description="Choose your acceleration backend", icon_name="brain-augemnted-symbolic")
+        page1 = Adw.StatusPage(title=_("Select Hardware"), description=_("Choose your acceleration backend"), icon_name="brain-augemnted-symbolic")
         main_container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, hexpand=True, vexpand=True)
         main_container.set_halign(Gtk.Align.CENTER)
 
@@ -522,12 +521,12 @@ class WhisperCPPHandler(STTHandler):
             warning_box.set_margin_bottom(16)
             warning_box.add_css_class("warning")
 
-            warning_label = Gtk.Label(label="⚠️ Flatpak Sandbox Warning")
+            warning_label = Gtk.Label(label=_("⚠️ Flatpak Sandbox Warning"))
             warning_label.add_css_class("heading")
             warning_label.set_halign(Gtk.Align.CENTER)
             warning_box.append(warning_label)
 
-            warning_text = Gtk.Label(label="To build whisper.cpp with hardware acceleration in Flatpak,\nyou need to grant sandbox escape permissions.\nRun the following command in a terminal:")
+            warning_text = Gtk.Label(label=_("To build whisper.cpp with hardware acceleration in Flatpak,\nyou need to grant sandbox escape permissions.\nRun the following command in a terminal:"))
             warning_text.set_halign(Gtk.Align.CENTER)
             warning_text.set_wrap(True)
             warning_box.append(warning_text)
@@ -541,7 +540,7 @@ class WhisperCPPHandler(STTHandler):
             command_box.append(command_entry)
             warning_box.append(command_box)
 
-            copy_btn = Gtk.Button(label="Copy Command")
+            copy_btn = Gtk.Button(label=_("Copy Command"))
             copy_btn.set_halign(Gtk.Align.CENTER)
             copy_btn.connect("clicked", lambda btn: self.copy_to_clipboard("flatpak --user override --talk-name=org.freedesktop.Flatpak --filesystem=home moe.nyarchlinux.assistant"))
             warning_box.append(copy_btn)
@@ -607,7 +606,7 @@ class WhisperCPPHandler(STTHandler):
         right_box.append(self.dropdown_version)
         right_box.append(self.entry_custom_version)
 
-        lbl_flags = Gtk.Label(label="Custom CMake Flags (Optional)")
+        lbl_flags = Gtk.Label(label=_("Custom CMake Flags (Optional)"))
         lbl_flags.set_halign(Gtk.Align.START)
         right_box.append(lbl_flags)
 
@@ -623,15 +622,15 @@ class WhisperCPPHandler(STTHandler):
         button_box.set_halign(Gtk.Align.CENTER)
         button_box.set_margin_top(12)
 
-        btn_cancel1 = Gtk.Button(label="Cancel")
+        btn_cancel1 = Gtk.Button(label=_("Cancel"))
         btn_cancel1.add_css_class("destructive-action")
         btn_cancel1.connect("clicked", lambda x: win.close())
         button_box.append(btn_cancel1)
 
-        btn_next1 = Gtk.Button(label="Next")
+        btn_next1 = Gtk.Button(label=_("Next"))
         if not can_escape_sandbox():
             btn_next1.set_sensitive(False)
-            btn_next1.set_tooltip_text("Please run the Flatpak override command first")
+            btn_next1.set_tooltip_text(_("Please run the Flatpak override command first"))
         else:
             def on_next_clicked(x):
                 version = self.get_selected_version()
@@ -641,7 +640,7 @@ class WhisperCPPHandler(STTHandler):
                         backend_name = hw
                         break
                 page2.set_description(
-                    f"Version: {version}  |  Backend: {backend_name}\nClick start to begin compilation"
+                    _("Version: {}  |  Backend: {}\nClick start to begin compilation").format(version, backend_name)
                 )
                 content.scroll_to(content.get_nth_page(1), True)
 
@@ -654,16 +653,16 @@ class WhisperCPPHandler(STTHandler):
         content.append(page1)
 
         # Page 2: Install Button
-        page2 = Adw.StatusPage(title="Ready to Build", description="Click start to begin compilation", icon_name="tools-symbolic")
+        page2 = Adw.StatusPage(title=_("Ready to Build"), description=_("Click start to begin compilation"), icon_name="tools-symbolic")
         box2 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12, hexpand=True, vexpand=True)
         box2.set_halign(Gtk.Align.CENTER)
 
-        btn_start = Gtk.Button(label="Start Build")
+        btn_start = Gtk.Button(label=_("Start Build"))
         btn_start.set_halign(Gtk.Align.CENTER)
         btn_start.connect("clicked", lambda x: self.start_installation(content))
         box2.append(btn_start)
 
-        btn_back2 = Gtk.Button(label="Back")
+        btn_back2 = Gtk.Button(label=_("Back"))
         btn_back2.set_halign(Gtk.Align.CENTER)
         btn_back2.connect("clicked", lambda x: content.scroll_to(content.get_nth_page(0), True))
         box2.append(btn_back2)
@@ -685,12 +684,12 @@ class WhisperCPPHandler(STTHandler):
         icon3.set_halign(Gtk.Align.CENTER)
         page3.append(icon3)
 
-        title3 = Gtk.Label(label="Installing")
+        title3 = Gtk.Label(label=_("Installing"))
         title3.add_css_class("title-1")
         title3.set_halign(Gtk.Align.CENTER)
         page3.append(title3)
 
-        desc3 = Gtk.Label(label="Please wait...")
+        desc3 = Gtk.Label(label=_("Please wait..."))
         desc3.set_halign(Gtk.Align.CENTER)
         page3.append(desc3)
 
@@ -706,7 +705,7 @@ class WhisperCPPHandler(STTHandler):
         scroll.set_hexpand(True)
         page3.append(scroll)
 
-        self.stop_build_button = Gtk.Button(label="Stop Build")
+        self.stop_build_button = Gtk.Button(label=_("Stop Build"))
         self.stop_build_button.add_css_class("destructive-action")
         self.stop_build_button.set_halign(Gtk.Align.CENTER)
         self.stop_build_button.connect("clicked", self.stop_build)
@@ -714,8 +713,8 @@ class WhisperCPPHandler(STTHandler):
         content.append(page3)
 
         # Page 4: Done
-        page4 = Adw.StatusPage(title="Completed", description="Installation finished successfully", icon_name="emblem-default-symbolic")
-        btn_close = Gtk.Button(label="Close")
+        page4 = Adw.StatusPage(title=_("Completed"), description=_("Installation finished successfully"), icon_name="emblem-default-symbolic")
+        btn_close = Gtk.Button(label=_("Close"))
         btn_close.set_halign(Gtk.Align.CENTER)
         btn_close.connect("clicked", lambda x: self.finish_install(win))
         page4.set_child(btn_close)
@@ -821,7 +820,7 @@ class WhisperCPPHandler(STTHandler):
 
     def run_install_process(self, backend, carousel, custom_flags="", version=DEFAULT_WHISPER_CPP_VERSION):
         if not can_escape_sandbox():
-            self.throw("You have to escape the sandbox to install WhisperCPP", ErrorSeverity.ERROR)
+            self.throw(_("You have to escape the sandbox to install WhisperCPP"), ErrorSeverity.ERROR)
         try:
             env = os.environ.copy()
             cmake_args = []

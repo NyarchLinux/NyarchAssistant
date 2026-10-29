@@ -1,5 +1,4 @@
 import base64
-import gettext
 import hashlib
 import json
 import re
@@ -19,7 +18,6 @@ from ...utility import (
 from ...utility.media import extract_file, extract_image, get_image_base64
 from .llm import LLMHandler
 
-_ = gettext.gettext
 
 
 class ClaudeHandler(LLMHandler):

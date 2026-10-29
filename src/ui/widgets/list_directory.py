@@ -87,7 +87,7 @@ class ListDirectoryWidget(Gtk.Box):
         # Copy button
         self.copy_button = Gtk.Button(css_classes=["flat"], valign=Gtk.Align.CENTER)
         self.copy_button.set_icon_name("edit-copy-symbolic")
-        self.copy_button.set_tooltip_text("Copy paths to clipboard")
+        self.copy_button.set_tooltip_text(_("Copy paths to clipboard"))
         self.copy_button.connect("clicked", self._on_copy_clicked)
         header_box.append(self.copy_button)
 
@@ -97,7 +97,7 @@ class ListDirectoryWidget(Gtk.Box):
         """Build the list view for displaying directory entries."""
         if not self.entries:
             no_entries_label = Gtk.Label(
-                label="Directory is empty",
+                label=_("Directory is empty"),
                 halign=Gtk.Align.CENTER,
                 hexpand=True,
                 vexpand=True,
@@ -167,14 +167,14 @@ class ListDirectoryWidget(Gtk.Box):
         if not is_dir and self.open_in_editor_callback:
             open_button = Gtk.Button(css_classes=["flat"], valign=Gtk.Align.CENTER)
             open_button.set_icon_name("document-open-symbolic")
-            open_button.set_tooltip_text("Open in editor")
+            open_button.set_tooltip_text(_("Open in editor"))
             open_button.connect("clicked", lambda btn, p=full_path: self._on_open_clicked(p))
             row_box.append(open_button)
 
         # Open externally button
         external_button = Gtk.Button(css_classes=["flat"], valign=Gtk.Align.CENTER)
         external_button.set_icon_name("window-new-symbolic")
-        external_button.set_tooltip_text("Open externally")
+        external_button.set_tooltip_text(_("Open externally"))
         external_button.connect("clicked", lambda btn, p=full_path: self._on_open_externally_clicked(p))
         row_box.append(external_button)
 

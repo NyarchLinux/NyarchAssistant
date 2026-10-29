@@ -18,7 +18,7 @@ class DocumentReaderWidget(Gtk.Box):
 
         # 1. Initial Status Label
         self._status_label = Gtk.Label(
-            label="Reading documents...",
+            label=_("Reading documents..."),
             halign=Gtk.Align.START,
         )
         self._status_label.add_css_class("pulsing-label")
@@ -71,7 +71,7 @@ class DocumentReaderWidget(Gtk.Box):
             transition_duration=250,
             reveal_child=False # Initially hidden, shown when added
         )
-        spinner = Gtk.Spinner(tooltip_text="Reading...")
+        spinner = Gtk.Spinner(tooltip_text=_("Reading..."))
         spinner_revealer.set_child(spinner)
         row_box.append(spinner_revealer)
 
@@ -114,8 +114,10 @@ class DocumentReaderWidget(Gtk.Box):
             print(f"Warning: Tried to finish non-existent document entry: {file_path}")
 
 
-    def finish_reading(self, final_message="Finished reading documents."):
+    def finish_reading(self, final_message=None):
         """Call this when the entire document reading process is complete."""
+        if final_message is None:
+            final_message = _("Finished reading documents.")
         self._status_label.remove_css_class("pulsing-label")
         self._status_label.set_label(final_message)
 

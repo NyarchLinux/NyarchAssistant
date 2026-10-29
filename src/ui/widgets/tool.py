@@ -1,5 +1,3 @@
-import gettext
-
 from gi.repository import Gtk, Adw, Pango
 
 from ...utility.tool_call_group import ToolCallGroupState
@@ -7,8 +5,6 @@ from ...utility.message_chunk import get_message_chunks
 from ...ui import append_image_codeblock
 
 
-_ = gettext.gettext
-_n = gettext.ngettext
 _DEFAULT_TOOL_ICON = "tools-symbolic"
 
 
@@ -300,7 +296,7 @@ class ToolCallsGroupWidget(Gtk.ListBox):
         else:
             title = _("Tool calls completed")
 
-        subtitle = _n(
+        subtitle = ngettext(
             "%(count)d tool call",
             "%(count)d tool calls",
             count,
@@ -317,7 +313,7 @@ class ToolWidget(Gtk.ListBox):
         self.set_margin_end(10)
         self.expander_row = Adw.ExpanderRow(
             title=tool_name,
-            subtitle="Running...",
+            subtitle=_("Running..."),
             icon_name="tools-symbolic",
         )
         self.append(self.expander_row)

@@ -1,7 +1,6 @@
 from ..handler import Handler
 from ..extra_settings import ExtraSettings
 from abc import abstractmethod
-from gettext import gettext as _
 from numpy import ndarray
 from typing import Literal
 

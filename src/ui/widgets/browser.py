@@ -58,19 +58,19 @@ class BrowserWidget(Gtk.Box):
         # Navigation buttons
         self.back_button = Gtk.Button()
         self.back_button.set_icon_name("go-previous-symbolic")
-        self.back_button.set_tooltip_text("Go Back")
+        self.back_button.set_tooltip_text(_("Go Back"))
         self.back_button.connect("clicked", self._on_back_clicked)
         self.toolbar.pack_start(self.back_button)
         
         self.forward_button = Gtk.Button()
         self.forward_button.set_icon_name("go-next-symbolic")
-        self.forward_button.set_tooltip_text("Go Forward")
+        self.forward_button.set_tooltip_text(_("Go Forward"))
         self.forward_button.connect("clicked", self._on_forward_clicked)
         self.toolbar.pack_start(self.forward_button)
         
         self.refresh_button = Gtk.Button()
         self.refresh_button.set_icon_name("view-refresh-symbolic")
-        self.refresh_button.set_tooltip_text("Refresh")
+        self.refresh_button.set_tooltip_text(_("Refresh"))
         self.refresh_button.connect("clicked", self._on_refresh_clicked)
         self.toolbar.pack_start(self.refresh_button)
         
@@ -81,21 +81,21 @@ class BrowserWidget(Gtk.Box):
         # URL/Search entry
         self.url_entry = Gtk.Entry()
         self.url_entry.set_hexpand(True)
-        self.url_entry.set_placeholder_text("Enter URL or search term...")
+        self.url_entry.set_placeholder_text(_("Enter URL or search term..."))
         self.url_entry.connect("activate", self._on_url_activate)
         self.toolbar.set_title_widget(self.url_entry)
         
         # Home button
         self.home_button = Gtk.Button()
         self.home_button.set_icon_name("go-home-symbolic")
-        self.home_button.set_tooltip_text("Home")
+        self.home_button.set_tooltip_text(_("Home"))
         self.home_button.connect("clicked", self._on_home_clicked)
         self.toolbar.pack_end(self.home_button)
         
         # Attach button
         self.attach_button = Gtk.Button()
         self.attach_button.set_icon_name("attach-symbolic")
-        self.attach_button.set_tooltip_text("Attach")
+        self.attach_button.set_tooltip_text(_("Attach"))
         self.attach_button.connect("clicked", self._on_attach_clicked)
         self.toolbar.pack_end(self.attach_button)
         
@@ -208,13 +208,13 @@ class BrowserWidget(Gtk.Box):
             self.loading.acquire()
             self.refresh_button.set_child(self.loading_spinner)
             self.loading_spinner.start()
-            self.refresh_button.set_tooltip_text("Stop Loading")
+            self.refresh_button.set_tooltip_text(_("Stop Loading"))
         elif load_event == WebKit.LoadEvent.FINISHED:
             # Replace spinner with refresh icon
             self.loading_spinner.stop()
             self.refresh_button.set_child(None)
             self.refresh_button.set_icon_name("view-refresh-symbolic")
-            self.refresh_button.set_tooltip_text("Refresh")
+            self.refresh_button.set_tooltip_text(_("Refresh"))
             uri = self.webview.get_uri()
             self.article = WebsiteScraper(uri)
             threading.Thread(target=self.download_favicon).start()

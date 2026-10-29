@@ -1,5 +1,4 @@
 import threading
-from gettext import gettext as _
 import uuid
 import inspect
 import json
@@ -1181,7 +1180,7 @@ class Message(Gtk.Box):
         
         if can_auto_run:
             state["has_terminal_command"] = True
-            text_expander = Gtk.Expander(label="Console", css_classes=["toolbar", "osd"], margin_top=10, margin_start=10, margin_bottom=10, margin_end=10)
+            text_expander = Gtk.Expander(label=_("Console"), css_classes=["toolbar", "osd"], margin_top=10, margin_start=10, margin_bottom=10, margin_end=10)
             text_expander.set_expanded(False)
             box.append(text_expander)
             

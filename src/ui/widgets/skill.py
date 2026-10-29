@@ -39,7 +39,7 @@ class SkillWidget(Gtk.Box):
         name_label.add_css_class("heading")
         title_box.append(name_label)
 
-        badge = Gtk.Label(label="activated")
+        badge = Gtk.Label(label=_("activated"))
         badge.add_css_class("success")
         badge.add_css_class("caption")
         title_box.append(badge)
@@ -59,7 +59,9 @@ class SkillWidget(Gtk.Box):
 
         if resource_count > 0:
             res_label = Gtk.Label(
-                label=f"{resource_count} bundled resource{'s' if resource_count != 1 else ''}",
+                label=_("{} bundled resource{}").format(
+                    resource_count, "s" if resource_count != 1 else ""
+                ),
                 halign=Gtk.Align.START,
             )
             res_label.add_css_class("dim-label")

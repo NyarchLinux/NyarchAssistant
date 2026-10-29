@@ -155,7 +155,7 @@ class PresentationWindow(Adw.Window):
                 "picture": "/moe/nyarchlinux/assistant/images/error.svg",
                 "actions": [
                     {
-                        "label": "Learn more",
+                        "label": _("Learn more"),
                         "classes": ["suggested-action"],
                         "callback": lambda x: subprocess.Popen(["xdg-open", "https://github.com/nyarchlinux/nyarchassistant?tab=readme-ov-file#permission"]),
                     }

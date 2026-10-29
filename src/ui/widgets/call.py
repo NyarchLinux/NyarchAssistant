@@ -6,7 +6,6 @@ import os
 import wave
 import struct
 import math
-import gettext
 import pyaudio
 import re
 import tempfile
@@ -14,6 +13,7 @@ from collections import deque
 
 from ...utility.strings import clean_message_tts, remove_emoji, remove_markdown, remove_thinking_blocks
 from ...utility.vad import VoiceActivityDetector
+
 
 
 CALL_CSS = """

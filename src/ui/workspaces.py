@@ -1,12 +1,10 @@
 """Native workspace controls and per-workspace chat tab sessions."""
-import gettext
 import os
 
 from gi.repository import Adw, Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango
 
 from ..workspaces import DEFAULT_WORKSPACE
 
-_ = gettext.gettext
 
 
 class WorkspaceWindow:

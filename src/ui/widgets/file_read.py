@@ -80,7 +80,7 @@ class ReadFileWidget(Gtk.Box):
         # Copy button
         self.copy_button = Gtk.Button(css_classes=["flat"], valign=Gtk.Align.CENTER)
         self.copy_button.set_icon_name("edit-copy-symbolic")
-        self.copy_button.set_tooltip_text("Copy to clipboard")
+        self.copy_button.set_tooltip_text(_("Copy to clipboard"))
         self.copy_button.connect("clicked", self._on_copy_clicked)
         header_box.append(self.copy_button)
         
@@ -88,14 +88,14 @@ class ReadFileWidget(Gtk.Box):
         if self.open_in_editor_callback is not None:
             edit_button = Gtk.Button(css_classes=["flat"], valign=Gtk.Align.CENTER)
             edit_button.set_icon_name("document-edit-symbolic")
-            edit_button.set_tooltip_text("Open in internal editor")
+            edit_button.set_tooltip_text(_("Open in internal editor"))
             edit_button.connect("clicked", self._on_open_in_editor_clicked)
             header_box.append(edit_button)
         
         # Open externally button
         open_button = Gtk.Button(css_classes=["flat"], valign=Gtk.Align.CENTER)
         open_button.set_icon_name("document-open-symbolic")
-        open_button.set_tooltip_text("Open in external editor")
+        open_button.set_tooltip_text(_("Open in external editor"))
         open_button.connect("clicked", self._on_open_externally_clicked)
         header_box.append(open_button)
         

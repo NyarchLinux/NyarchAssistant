@@ -1,11 +1,9 @@
-import gettext
 import os
 import uuid
 
 import gi
 from gi.repository import Adw, Gio, GLib
 
-_ = gettext.gettext
 
 
 class ScreenRecorder:

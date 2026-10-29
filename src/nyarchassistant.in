@@ -128,7 +128,7 @@ if __name__ == '__main__':
 
     if args.list_interfaces:
         from gi.repository import Gio
-        from newelle.constants import AVAILABLE_INTERFACES
+        from nyarchassistant.constants import AVAILABLE_INTERFACES
         print("Available interfaces:")
         for key, info in AVAILABLE_INTERFACES.items():
             print(f"  {key:15s} - {info['title']}")
@@ -139,10 +139,10 @@ if __name__ == '__main__':
         gi.require_version('Gtk', '4.0')
         gi.require_version('Adw', '1')
         from gi.repository import Gio
-        resource = Gio.Resource.load(os.path.join(pkgdatadir, 'newelle.gresource'))
+        resource = Gio.Resource.load(os.path.join(pkgdatadir, 'nyarchassistant.gresource'))
         resource._register()
 
-        from newelle import main
+        from nyarchassistant import main
         sys.exit(main.run_headless(args.interface, VERSION))
 
     forwarded_status = forward_voice_request(remaining)

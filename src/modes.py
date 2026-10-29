@@ -24,9 +24,7 @@ Only the infrastructure is provided here; the UI is added separately.
 """
 
 import json
-import gettext
 
-_ = gettext.gettext
 
 # Valid three-state values for tools and skills inside a mode.
 ENABLE = "enable"

@@ -1,4 +1,3 @@
-import gettext
 import importlib
 import os
 import re
@@ -12,7 +11,6 @@ from dataclasses import dataclass, field
 
 from .download_manager import DownloadKind, get_download_manager
 
-_ = gettext.gettext
 
 
 LOCK_SEMAPHORE = threading.Semaphore(1)
@@ -272,7 +270,7 @@ def install_module(module, path, update=True, cache_dir=None, task=None):
                 handle.complete(_("Installed"))
         else:
             detail = (result.stdout or "").strip()
-            error = f"pip exited with code {result.returncode}"
+            error = _("pip exited with code {code}").format(code=result.returncode)
             if detail:
                 error += f": {detail[-1000:]}"
             handle.fail(error, _("Failed"))

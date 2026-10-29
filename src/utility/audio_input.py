@@ -4,7 +4,6 @@ Only plain Audio metadata is persisted. Workers, callbacks and retrieval snapsho
 belong to a particular request and never enter the pickle or provider payload.
 """
 import copy
-import gettext
 import logging
 import os
 import shutil
@@ -16,7 +15,6 @@ from gi.repository import GLib
 
 from .media import audio_history_text, audio_text, extract_audio
 
-_ = gettext.gettext
 logger = logging.getLogger(__name__)
 
 

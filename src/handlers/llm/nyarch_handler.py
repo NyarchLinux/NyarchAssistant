@@ -1,11 +1,11 @@
-from typing import Any 
+from typing import Any
 from typing import Callable
 
 from .openai_handler import OpenAIHandler
 
 class NyarchApiHandler(OpenAIHandler):
     key = "nyarch"
-    error_message = """Error calling Nyarch API. Please note that Nyarch API is **just for demo purposes.**\n\nTo know how to use a more reliable LLM [read our guide to llms](https://github.com/qwersyk/newelle/wiki/User-guide-to-the-available-LLMs). \n\nError: """
+    error_message = _("""Error calling Nyarch API. Please note that Nyarch API is **just for demo purposes.**\n\nTo know how to use a more reliable LLM [read our guide to llms](https://github.com/qwersyk/newelle/wiki/User-guide-to-the-available-LLMs). \n\nError: """)
 
     def __init__(self, settings, path):
         super().__init__(settings, path)
@@ -15,7 +15,7 @@ class NyarchApiHandler(OpenAIHandler):
         self.set_setting("api", "nya")
 
     def get_models_list(self):
-        return [("Medium", "Medium"), ("Smart", "Smart"), ("Small", "Small")]
+        return [("Medium", _("Medium")), ("Smart", _("Smart")), ("Small", _("Small"))]
 
     def get_models(self, *args, **kwargs):
         pass

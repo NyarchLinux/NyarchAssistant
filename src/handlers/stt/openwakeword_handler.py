@@ -1,6 +1,4 @@
 import os
-import gettext
-_ = gettext.gettext
 from .stt import STTHandler
 from ...utility.pip import install_module, find_module
 from ..handler import ErrorSeverity
