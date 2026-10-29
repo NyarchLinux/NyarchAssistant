@@ -14,7 +14,7 @@ from gi.repository import Gtk, Adw, Gio, GLib, GObject, Gdk, GtkSource
 
 from ..utility.util import PerformanceMonitor
 
-from ..handlers import Handler
+from ..handlers import Handler, ErrorSeverity
 
 from ..constants import AVAILABLE_EMBEDDINGS, AVAILABLE_LLMS, AVAILABLE_MEMORIES, AVAILABLE_PROMPTS, AVAILABLE_TTS, AVAILABLE_STT, PROMPTS, AVAILABLE_RAGS, AVAILABLE_WEBSEARCH, AVAILABLE_IMAGE_GENERATORS, SETTINGS_GROUPS
 from ..constants import AVAILABLE_TRANSLATORS, AVAILABLE_AVATARS
@@ -128,6 +128,13 @@ class Settings(Adw.Window):
         llm_header_actions.append(duplicate_llm)
         help = Gtk.Button(css_classes=["flat"], icon_name="info-outline-symbolic")
         help.connect("clicked", lambda button : Popen(get_spawn_command() + ["xdg-open", "https://github.com/qwersyk/Newelle/wiki/User-guide-to-the-available-LLMs"]))
+        test_llm = Gtk.Button(
+            css_classes=["flat"],
+            label=_("Test Connection"),
+            tooltip_text=_("Send a minimal request to check the endpoint, API key and selected model"),
+        )
+        test_llm.connect("clicked", self.on_test_llm)
+        llm_header_actions.append(test_llm)
         llm_header_actions.append(help)
         self.LLM.set_header_suffix(llm_header_actions)
         # Add LLMs
@@ -859,6 +866,23 @@ class Settings(Adw.Window):
 
     def add_toast(self, toast):
         self.toast_overlay.add_toast(toast)
+
+    def on_test_llm(self, button):
+        """Test the provider currently selected as the main language model."""
+        key = self.settings.get_string("language-model")
+        handler = self.get_object(AVAILABLE_LLMS, key)
+        if not hasattr(handler, "test_connection"):
+            self.add_toast(Adw.Toast(title=_("This provider does not support connection tests")))
+            return
+        handler.test_connection(button, self._report_llm_test)
+
+    def _report_llm_test(self, message: str, severity: ErrorSeverity):
+        GLib.idle_add(self._show_llm_test_result, message, severity)
+
+    def _show_llm_test_result(self, message: str, severity: ErrorSeverity):
+        toast = Adw.Toast(title=message)
+        toast.set_timeout(0 if severity == ErrorSeverity.ERROR else 5)
+        self.add_toast(toast)
 
     def _build_navigation(self, startup_page):
         self.toast_overlay = Adw.ToastOverlay()

@@ -3,9 +3,12 @@ import json
 import gettext
 import hashlib
 import re
+import urllib.parse
 from typing import Any, Callable, Optional
 
 _ = gettext.gettext
+
+from gi.repository import GLib
 
 from .llm import LLMHandler
 from ...utility.system import open_website
@@ -94,6 +97,96 @@ class OpenAIHandler(LLMHandler):
     @staticmethod
     def get_extra_requirements() -> list:
         return ["openai"]
+
+    def test_connection(self, button=None, report=None):
+        """Verify the saved endpoint, API key and model with a minimal request.
+
+        Args:
+            button: optional widget disabled while the request is in flight.
+            report: optional callable(message, severity) receiving the outcome;
+                defaults to this handler's throw(), shown by the main window.
+        """
+        if button is not None:
+            button.set_sensitive(False)
+        threading.Thread(target=self._test_connection, args=(button, report), daemon=True).start()
+
+    def _test_connection(self, button=None, report=None):
+        def emit(message: str, severity=ErrorSeverity.WARNING):
+            if report is not None:
+                report(message, severity)
+            else:
+                GLib.idle_add(self.throw, message, severity)
+
+        try:
+            endpoint = (self.get_setting("endpoint") or "").strip()
+            model = (self.get_setting("model") or "").strip()
+            parsed = urllib.parse.urlparse(endpoint)
+            if parsed.scheme not in ("http", "https") or not parsed.netloc:
+                emit(_("Connection failed: {}").format(_("invalid endpoint URL")), ErrorSeverity.ERROR)
+                return
+            if not model:
+                emit(_("Connection failed: {}").format(_("no model selected")), ErrorSeverity.ERROR)
+                return
+            api = self.get_setting("api") or "nokey"
+            import openai
+            client = openai.OpenAI(
+                api_key=api,
+                base_url=endpoint,
+                timeout=20,
+                max_retries=0,
+                default_headers=self.get_extra_headers(),
+            )
+            failure = self._test_model_request(client, model)
+            if failure is not None:
+                emit(_("Connection failed: {}").format(failure), ErrorSeverity.ERROR)
+                return
+            emit(_("Connection successful: {} replied").format(model))
+        except Exception as error:
+            emit(_("Connection failed: {}").format(str(error)[:400]), ErrorSeverity.ERROR)
+        finally:
+            if button is not None:
+                GLib.idle_add(button.set_sensitive, True)
+
+    def _test_model_request(self, client, model: str) -> Optional[str]:
+        """Return None when the model answers, or a short reason when it does not."""
+        try:
+            if self.uses_responses_api():
+                client.responses.create(model=model, input="ping", max_output_tokens=16)
+            else:
+                messages = [{"role": "user", "content": "ping"}]
+                try:
+                    client.chat.completions.create(model=model, messages=messages, max_tokens=16)
+                except Exception as error:
+                    # Reasoning models reject the legacy max_tokens field.
+                    if "max_tokens" not in str(error):
+                        raise
+                    client.chat.completions.create(
+                        model=model, messages=messages, max_completion_tokens=16
+                    )
+        except Exception as error:
+            return self._describe_connection_error(error)
+        return None
+
+    @staticmethod
+    def _describe_connection_error(error) -> str:
+        try:
+            import openai
+            if isinstance(error, openai.AuthenticationError):
+                return _("the API key was rejected")
+            if isinstance(error, openai.PermissionDeniedError):
+                return _("the API key cannot use this model")
+            if isinstance(error, openai.NotFoundError):
+                return _("the endpoint or model was not found")
+            if isinstance(error, openai.RateLimitError):
+                return _("the provider rate limited the request")
+            if isinstance(error, openai.APITimeoutError):
+                return _("the endpoint timed out")
+            if isinstance(error, openai.APIConnectionError):
+                return _("the endpoint could not be reached")
+        except Exception:
+            pass
+        lines = [line.strip() for line in str(error).splitlines() if line.strip()]
+        return (lines[0] if lines else type(error).__name__)[:400]
 
     def supports_audio(self) -> bool:
         return bool(self.get_setting("audio_input", False, False)) and not self.uses_responses_api()
