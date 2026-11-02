@@ -1011,6 +1011,9 @@ class NewelleController(WorkspaceController):
         if self.chats[chat_id].get("workspace_id") != self.folders[folder_id].get("workspace_id"):
             return
         self.remove_chat_from_folder(chat_id, save=False)
+        # A chat dropped into a folder leaves its branch parent behind:
+        # folder nesting replaces branch nesting in the sidebar.
+        self.chats[chat_id]["branched_from"] = None
         if folder_id in self.folders:
             if chat_id not in self.folders[folder_id]["chat_ids"]:
                 self.folders[folder_id]["chat_ids"].append(chat_id)
@@ -1028,6 +1031,29 @@ class NewelleController(WorkspaceController):
                     if self.ui_controller is not None:
                         GLib.idle_add(self.ui_controller.update_history)
                 return
+
+    def move_chat_to_top_level(self, chat_id: int):
+        """Move a chat to the top level, leaving its folder and its branch parent.
+
+        Used when a chat is dragged away from the chat it was branched from:
+        the chat stops nesting under its parent and becomes standalone.
+        """
+        chat = self.chats.get(chat_id)
+        if chat is None:
+            return
+        changed = False
+        for folder in self.folders.values():
+            if chat_id in folder["chat_ids"]:
+                folder["chat_ids"].remove(chat_id)
+                changed = True
+        if chat.get("branched_from") is not None:
+            chat["branched_from"] = None
+            changed = True
+        if not changed:
+            return
+        self.save_chats()
+        if self.ui_controller is not None:
+            GLib.idle_add(self.ui_controller.update_history)
 
     def get_folder_for_chat(self, chat_id: int):
         """Return the folder_id containing this chat, or None."""
@@ -1892,6 +1918,10 @@ class NewelleController(WorkspaceController):
                     tool.name, is_enabled, mode_name
                 )
 
+            # Memory tools are meaningless without Long Term Memory, whatever the Mode says
+            if tool.tools_group == "Memory" and not request_settings.memory_on:
+                is_enabled = False
+
             if is_enabled:
                 enabled_tools.append(tool)
 
@@ -2211,6 +2241,17 @@ class NewelleController(WorkspaceController):
             self.settings.set_string("current-profile", profile_name)
         apply_profile_settings(self.settings, profiles, profile_name, SETTINGS_GROUPS)
         return True
+
+    def restore_current_profile(self):
+        """Load the saved values of the current profile into the live settings.
+
+        Profile switches are not persisted to GSettings, so after a restart the
+        stored profile keys can belong to a different profile than
+        ``current-profile``. The saved profile is the source of truth; keeping
+        the stale values would overwrite its own groups on the next save.
+        """
+        profiles = self._load_profiles()
+        apply_profile_settings(self.settings, profiles, self.settings.get_string("current-profile"), SETTINGS_GROUPS)
 
     def update_current_profile(self):
         """Save the live settings into the current profile and the profiles it inherits from"""
@@ -2733,6 +2774,8 @@ class NewelleController(WorkspaceController):
                 enabled = mode_manager.resolve_tool_enabled(
                     tool.name, enabled, mode_name
                 )
+            if tool.tools_group == "Memory" and not request_settings.memory_on:
+                enabled = False
             enabled_tools[tool.name] = enabled
         return self.tools.get_tools_prompt(
             enabled_tools_dict=enabled_tools,
@@ -3435,7 +3478,8 @@ class NewelleController(WorkspaceController):
                 if model.stream_enabled() and not tool_calls and on_message_callback:
                     on_message_callback(response)
                 
-                if not tool_calls or final_synthesis_turn:
+                # A stopped response may still contain tool calls that must not run.
+                if not tool_calls or final_synthesis_turn or stop_generation_event.is_set():
                     final_content = response_text if not tool_calls else text_content
                     msg_uuid = int(uuid_lib.uuid4())
                     assistant_entry = {

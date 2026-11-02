@@ -14,6 +14,16 @@ from ...utility.message_chunk import get_message_chunks
 _ = gettext.gettext
 SCHEMA_ID = "moe.nyarchlinux.assistant"
 
+# Treat "close enough" as the bottom: rows are laid out asynchronously and an
+# exact match is rarely reached while content is still growing.
+_SCROLL_BOTTOM_TOLERANCE_PX = 8.0
+# Ignore small upward movements: relayouting a message (widgets removed and
+# re-added, expanders animating) can lower the adjustment value without any
+# user input, which must not stop auto-following. Wheel and touchpad gestures
+# are handled separately by _on_user_scroll, so this only filters per-event
+# drifts rather than real scrolling.
+_USER_SCROLL_PAUSE_PX = 24.0
+
 
 class ChatHistory(Gtk.Box):
     __gsignals__ = {
@@ -481,9 +491,8 @@ class ChatHistory(Gtk.Box):
         roots = list(self.messages_box)
         roots.extend(box.editing_message for box in self._message_bubbles()
                      if getattr(box, "editing_message", None) is not None)
-        # The active streaming row is intentionally removed from
-        # ``messages_box`` bookkeeping until generation finishes, but it is
-        # still a live child of the ListBox and must participate in toggles.
+        # Include live rows as well as bookkeeping roots for lazy wrappers
+        # and compact message layouts.
         row = self.chat_list_block.get_first_child()
         while row is not None:
             roots.append(row)
@@ -506,11 +515,21 @@ class ChatHistory(Gtk.Box):
 
     def begin_streaming_scroll(self, force_follow=False):
         """Start a stream, preserving a paused scroll during automatic continuations."""
-        adjustment = self.chat_scroll.get_vadjustment()
-        if force_follow or self._is_at_bottom(adjustment):
+        return self.scroll_to_bottom(
+            force_follow or self._is_at_bottom(self.chat_scroll.get_vadjustment())
+        )
+
+    def scroll_to_bottom(self, force=False):
+        """Follow the newest content, optionally overriding a paused scroll.
+
+        Tool results that need the user (command confirmations, questions) are
+        inserted and expanded once the model turn has ended, i.e. while
+        following may already be paused. Such prompts are useless below the
+        viewport, so callers pass ``force`` to bring them back into view.
+        """
+        if force:
             self._follow_new_content = True
-        self.scrolled_chat()
-        return GLib.SOURCE_REMOVE
+        return self.scrolled_chat()
 
     def scrolled_chat(self):
         """Follow new content only while the user has not scrolled away."""
@@ -540,7 +559,7 @@ class ChatHistory(Gtk.Box):
         return GLib.SOURCE_REMOVE
 
     @staticmethod
-    def _is_at_bottom(adjustment, tolerance=2.0):
+    def _is_at_bottom(adjustment, tolerance=_SCROLL_BOTTOM_TOLERANCE_PX):
         bottom = max(
             adjustment.get_lower(),
             adjustment.get_upper() - adjustment.get_page_size(),
@@ -1363,7 +1382,7 @@ class ChatHistory(Gtk.Box):
         box.message_controls = []
 
     def _message_bubbles(self):
-        """Include lazy wrappers and completed streaming rows outside messages_box."""
+        """Find message wrappers in bookkeeping and the live ListBox."""
         roots = list(self.messages_box)
         row = self.chat_list_block.get_first_child()
         while row is not None:
@@ -1372,9 +1391,11 @@ class ChatHistory(Gtk.Box):
         seen = set()
         while roots:
             widget = roots.pop()
-            if id(widget) in seen:
+            if widget in seen:
                 continue
-            seen.add(id(widget))
+            # Retain wrappers: GTK may recreate intermediate Python objects,
+            # whose recycled ids could otherwise skip a different subtree.
+            seen.add(widget)
             if hasattr(widget, "message_index"):
                 yield widget
                 continue
@@ -1383,7 +1404,7 @@ class ChatHistory(Gtk.Box):
                 roots.append(child)
                 child = child.get_next_sibling()
 
-    def _reconcile_deleted_tool_groups(self, messages, removed):
+    def _reconcile_deleted_tool_groups(self, messages, removed, regroup=True):
         """Transfer live expanders and regroup surviving slots without restoring tools."""
         for message in removed:
             # Invalidate any queued initial render of a now-deleted message.
@@ -1395,6 +1416,19 @@ class ChatHistory(Gtk.Box):
                 for widget in list(message._compact_moved_widgets):
                     group.remove_auxiliary_widget(widget)
                 message._compact_moved_widgets.clear()
+
+        if not regroup:
+            # Truncating the tail leaves all surviving indices and chains
+            # intact. Keep their widgets instead of reparsing those chains.
+            removed = set(removed)
+            self._compact_tool_groups = {
+                start: group for start, group in self._compact_tool_groups.items()
+                if group.owner_message not in removed
+            }
+            self._active_compact_tool_group = next(
+                reversed(self._compact_tool_groups.values()), None
+            )
+            return
 
         survivors = [message for message in messages if message not in removed]
         groups = {}
@@ -1422,6 +1456,72 @@ class ChatHistory(Gtk.Box):
         if self.controller.newelle_settings.compact_mode:
             for message in survivors:
                 self.prune_compact_message_row(message)
+
+    def remove_chat_suffix(self, start):
+        """Remove a response and its live row without rebuilding older messages."""
+        if not 0 <= start <= len(self.chat):
+            return
+
+        self._deletion_generation += 1
+        generation = self._deletion_generation
+        self._deletion_scroll_pending = True
+        if self._scroll_to_bottom_source_id is not None:
+            GLib.source_remove(self._scroll_to_bottom_source_id)
+            self._scroll_to_bottom_source_id = None
+
+        bubbles = list(self._message_bubbles())
+        rows = {
+            bubble.get_ancestor(Gtk.ListBoxRow) for bubble in bubbles
+            if bubble.message_index is not None and bubble.message_index >= start
+        }
+        if self.last_error_box is not None:
+            rows.add(self.last_error_box.get_ancestor(Gtk.ListBoxRow))
+
+        messages = list(self._message_widgets())
+        removed = [message for message in messages if message.id_message >= start]
+        rows.update(message.get_ancestor(Gtk.ListBoxRow) for message in removed)
+        rows.discard(None)
+        for message in removed:
+            message.cancel_streaming()
+        self._reconcile_deleted_tool_groups(messages, removed, regroup=False)
+
+        del self.chat[start:]
+        self.edit_entries = {i: entry for i, entry in self.edit_entries.items() if i < start}
+        self.lazy_loaded_start = min(self.lazy_loaded_start, start)
+        self.lazy_loaded_end = min(self.lazy_loaded_end, start)
+        if self._pending_load_range is not None:
+            self._pending_load_range[:] = [min(i, start) for i in self._pending_load_range]
+        self.messages_box[:] = [box for box in self.messages_box
+                                if box.get_ancestor(Gtk.ListBoxRow) not in rows]
+        for row in rows:
+            self._compact_hidden_rows.discard(row)
+            self.chat_list_block.remove(row)
+        self.last_error_box = None
+        self.refresh_compaction_marker()
+        if not self.chat:
+            self.show_placeholder()
+
+        # Ignore adjustment changes until GTK has allocated the shorter list.
+        # A tail removal does not move surviving rows, so a paused viewport
+        # needs no repositioning; an actively followed chat stays at the bottom.
+        first_frame = True
+
+        def finish_removal(_widget, _clock):
+            nonlocal first_frame
+            if generation != self._deletion_generation:
+                return GLib.SOURCE_REMOVE
+            if first_frame:
+                first_frame = False
+                return GLib.SOURCE_CONTINUE
+            self._deletion_scroll_pending = False
+            self._last_scroll_value = self.chat_scroll.get_vadjustment().get_value()
+            self.scrolled_chat()
+            return GLib.SOURCE_REMOVE
+
+        if self.get_mapped():
+            self.chat_list_block.add_tick_callback(finish_removal)
+        else:
+            self._deletion_scroll_pending = False
 
     def delete_message(self, gesture, box):
         """Remove one record and its Console results without rebuilding the chat."""
@@ -1740,7 +1840,7 @@ class ChatHistory(Gtk.Box):
         at_bottom = self._is_at_bottom(adjustment)
         moved_up = (
             self._last_scroll_value is not None
-            and value < self._last_scroll_value - 1.0
+            and value < self._last_scroll_value - _USER_SCROLL_PAUSE_PX
         )
         if self._programmatic_scroll:
             self._last_scroll_value = value
