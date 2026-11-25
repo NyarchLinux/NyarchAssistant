@@ -89,6 +89,7 @@ class Live2DHandler(AvatarHandler):
                 "default": 100,
                 "round-digits": 0
             },
+            ExtraSettings.ToggleSetting("reset-expression", _("Reset Expression"), _("Reset the expression at the end of the message"), False),
             ExtraSettings.NestedSetting("em", "Expression Manager", "Rename expressions in order to make them more understandable for the LLM. Avoid duplicates.", 
                 self.get_expression_manager()
             )
@@ -306,6 +307,11 @@ class Live2DHandler(AvatarHandler):
             return
         self._run_js("set_expression('{}')".format(exp))
            
+    def speak_with_tts(self, text: str, tts: TTSHandler, translator):
+        super().speak_with_tts(text, tts, translator)
+        if self.get_setting("reset-expression", False, False):
+            self._run_js("model_proxy.internalModel.motionManager.expressionManager?.resetExpression()")
+
     def speak(self, path: str, tts: TTSHandler, frame_rate: int):
         # LivePNG-based lipsync: model.speak drives frame-by-frame mouth animation
         # from the complete audio file.
