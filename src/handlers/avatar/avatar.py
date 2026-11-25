@@ -92,10 +92,17 @@ class AvatarHandler(Handler):
         self.stop_request = False
         self.lock.acquire()
         try:
-            for chunk in chunks:
+            audio = self._prefetch_audio(chunks[0]["text"], tts, translator) if chunks else None
+            for i, chunk in enumerate(chunks):
                 if self.stop_request:
                     self.stop_request = False
                     break
+
+                # Synthesize the next chunk while this one plays, so there is no
+                # silence between them
+                next_audio = None
+                if i + 1 < len(chunks):
+                    next_audio = self._prefetch_audio(chunks[i + 1]["text"], tts, translator)
 
                 # Apply expression / motion immediately (before audio starts)
                 if chunk["expression"] is not None:
@@ -104,21 +111,40 @@ class AvatarHandler(Handler):
                     elif chunk["expression"] in self.get_motions():
                         self.do_motion(chunk["expression"])
 
-                if not chunk["text"] or not chunk["text"].strip():
-                    continue
-
-                text = chunk["text"]
-                if translator is not None:
-                    text = translator.translate(text)
-
-                self.speak_stream(
-                    tts.get_audio_stream(text),
-                    tts.get_stream_format_args(),
-                    tts,
-                    frame_rate,
-                )
+                if audio is not None:
+                    self.speak_stream(
+                        audio,
+                        tts.get_stream_format_args(),
+                        tts,
+                        frame_rate,
+                    )
+                audio = next_audio
         finally:
             self.lock.release()
+
+    def _prefetch_audio(self, text: str | None, tts: TTSHandler, translator: TranslatorHandler):
+        """Start fetching the audio for text in the background.
+
+        Returns an iterator over the audio bytes as they arrive, or None if
+        there is nothing to say.
+        """
+        if not text or not text.strip():
+            return None
+        buffer: queue.Queue = queue.Queue()
+        def fetch():
+            try:
+                to_speak = translator.translate(text) if translator is not None else text
+                for data in tts.get_audio_stream(to_speak):
+                    buffer.put(data)
+            except Exception as e:
+                print(f"TTS prefetch error: {e}")
+            finally:
+                buffer.put(None)
+        threading.Thread(target=fetch, daemon=True).start()
+        def read():
+            while (data := buffer.get()) is not None:
+                yield data
+        return read()
 
     def _speak_with_tts_file_based(self, chunks: list, tts: TTSHandler, translator: TranslatorHandler, frame_rate: int):
         """Speak using file-based TTS (existing approach)"""
