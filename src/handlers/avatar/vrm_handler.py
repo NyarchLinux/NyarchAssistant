@@ -173,23 +173,21 @@ class VRMHandler(AvatarHandler):
         return self._expressions_raw 
 
     def convert_motion(self, motion: str):
-        if motion in self.get_motions_raw():
+        motions_raw = self.get_motions_raw()
+        if motion in motions_raw:
             return motion
-        for motion in self.get_motions_raw():
-            name = self.get_setting("Expression " + motion, False)
-            if name is not None:
-                if name == motion:
-                    return motion
+        for raw in motions_raw:
+            if self.get_setting("Expression " + raw, False) == motion:
+                return raw
         return None
 
     def convert_expression(self, expression: str):
-        if expression in self.get_expressions_raw():
+        expressions_raw = self.get_expressions_raw()
+        if expression in expressions_raw:
             return expression
-        for expression in self.get_expressions_raw():
-            name = self.get_setting("Expression " + expression, False)
-            if name is not None:
-                if name == expression:
-                    return expression
+        for raw in expressions_raw:
+            if self.get_setting("Expression " + raw, False) == expression:
+                return raw
         return None
 
     def get_expressions(self) -> list[str]:

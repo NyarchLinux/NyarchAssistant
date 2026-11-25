@@ -629,13 +629,13 @@ def extract_expressions(text, expressions_list):
     tokens = text.split()
     i = 0
     while i < len(tokens):
-        tokens[i] = tokens[i]
-        token = tokens[i].rstrip(".").rstrip("?").rstrip("!").rstrip(",")
+        token = tokens[i].rstrip(".?!,")
         if token.startswith("(") and token.endswith(")"):
-            expression = tokens[i][1:-1]
-            if expression in [exp.replace("_", "") for exp in expressions_list]:
-                if expression not in expressions:
-                    expression = expressions_list[[exp.replace("_", "") for exp in expressions_list].index(expression)]
+            expression = token[1:-1]
+            without_underscores = [exp.replace("_", "") for exp in expressions_list]
+            if expression not in expressions_list and expression in without_underscores:
+                expression = expressions_list[without_underscores.index(expression)]
+            if expression in expressions_list:
                 if current_text.strip():
                     expressions.append({"expression": current_expression, "text": current_text.strip()})
                     current_text = ""
